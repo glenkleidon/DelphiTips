@@ -3,16 +3,32 @@ unit MiniTestFramework;
 
 interface
 
-uses System.SysUtils,
-  System.Generics.collections,
-  System.rtti;
+uses SysUtils, Generics.collections, windows, rtti
+   {$IF CompilerVersion <= 21.0}
+      {$DEFINE HAS_INLINE}
+   {$IFEND}
+  ;
 
 Const
   PASS_FAIL: array[0..2] of string = ('PASS', 'SKIP', 'FAIL');
   FOREGROUND_DEFAULT=7;
   SKIPPED = True;
 
+const
+  DEFAULT_SCREEN_WIDTH=80;
+  FOREGROUND_CYAN=3;
+  FOREGROUND_YELLOW=6;
+  FOREGROUND_PURPLE=5;
+
+  clTitle = FOREGROUND_YELLOW;
+  clError = FOREGROUND_RED;
+  clPass  = FOREGROUND_GREEN;
+  clMessage=FOREGROUND_CYAN;
+  clDefault=FOREGROUND_DEFAULT;
+  clSkipped=FOREGROUND_PURPLE;
+
 var
+  ExpectedException,
   CurrentTestClass, CurrentTestCase: string;
   TotalPassedTestCases : integer =0;
   TotalFailedTestCases : integer =0;
@@ -30,6 +46,7 @@ Function  CheckIsTrue(AResult: boolean; AMessage: string = ''; ASkipped: boolean
 Function  CheckIsFalse(AResult: boolean; AMessage: string = ''; ASkipped: boolean=false): boolean;
 Function  CheckNotEqual(AResult1, AResult2: TValue;
   AMessage: string = ''; ASkipped: boolean=false): boolean;
+Procedure  ExpectException(AExceptionClassName: string);
 Function  NotImplemented(AMessage: string=''):boolean;
 Function  TotalTests: integer;
 Procedure TestSummary;
@@ -40,7 +57,6 @@ Procedure Print(AText: String; AColour: smallint = FOREGROUND_DEFAULT);
 Procedure PrintLn(AText: String; AColour: smallint = FOREGROUND_DEFAULT);
 
 implementation
-uses windows;
 
 var
   SameTestCounter :integer = 0;
@@ -48,18 +64,6 @@ var
 
 
 ///////////  SCREEN MANAGEMENT \\\\\\\\\\\\\\\\\
-const
-  DEFAULT_SCREEN_WIDTH=80;
-  FOREGROUND_CYAN=3;
-  FOREGROUND_YELLOW=6;
-  FOREGROUND_PURPLE=5;
-
-  clTitle = FOREGROUND_YELLOW;
-  clError = FOREGROUND_RED;
-  clPass  = FOREGROUND_GREEN;
-  clMessage=FOREGROUND_CYAN;
-  clDefault=FOREGROUND_DEFAULT;
-  clSkipped=FOREGROUND_PURPLE;
 
 var
   Screen_width: Integer =-1;
@@ -130,8 +134,8 @@ Procedure Title(AText: string);
 var PreSpace,PostSpace, TitleSpace:integer;
 begin
   TitleSpace := ConsoleScreenWidth-4;
-  PreSpace :=  trunc((TitleSpace-AText.Length)/2);
-  PostSpace := TitleSpace-PreSpace-AText.Length;
+  PreSpace :=  trunc((TitleSpace-Length(AText))/2);
+  PostSpace := TitleSpace-PreSpace-Length(AText);
   SetTextColour(clDefault);
   DoubleLine;
   Print(StringOfChar('=',PreSpace));
@@ -234,7 +238,13 @@ begin
   LastTestCase := '';
   CurrentTestCase:='';
   CurrentTestClass:=AClassName;
+  ExpectedException := '';
 
+end;
+
+Procedure  ExpectException(AExceptionClassName: string);
+begin
+  ExpectedException := '';
 end;
 
 Function Check(IsEqual: boolean; AExpected, AResult: TValue;
@@ -252,7 +262,7 @@ begin
     if ASkipped then
     begin
       lResult:=1;
-      if Amessage='' then lMessage:='Test Skipped'
+      if Amessage='' then lMessage:=' Test Skipped'
        else lMessage := ' '+AMessage;
       lMessageColour := clSkipped;
       inc(SetSkippedTestCases);
@@ -275,20 +285,30 @@ begin
             lMessage := format('%s   Expected outcomes to differ, but both returned %s%s',
              [#13#10, AExpected.ToString]);
         end;
+        exit;
       end;
       inc(SetPassedTestCases);
     except
       on e: exception do
       begin
-        lResult := 2;
-        lMessage := e.Message;
-        inc(SetErrors);
+        if (e.ClassName=ExpectedException) then
+        begin
+          // At this level, it will only be exceptions
+          // for Variant type comparisons
+          lResult := 0;
+          inc(SetPassedTestCases);
+        end else
+        begin
+          lResult := 2;
+          lMessage := e.Message;
+          inc(SetErrors);
+        end;
       end;
     end;
   finally
     if LastTestCase=CurrentTestCase then inc(SameTestCounter) else SameTestCounter:=1;
     LastTestCase := CurrentTestCase;
-    if SameTestCounter=1 then lCounter := '' else lCounter := '-'+SameTestCounter.ToString;
+    if SameTestCounter=1 then lCounter := '' else lCounter := '-'+InttoStr(SameTestCounter);
     if CurrentTestCase = '' then
     begin
      CurrentTestCase:=copy('Test for '+CurrentTestClass,1,ConsoleScreenWidth-4);
