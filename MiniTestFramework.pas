@@ -3,18 +3,13 @@ unit MiniTestFramework;
 
 interface
 
-uses SysUtils, Generics.collections, windows, rtti
-   {$IF CompilerVersion <= 21.0}
-      {$DEFINE HAS_INLINE}
-   {$IFEND}
-  ;
+uses SysUtils, windows, Variants;
 
 Const
   PASS_FAIL: array[0..2] of string = ('PASS', 'SKIP', 'FAIL');
   FOREGROUND_DEFAULT=7;
   SKIPPED = True;
 
-const
   DEFAULT_SCREEN_WIDTH=80;
   FOREGROUND_CYAN=3;
   FOREGROUND_YELLOW=6;
@@ -26,7 +21,8 @@ const
   clMessage=FOREGROUND_CYAN;
   clDefault=FOREGROUND_DEFAULT;
   clSkipped=FOREGROUND_PURPLE;
-
+Type
+  TComparitorType = Variant;
 var
   ExpectedException,
   CurrentTestClass, CurrentTestCase: string;
@@ -40,11 +36,11 @@ var
 
 Procedure Title(AText: string);
 Procedure NewTestCase(ACase: string; ATestClassName: string = '');
-Function  CheckIsEqual(AExpected, AResult: TValue;
+Function  CheckIsEqual(AExpected, AResult: TComparitorType;
   AMessage: string = ''; ASkipped: boolean=false): boolean;
 Function  CheckIsTrue(AResult: boolean; AMessage: string = ''; ASkipped: boolean=false): boolean;
 Function  CheckIsFalse(AResult: boolean; AMessage: string = ''; ASkipped: boolean=false): boolean;
-Function  CheckNotEqual(AResult1, AResult2: TValue;
+Function  CheckNotEqual(AResult1, AResult2: TComparitorType;
   AMessage: string = ''; ASkipped: boolean=false): boolean;
 Procedure  ExpectException(AExceptionClassName: string);
 Function  NotImplemented(AMessage: string=''):boolean;
@@ -247,7 +243,103 @@ begin
   ExpectedException := '';
 end;
 
-Function Check(IsEqual: boolean; AExpected, AResult: TValue;
+function ValueAsString(AValue: TComparitorType): string;
+begin
+  case varType(AValue) of
+    varEmpty : Result := 'Empty';
+    varNull  : Result := 'null';
+    varSingle,
+    varDouble,
+    varCurrency : Result := FloatToStr(AValue);
+    varDate     : Result := FormatDateTime('yyyy-mm-dd hh:nn:ss.zzz',Avalue);
+    varBoolean : If (AValue) Then Result := 'True' else Result := 'False';
+
+    varSmallint,
+    varInteger,
+    varVariant,
+    varShortInt,
+    varByte,
+    varWord,
+    varLongWord,
+    varInt64    : Result := IntToStr(AValue);
+
+    varOleStr,
+    varStrArg,
+    varString    : Result := AValue;
+
+  else
+    Result := 'Unsupported Type';
+  end;
+
+end;
+
+Function CompareValues(AExpected, AResult : TComparitorType):boolean;
+var lExpectedType,
+    lResultType :  TVarType;
+    lExpectedIsInteger,
+    lExpectedIsNumber,
+    lExpectedIsString,
+    lResultIsInteger,
+    lResultIsNumber,
+    lResultIsString : Boolean;
+begin
+    Result := false;
+    lExpectedType := VarType(AExpected);
+    lResultType := VarType(AResult);
+
+    if (lExpectedType = lResultType) then
+    begin
+      Result :=  (AExpected=AResult);
+      exit;
+    end;
+
+    lResultIsInteger := lResultType in [varByte, varSmallint, varInteger, varShortInt
+                                         ,varWord,varLongWord,varInt64];
+    if (lExpectedType = VarBoolean) and
+       (lResultIsInteger) then
+    begin
+      Result := (AExpected=(AResult=0));
+      exit;
+    end;
+
+    lExpectedIsInteger := lExpectedType in [varByte, varSmallint, varInteger, varShortInt
+                                             ,varWord,varLongWord,varInt64];
+
+    if (lExpectedIsInteger and lResultIsInteger) then
+    begin
+      Result := varAsType(AExpected,varInt64)=VarAsType(Aresult,varInt64) ;
+      exit;
+    end;
+
+    if (lResultType = VarBoolean) and (lExpectedIsInteger) then
+    begin
+      Result := (AExpected=0)=AResult;
+      exit;
+    end;
+
+    lExpectedIsNumber := (lExpectedisInteger) or
+       (lExpectedType in [varSingle,varDouble,varCurrency]);
+    lResultIsNumber := (lResultIsInteger) or
+       (lResultType in [varSingle,varDouble,varCurrency]);
+
+    if (lExpectedIsNumber and lResultIsNumber) then
+    begin
+      result := double(AExpected)=double(AResult);
+      exit;
+    end;
+
+    lExpectedIsString := (lExpectedType=varString) or
+           (lExpectedType in [varOleStr, varStrArg]);
+    lResultIsString := (lResultType=varString) or
+           (lResultType in [varOleStr, varStrArg]);
+    if (lExpectedIsString and lResultIsString) then
+    begin
+       result := AResult = AExpected;
+       exit;
+    end;
+end;
+
+Function Check(IsEqual: boolean; AExpected, AResult: TComparitorType;
   AMessage: string; ASkipped: boolean): boolean;
 var
   lMessage,lCounter: string;
@@ -270,7 +362,7 @@ begin
     end;
     try
       lMessage := '';
-      Outcome := AExpected.ToString = AResult.ToString;
+      Outcome := CompareValues(AExpected,AResult);
       if IsEqual<>Outcome then
       begin
         lResult := 2;
@@ -280,10 +372,10 @@ begin
           lMessageColour := clMessage;
           if isEqual then
             lMessage := format('%s   Expected:<%s>%s   Actual  :<%s>',
-             [#13#10, AExpected.ToString, #13#10, AResult.ToString])
+             [#13#10, ValueAsString(AExpected), #13#10, ValueAsString(AResult)])
           else
             lMessage := format('%s   Expected outcomes to differ, but both returned %s%s',
-             [#13#10, AExpected.ToString]);
+             [#13#10, ValueAsString(AExpected)]);
         end;
         exit;
       end;
@@ -327,13 +419,13 @@ begin
   end;
 end;
 
-Function CheckIsEqual(AExpected, AResult: TValue;
+Function CheckIsEqual(AExpected, AResult: TComparitorType;
   AMessage: string = '';ASkipped: boolean=false): boolean;
 begin
   Result := check(true,AExpected, AResult, Amessage, ASkipped);
 end;
 
-Function CheckNotEqual(AResult1, AResult2: TValue;
+Function CheckNotEqual(AResult1, AResult2: TComparitorType;
   AMessage: string; ASkipped: boolean): boolean;
 begin
   Result := check(false,AResult1, AResult2, Amessage, ASkipped);
@@ -373,6 +465,8 @@ begin
 end;
 
 initialization
-  system.ReportMemoryLeaksOnShutdown := True;
+  {$IF CompilerVersion >= 20.0}
+    system.ReportMemoryLeaksOnShutdown := True;
+  {$IFEND}
 
 end.
