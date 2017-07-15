@@ -6,6 +6,14 @@ The [Mini Test framework](https://github.com/glenkleidon/DelphiTips/wiki/Mini-Te
 include the single MiniTestFrameWork.pas in a console app, and start testing your code.
 Check out the [Blog here](https://glenkleidon.blogspot.com.au/2017/07/new-mini-test-framework-for-delphi.html)
 
+### Added Features: 
+  + Test Run support
+  + Set level Skipping
+  + Set level Expected Exceptions
+  + Project Templates
+  
+See the updated wiki!
+
 ### Updated Support
 Now Supports All versions of Delphi back to Delphi 7 (and probably 4).  This has been tested on:
 
@@ -21,11 +29,4 @@ If using versions of Delphi 2005 or 2006, You may have trouble with the
 2007 DPROJ file in the Test Unit and the Project Template folders.  If you 
 do have trouble, simply remove the DPROJ file and get Delphi to rebuild from the
 DPR file.
-
-### Added Features: 
-  + Test Run support
-  + Set level Skipping
-  + Set level Expected Exceptions
-  
-See the updated wiki!
 
