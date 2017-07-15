@@ -5,3 +5,4 @@ __history/
 *.exe
 *.~pas
 *.~dpr
+*.stat

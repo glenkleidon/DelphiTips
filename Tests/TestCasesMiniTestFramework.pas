@@ -6,20 +6,91 @@ interface
 var TestingPasses: integer = 0;
     TestingSkips: integer = 0;
     TestingFails: integer = 0;
+    TestingErrors: integer = 0;
+
+    TotalPasses: integer = 0;
+    TotalSkips: integer = 0;
+    TotalFails: integer = 0;
+    TotalErrors: integer = 0;
 
 
 procedure CheckIsTrue_works_as_expected;
 Procedure CheckIsEqual_works_as_Expected;
 Procedure Test_Skip_works_as_expected;
+Procedure PrepareCounters;
+Procedure Test_Expected_Exception_passes;
+Procedure Test_Unexpected_Exception_Raises_Error;
+Procedure Test_Set_level_Skips_work_as_expected;
+Procedure Check_That_Test_Cases_Ran_Correctly;
 
 implementation
 uses sysutils;
+
+Procedure Check_That_Test_Cases_Ran_Correctly;
+begin
+  NewTestSet ('Check Test Cases Ran Correctly');
+  newTestCase('Has correct # of Tests (including Prep and Finalise)');
+  checkIsTrue(length(MiniTestCases)=5);
+  NewTestCase('Has correct # of Errored Tests');
+  checkIsTrue(TotalErroredTestCases=TotalErrors+1);
+  NewTestCase('Has correct # of Skipped Tests');
+  checkIsTrue(TotalSkippedTestCases=TotalSkips+1); // the one above expected to pass
+  NewTestCase('Has correct # of Passed Tests');
+  checkIsTrue(TotalPassedTestCases=TotalPasses+2); // the one above expected to pass
+  if (TotalErroredTestCases=TotalErrors+1) then
+  begin
+   Println('The Error in the run is planned so that "passes"', clMessage);
+   TotalErroredTestCases := 0;
+   Inc(TotalPassedTestCases);
+  end else
+  begin
+   Println('Wrong Number of Errors, only 1 expected!', FOREGROUND_YELLOW);
+  end;
+
+  if (TotalSkippedTestCases=TotalSkips+1) then
+  begin
+   Println('The  Skip in the run is planned so that "passes"', clMessage);
+   TotalSkippedTestCases := 0;
+   Inc(TotalPassedTestCases);
+  end else
+  begin
+   Println('Wrong Number of Skips, only 1 expected!', FOREGROUND_YELLOW);
+  end;
+
+end;
 
 procedure UpdateCounters;
 begin
    TestingPasses := MiniTestFramework.SetPassedTestCases;
    TestingFails  := MiniTestFramework.SetFailedTestCases;
    TestingSkips  := MiniTestFramework.SetSkippedTestCases;
+   TestingErrors  := MiniTestFramework.SetErrors;
+end;
+
+procedure UpdateTotalCounters;
+begin
+   TotalPasses := MiniTestFramework.TotalPassedTestCases;
+   TotalFails  := MiniTestFramework.TotalFailedTestCases;
+   TotalSkips  := MiniTestFramework.TotalSkippedTestCases;
+   TotalErrors := MiniTestFramework.TotalErroredTestCases;
+end;
+
+Procedure PrepareCounters;
+begin
+  NewTestSet('');
+  UpdateTotalCounters;
+end;
+
+Procedure Test_Expected_Exception_passes;
+begin
+  ExpectedException := 'Expected Exception';
+  raise exception.create('Expected Exception');
+end;
+
+Procedure Test_Unexpected_Exception_Raises_Error;
+begin
+  ExpectedException := '';
+  raise exception.create('Unexpected Expected Exception');
 end;
 
 procedure CheckIsTrue_works_as_expected;
@@ -133,6 +204,16 @@ begin
    SetSkippedTestCases := SetSkippedTestCases - (expectedSkips-TestingSkips);
    setFailedTestCases := setFailedTestCases + (expectedSkips-TestingSkips);
  end;
+
+end;
+
+Procedure Test_Set_level_Skips_work_as_expected;
+begin
+  NewTestCase('Test 4 should Skip (Set Level skip)');
+  checkisEqual('ABC','A'+'B'+'C',''); // skipped by set level
+
+  NewTestCase('Test 4 should Pass (Using Dont Skip)');
+  checkisEqual('ABC','A'+'B'+'C','',DONTSKIP); // decide to run this one after all
 
 end;
 

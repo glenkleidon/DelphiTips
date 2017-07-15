@@ -1,0 +1,48 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{DA64F8C2-9671-4D38-BA76-65C0717D65FF}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="TestMiniTestFramework.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\projectTemplates\MiniTest\MiniTestProject.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="TestMiniTestFramework">
+        <MSBuild Projects="TestMiniTestFramework.dproj"/>
+    </Target>
+    <Target Name="TestMiniTestFramework:Clean">
+        <MSBuild Projects="TestMiniTestFramework.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="TestMiniTestFramework:Make">
+        <MSBuild Projects="TestMiniTestFramework.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="MiniTestProject">
+        <MSBuild Projects="..\projectTemplates\MiniTest\MiniTestProject.dproj"/>
+    </Target>
+    <Target Name="MiniTestProject:Clean">
+        <MSBuild Projects="..\projectTemplates\MiniTest\MiniTestProject.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="MiniTestProject:Make">
+        <MSBuild Projects="..\projectTemplates\MiniTest\MiniTestProject.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="TestMiniTestFramework;MiniTestProject"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="TestMiniTestFramework:Clean;MiniTestProject:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="TestMiniTestFramework:Make;MiniTestProject:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>
