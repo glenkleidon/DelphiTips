@@ -18,8 +18,8 @@ Now Supports All versions of Delphi back to Delphi 7 (and probably 4).  This has
 |8 &#9744;|2010 &#9745;|XE5 &#9745;|           |            |       |
 
 If using versions of Delphi 2005 or 2006, You may have trouble with the 
-2007 DPROJ file in the Test Unit and the Project Template folders.  IF you 
-do have trouble, simply remove the DPROJ file and get Delphi to rebild from the
+2007 DPROJ file in the Test Unit and the Project Template folders.  If you 
+do have trouble, simply remove the DPROJ file and get Delphi to rebuild from the
 DPR file.
 
 ### Added Features: 
