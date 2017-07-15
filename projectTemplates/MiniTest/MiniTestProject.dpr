@@ -4,7 +4,7 @@ program MiniTestProject;
 
 uses
   SysUtils,
-  MiniTestFramework,
+  MiniTestFramework in 'MiniTestFramework.pas',
   TestCases1 in 'TestCases1.pas';
 
 begin
