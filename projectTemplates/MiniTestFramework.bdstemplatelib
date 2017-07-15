@@ -1,0 +1,16 @@
+﻿ <TemplateLibrary Version="1.0" id="DVCProjectBundles">
+    <Name>MINITestFramework</Name>
+    <Description>MiniTest Unit Test Project </Description>
+    <Items>
+      <Item id="ProjectBundle" Creator="DelphiProjectRepositoryCreator">
+        <Name>MiniTest Testing Project</Name>
+        <Description>A MiniTest Unit Test Project</Description>
+        <Author></Author>
+        <Icon>MiniTest\MiniTest.ico</Icon>
+        <ProjectFile>MiniTestProject.dproj</ProjectFile>
+        <DefaultProjectName>MiniTestProject</DefaultProjectName>
+        <FilePath>MiniTest</FilePath>
+        <Identities>RadStudio</Identities>
+      </Item>
+    </Items>
+  </TemplateLibrary>
