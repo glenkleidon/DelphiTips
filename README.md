@@ -80,6 +80,28 @@ _Array of Records_
 RecordType=TMyRecord[]
 RecordCount=2
 ```
+The alternative format where each id is prefixed with the data type is also supported for Parsing (but will not be output in this format). Eg
+
+_Single Record_
+```
+TMyRecord.id=1
+TMyRecord.Name=Test1
+TMyRecord.isNew=True
+TMyRecord.Status=mrsBusy
+```
+_Array of Records_
+```
+TMyRecord[0].id=1
+TMyRecord[0].Name=Test1
+TMyRecord[0].isNew=True
+TMyRecord[0].Status=mrsBusy
+
+TMyRecord[1].id=1
+TMyRecord[1].Name=Test1
+TMyRecord[1].isNew=True
+TMyRecord[1].Status=mrsBusy
+```
+
 
 ### Line Endings
 Internally the string structure is managed as a TStringlist, so the line ending symantics are a consequence of that architecture. The  
