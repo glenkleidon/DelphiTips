@@ -78,10 +78,10 @@ RecordType=TMyRecord
 _Array of Records_
 ```
 RecordType=TMyRecord[]
-RecordTypeCount=2
+RecordCount=2
 ```
 
 ### Line Endings
 Internally the string structure is managed as a TStringlist, so the line ending symantics are a consequence of that architecture. The  
 
-The <CR> (Carriage Return, ASCII-13) cannot be represented as a single line in the TStringlist (by default) and consequently are always converted to <LF> (Line Feed, ASCII-10).  So <CRLF> becomes <LF>, <CR> becomes <LF>, <CRLF><LF> becomes <LF><LF>.  At this stage, to preserve <CR>, you must pre-process the string representation using an alternate encoding scheme (eg HTML encoding )
+The \<CR\> (Carriage Return, ASCII-13) cannot be represented as a single line in the TStringlist (by default) and consequently are always converted to \<LF\> (Line Feed, ASCII-10).  So \<CRLF\> becomes \<LF\>, \<CR\> becomes \<LF\>, \<CRLF\>\<LF\> becomes \<LF\>\<LF\>.  At this stage, to preserve \<CR\>, you must pre-process the string representation using an alternate encoding scheme (eg HTML encoding )
