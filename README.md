@@ -30,10 +30,10 @@ If using versions of Delphi 2005 or 2006, You may have trouble with the
 do have trouble, simply remove the DPROJ file and get Delphi to rebuild from the
 DPR file.
 
-## Record Utils - Utils for cloning, clearing, Convert to Value Pairs, Parse From Valuepairs (V1)
-Pascal Records are extremely useful for working with the Parallel Type Library because they are 
-automatically memory managed.  However because they are not classes, they difficult to automatically
-populate from Streamed Data.
+## Record Utils - Utils for cloning, clearing, serialising/Deserialising Pascal Record Types
+
+Pascal Records are extremely useful for working with the Parallel Type Library because they are automatically memory managed.  However  not not being classes, they are more difficult to automatically
+populate from Streamed Data without using published properties.
 
 The RecordUtils.pas file uses RTTI to automatically serialise and deserialse as value pairs. eg
 ```
@@ -68,4 +68,15 @@ id[1]=2
 Name[1]=Test2
 isNew[1]=false
 Status[1]=mrsNone
+```
+The Data Type and Array count can optionally be included in the data in the following way:
+
+_Single Record_
+```
+RecordType=TMyRecord
+```
+_Array of Records_
+```
+RecordType=TMyRecord[]
+RecordTypeCount=2
 ```
