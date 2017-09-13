@@ -30,3 +30,42 @@ If using versions of Delphi 2005 or 2006, You may have trouble with the
 do have trouble, simply remove the DPROJ file and get Delphi to rebuild from the
 DPR file.
 
+## Record Utils - Utils for cloning, clearing, Convert to Value Pairs, Parse From Valuepairs (V1)
+Pascal Records are extremely useful for working with the Parallel Type Library because they are 
+automatically memory managed.  However because they are not classes, they difficult to automatically
+populate from Streamed Data.
+
+The RecordUtils.pas file uses RTTI to automatically serialise and deserialse as value pairs. eg
+```
+TMyRecordStatus = (mrsNone, mrsBusy, mrsIdle); 
+TMyRecord=Record
+  id : integer;
+  Name: string;
+  isNew : boolean;
+  Status : TMyRecordStatus; // enum
+end;
+```
+
+WIll be serialised as 
+```
+id=1
+Name=Test1
+isNew=True
+Status=mrsBusy
+```
+### Supported Types
+Currently only the Data types Integer, String, Boolean and any Enumerated type are supported. _NESTED Records_ is not supported at this time. 
+
+### Support for Arrays
+Yes, arrays are supported.  The Above example as an array would be output as:
+```
+id[0]=1
+Name[0]=Test1
+isNew[0]=True
+Status[0]=mrsBusy
+
+id[1]=2
+Name[1]=Test2
+isNew[1]=false
+Status[1]=mrsNone
+```
