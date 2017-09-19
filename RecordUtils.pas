@@ -18,8 +18,12 @@ interface
        Procedure Parse(AText: String; AIndex: integer=-1); overload;
        Function AsValuePairs(AIndex:integer =-1): string; overload;
        Procedure AsValuePairs(AStrings:TStrings; AIndex:integer =-1); overload;
+       Function AsJSON : String; overload;
+       Procedure FromJSON(AJSON: string);
        class operator Implicit(ASerializable: TRecordSerializer<T>): T;
        class operator Implicit(ARecord: T): TRecordSerializer<T>;
+       class operator Implicit(AText: string): TRecordSerializer<T>;
+       class operator Implicit(ARecord: TRecordSerializer<T>): String;
    end;
 
    function IndexedName(AId: string; AIndex: integer=-1): string;
@@ -31,17 +35,36 @@ interface
    Function GetValuePairHeader(ATypeInfo: Pointer; APValue: Pointer): string;
    Procedure CloneRecord(ATypeInfo: Pointer; APRecordToClone: Pointer; APClonedRecord : Pointer );
    Procedure ClearRecord(ATypeInfo: Pointer; APValue: Pointer);
+   Function AsJSONPair(AId: string; AValue: string;AValueQuoted:boolean=true):string;
+   Function RecordAsJSON(ATypeInfo: Pointer; APValue: Pointer; AIndex: integer = -1): string;
+   Procedure ParseJSONtoRecord(AString: String; ATypeInfo: Pointer; APValue: Pointer);
+   Function JSONToValuePairs(AJSON:string):String;
 
 
 implementation
 
   uses System.TypInfo;
 
+Function JSONToValuePairs(AJSON:string):String;
+begin
+   // simple implementation assumes single object, no spacing
+   Result := AJSON
+       .Replace('{','')
+       .Replace('\"',#1,[rfReplaceAll])
+       .Replace('\\',#2,[rfReplaceAll])
+       .Replace('"','',[rfReplaceAll])
+       .Replace(':','=',[rfReplaceAll])
+       .Replace(',',#13#10,[rfReplaceAll])
+       .Replace(#1,'"',[rfReplaceAll])
+       .Replace(#2,'\',[rfReplaceAll])
+    ;
+    Result := copy(Result,1,Result.length-1);
+end;
+
 function IndexedName(AId: string; AIndex: integer=-1): string;
 begin
  if (Aindex<0) then Result := AId else Result := format('%s[%u]',[AId, AIndex]);
 end;
-
 
 Function ParseValuesToRecord(AStrings: TStrings; ATypeInfo: Pointer; APValue: Pointer; AIndex: integer = -1): string;
 var
@@ -55,8 +78,10 @@ var
   lTValue,lTDefaultValue : TValue;
   lValue : string;
   lInt: Int64;
+  lSingle: Single;
   lDouble: Double;
   Buffer : Pointer;
+  p:integer;
 begin
   lContext := TRTTIContext.Create;
   ltype := lContext.GetType(ATypeInfo);
@@ -91,9 +116,18 @@ begin
            end;
            tkFloat:
            begin
-              if tryStrToFloat(lValue,lDouble) then
-                  lField.SetValue(APValue,lDouble)
-              else raise Exception.Create('Invalid Float Type Cast');
+              p := pos('.',lValue);
+              if (p=0) or (lValue.Length-p<7) then
+              begin
+                if tryStrToFloat(lValue,lSingle) then
+                    lField.SetValue(APValue,lSingle)
+                else raise Exception.Create('Invalid Float Single Type Cast');
+              end else
+              begin
+                if tryStrToFloat(lValue,lDouble) then
+                    lField.SetValue(APValue,lDouble)
+                else raise Exception.Create('Invalid Float Double Type Cast');
+              end;
            end;
          else  lField.setValue(APValue, TValue(lValue));
          end;
@@ -114,6 +148,7 @@ var
   lPrefix : string;
   lValue : string;
   lTValue : TValue;
+  p:integer;
 begin
   ltype := TRTTIContext.Create.GetType(ATypeInfo);
   lFields := lType.getFields;
@@ -136,6 +171,47 @@ begin
     freeAndNil(lText);
   end;
 end;
+
+Function RecordAsJSON(ATypeInfo: Pointer; APValue: Pointer; AIndex: integer = -1): string;
+var
+  ltype: TRTTIType;
+  lfield: TRttiField;
+  lfields: TArray<TRttiField>;
+  lComma : string;
+  lValue : string;
+  lTValue : TValue;
+  lNoQuotes: Boolean;
+  lBoolHandle: PTypeInfo;
+begin
+  Result := '{';
+  ltype := TRTTIContext.Create.GetType(ATypeInfo);
+  lFields := lType.getFields;
+  lComma := '';
+  lBoolHandle := typeInfo(Boolean);
+  for lfield in lFields do
+  begin
+    if lField.FieldType.IsRecord then
+    begin
+      // Add records here.
+      continue;
+    end;
+    lValue := lField.getValue(APValue).ToString;
+    if lValue.Length=0 then continue;
+    lNoQuotes :=
+       ((lField.FieldType.TypeKind in [tkInteger,tkFloat,tkInt64])
+         or (lField.FieldType.Handle=lBoolHandle));
+    lValue := lComma+AsJsonPair(lField.Name,lValue,not lNoQuotes);
+    Result := Result+(lValue);
+    lComma := ',';
+  end;
+  Result := Result + '}';
+end;
+
+Procedure ParseJSONtoRecord(AString: String; ATypeInfo: Pointer; APValue: Pointer);
+begin
+
+end;
+
 
 function ParseStringAsIndex(AId: string; AStrings: TStrings; AIndex: integer=-1): string;
 var lSuffix : string;
@@ -162,6 +238,20 @@ begin
             ]);
   end;
 end;
+
+function AsJSONPair(AId: string; AValue: string;AValueQuoted:boolean=true):string;
+var lformat : string;
+    function JSONEscape(Atext: string): string;
+    begin
+      result := atext.Replace('\','\\',[rfReplaceAll])
+             .Replace('"','\"',[rfReplaceAll]);
+    end;
+begin
+  result := '';
+  if AValueQuoted then lformat := '"%s":"%s"' else lformat:='"%s":%s';
+  Result := format(lformat,[JSONEscape(AId),JSONEscape(AValue)]);
+end;
+
 
 Procedure ClearRecord(ATypeInfo: Pointer; APValue: Pointer);
 var
@@ -273,6 +363,11 @@ begin
  result := RecordAsValuePairs(TypeInfo(T), @self.Values, AIndex);
 end;
 
+function TRecordSerializer<T>.AsJSON: String;
+begin
+  result := RecordAsJSON(typeInfo(T),@Self);
+end;
+
 procedure TRecordSerializer<T>.AsValuePairs(AStrings: TStrings; AIndex:integer =-1);
 begin
   AStrings.Text := RecordAsValuePairs(TypeInfo(T), @self.Values, AIndex);
@@ -286,6 +381,11 @@ end;
 procedure TRecordSerializer<T>.Clone(ARecord: T);
 begin
   CloneRecord(TypeInfo(T),@Arecord, @Self);
+end;
+
+procedure TRecordSerializer<T>.FromJSON(AJSON: string);
+begin
+ self.Parse(JSONToValuePairs(AJSON));
 end;
 
 class operator TRecordSerializer<T>.Implicit(ARecord: T): TRecordSerializer<T>;
@@ -313,6 +413,19 @@ begin
   finally
     freeandnil(lList);
   end;
+end;
+
+
+class operator TRecordSerializer<T>.Implicit(
+  AText: string): TRecordSerializer<T>;
+begin
+   Result.Parse(AText);
+end;
+
+class operator TRecordSerializer<T>.Implicit(
+  ARecord: TRecordSerializer<T>): String;
+begin
+   Result := ARecord.AsValuePairs;
 end;
 
 end.

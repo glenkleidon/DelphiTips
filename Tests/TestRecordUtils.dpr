@@ -17,6 +17,12 @@ begin
     AddTestSet('As ValuePairs', AsValuePairs_Exports_values_as_Expected);
     AddTestSet('Implicit Cast To Record',Implicit_Cast_To_Static_works_as_Expected);
     AddTestSet('Implicit Cast To Serializable',Implicit_Cast_To_Static_works_as_Expected);
+    AddTestSet('Implicit Cast to String',Implicit_Cast_To_String_works_as_Expected);
+    AddTestSet('Implicit Cast FROM String',Implicit_Cast_From_String_works_as_Expected);
+    AddTestSet('As JSON Text',AsJSON_works_as_Expected);
+    AddTestSet('From JSON Text',FromJSON_works_as_Expected);
+
+
     FinaliseSet(TearDown);
 
     Title('Test Cases For RecordUtils');

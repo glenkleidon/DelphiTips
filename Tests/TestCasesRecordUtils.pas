@@ -1,7 +1,7 @@
 unit TestCasesRecordUtils;
 
 interface
-  uses MiniTestFramework
+  uses SysUtils,MiniTestFramework
    (* TODO -oUser -cTestCase1 Unit :
    (**)
       ,RecordUtils
@@ -14,6 +14,10 @@ Procedure Parse_Populates_record_as_expected;
 Procedure AsValuePairs_Exports_values_as_Expected;
 Procedure Implicit_Cast_To_Static_works_as_Expected;
 Procedure Implicit_Cast_From_Static_works_as_Expected;
+Procedure Implicit_Cast_To_String_works_as_Expected;
+Procedure Implicit_Cast_From_String_works_as_Expected;
+Procedure AsJSON_works_as_Expected;
+Procedure FromJSON_works_as_Expected;
 Procedure TearDown;
 
 Type TTestRecordUnitStatictype = Record
@@ -77,6 +81,39 @@ begin
   checkisEqual(trunc(lresult.Values.flNum*1000)/1000,5.663); // double conversion...
 end;
 
+Procedure Implicit_Cast_To_String_works_as_Expected;
+var lResult : TSerialisableTestStaticType;
+    lExpected : string;
+begin
+  lExpected := 'number=5'#13#10+
+             'text=TestValue TEXT'#13#10+
+             'bool=False'#13#10+
+             'flNum=0'#13#10;
+   lResult.Values.number := 5;
+   lResult.Values.text := 'TestValue TEXT';
+   lResult.Values.bool := false;
+   lResult.Values.flNum := 0;
+   checkisEqual(lExpected,lResult);
+
+end;
+
+Procedure Implicit_Cast_From_String_works_as_Expected;
+var lExpected: String;
+    lResult : TSerialisableTestStaticType;
+begin
+  lExpected := 'number=5'#13#10+
+               'text=TestValue TEXT'#13#10+
+               'bool=False'#13#10+
+               'flNum=5.663';
+  lResult := lExpected;
+  lResult.Parse(lExpected);
+  checkisFalse(lResult.Values.bool);
+  checkisEqual(lResult.Values.number,5);
+  checkisEqual(lResult.Values.text,'TestValue TEXT');
+  checkisEqual(trunc(lresult.Values.flNum*1000)/1000,5.663); // double conversion...
+
+end;
+
 Procedure AsValuePairs_Exports_values_as_Expected;
 var lResult : TSerialisableTestStaticType;
     lExpected : string;
@@ -120,6 +157,41 @@ begin
    checkisEqual(lStatic.text,lResult.Values.text);
    checkisEqual(lStatic.bool,lResult.Values.bool);
    checkisEqual(lStatic.flNum,lResult.Values.flNum);
+end;
+
+Procedure AsJSON_works_as_Expected;
+var lExpected: String;
+    lRecord : TSerialisableTestStaticType;
+    lDblValue: Double;
+begin
+  lDblValue := 5.0;
+  lExpected := '{"number":5,'+
+                '"text":"TestValue TEXT is \"\"",'+
+                '"bool":False,'+
+                '"flNum":'+lDblValue.ToString+'}';
+  lRecord.Values.number := 5;
+  lRecord.Values.text := 'TestValue TEXT is ""';
+  lRecord.Values.bool := false;
+  lRecord.Values.flNum := lDblValue;
+  checkIsEqual(lExpected,lRecord.AsJSON);
+
+end;
+
+Procedure FromJSON_works_as_Expected;
+var lExpected: String;
+    lResult : TSerialisableTestStaticType;
+    lDblValue: Double;
+begin
+  lDblValue := 5.0;
+  lExpected := '{"number":5,'+
+                '"text":"TestValue TEXT is \"\"",'+
+                '"bool":False,'+
+                '"flNum":'+lDblValue.ToString+'}';
+  lResult.FromJSON(lExpected);
+  checkisFalse(lResult.Values.bool);
+  checkisEqual(lResult.Values.number,5);
+  checkisEqual(lResult.Values.text,'TestValue TEXT is ""');
+  checkisEqual(trunc(lresult.Values.flNum*1000)/1000,5); // double conversion...
 end;
 
 
