@@ -7,14 +7,27 @@ unit RecordUtils;
 ////////////////////////////////////////////////
 
 interface
-   uses System.sysUtils, System.Classes, System.Rtti;
+   uses System.sysUtils, System.Classes, System.Rtti, System.Generics.collections;
+   type PStrings = ^TStrings;
+   
+   Type TRecordSerializer<T> = Record
+       Values : T;
+       Procedure Clear;
+       Procedure Clone(ARecord: T);
+       Procedure Parse(AStrings:TStrings; AIndex: integer=-1); overload;
+       Procedure Parse(AText: String; AIndex: integer=-1); overload;
+       Function AsValuePairs(AIndex:integer =-1): string; overload;
+       Procedure AsValuePairs(AStrings:TStrings; AIndex:integer =-1); overload;
+       class operator Implicit(ASerializable: TRecordSerializer<T>): T;
+       class operator Implicit(ARecord: T): TRecordSerializer<T>;
+   end;
 
    function IndexedName(AId: string; AIndex: integer=-1): string;
    function ParseStringAsIndex(AId: string; AStrings: TStrings; AIndex: integer=-1): string;
    function AsValuePair(AId: string; AValue: string; AIndex: integer=-1; ALineEnding: string=''):string;
    function AsValuePairRow(AId: string; AValue: string; AIndex: integer=-1): string;
    Function RecordAsValuePairs(ATypeInfo: Pointer; APValue: Pointer; AIndex: integer = -1): string;
-   Function ParseValuesToRecord(AStrings: TStrings; ATypeInfo: Pointer; APValue: Pointer; AIndex: integer = -1): string;
+   Function ParseValuesToRecord(AStrings: TStrings; ATypeInfo: Pointer; APValue: Pointer; AIndex: integer = -1): string; overload;
    Function GetValuePairHeader(ATypeInfo: Pointer; APValue: Pointer): string;
    Procedure CloneRecord(ATypeInfo: Pointer; APRecordToClone: Pointer; APClonedRecord : Pointer );
    Procedure ClearRecord(ATypeInfo: Pointer; APValue: Pointer);
@@ -29,6 +42,7 @@ begin
  if (Aindex<0) then Result := AId else Result := format('%s[%u]',[AId, AIndex]);
 end;
 
+
 Function ParseValuesToRecord(AStrings: TStrings; ATypeInfo: Pointer; APValue: Pointer; AIndex: integer = -1): string;
 var
   ltype: TRTTIType;
@@ -40,6 +54,8 @@ var
   lSuffix : String;
   lTValue,lTDefaultValue : TValue;
   lValue : string;
+  lInt: Int64;
+  lDouble: Double;
   Buffer : Pointer;
 begin
   lContext := TRTTIContext.Create;
@@ -60,11 +76,27 @@ begin
          if LValue.length=0 then lValue := AStrings.values[lField.Name+lSuffix];
          if LValue.length=0 then lValue := AStrings.values[lPrefix+lField.Name];
          if lValue.length=0 then continue;
-         if (lField.FieldType.TypeKind = TTypeKind.tkEnumeration) then
-         begin
-           lTValue.Make(getEnumValue(lField.FieldType.Handle,lValue),lField.FieldType.Handle,lTvalue);
-           lField.setValue(APValue, lTValue);
-         end else lField.setValue(APValue, TValue(lValue));
+         case lField.FieldType.TypeKind of
+           tkEnumeration:
+           begin
+             lTValue.Make(getEnumValue(lField.FieldType.Handle,lValue),lField.FieldType.Handle,lTvalue);
+             lField.setValue(APValue, lTValue);
+           end;
+           tkInteger,
+           tkInt64:
+           begin
+              if tryStrToInt64(lValue,lInt) then
+                  lField.SetValue(APValue,lInt)
+              else raise Exception.Create('Invalid Integer Type Cast');
+           end;
+           tkFloat:
+           begin
+              if tryStrToFloat(lValue,lDouble) then
+                  lField.SetValue(APValue,lDouble)
+              else raise Exception.Create('Invalid Float Type Cast');
+           end;
+         else  lField.setValue(APValue, TValue(lValue));
+         end;
       end;
     end;
     result := lText.text;
@@ -232,6 +264,55 @@ begin
       exit;
      end;
   end; // case
+end;
+
+{ TRecordSerializer<T> }
+
+function TRecordSerializer<T>.AsValuePairs(AIndex:integer =-1): string;
+begin
+ result := RecordAsValuePairs(TypeInfo(T), @self.Values, AIndex);
+end;
+
+procedure TRecordSerializer<T>.AsValuePairs(AStrings: TStrings; AIndex:integer =-1);
+begin
+  AStrings.Text := RecordAsValuePairs(TypeInfo(T), @self.Values, AIndex);
+end;
+
+procedure TRecordSerializer<T>.Clear;
+begin
+  clearRecord(TypeInfo(T),@self);
+end;
+
+procedure TRecordSerializer<T>.Clone(ARecord: T);
+begin
+  CloneRecord(TypeInfo(T),@Arecord, @Self);
+end;
+
+class operator TRecordSerializer<T>.Implicit(ARecord: T): TRecordSerializer<T>;
+begin
+   result.clone(ARecord);
+end;
+
+class operator TRecordSerializer<T>.Implicit(ASerializable: TRecordSerializer<T>): T;
+begin
+  CloneRecord(TypeInfo(T), @ASerializable.Values, @Result);  
+end;
+
+procedure TRecordSerializer<T>.Parse(AStrings: TStrings; AIndex: integer=-1);
+begin
+  ParseValuesToRecord(AStrings,TypeInfo(T),@Self.Values,AIndex);
+end;
+
+procedure TRecordSerializer<T>.Parse(AText: String; AIndex: integer=-1);
+var lList: TStringlist;
+begin
+  lList:=TStringlist.Create;
+  try
+    lList.Text := AText;
+    self.Parse(lList,AIndex);
+  finally
+    freeandnil(lList);
+  end;
 end;
 
 end.
