@@ -12,15 +12,15 @@ begin
   try
     PrepareSet(Setup);
     AddTestSet('Clear Record', Record_Clears_as_expected);
-    AddTestSet('Clone Record', Clone_copies_values_as_expected,skip);
-    AddTestSet('Parse ValuePairs', Parse_Populates_record_as_expected,skip);
-    AddTestSet('As ValuePairs', AsValuePairs_Exports_values_as_Expected,skip);
-    AddTestSet('Implicit Cast To Record',Implicit_Cast_To_Static_works_as_Expected,skip);
-    AddTestSet('Implicit Cast To Serializable',Implicit_Cast_To_Static_works_as_Expected,skip);
-    AddTestSet('Implicit Cast to String',Implicit_Cast_To_String_works_as_Expected,skip);
-    AddTestSet('Implicit Cast FROM String',Implicit_Cast_From_String_works_as_Expected,skip);
-    AddTestSet('As JSON Text',AsJSON_works_as_Expected,skip);
-    AddTestSet('From JSON Text',FromJSON_works_as_Expected,skip);
+    AddTestSet('Clone Record', Clone_copies_values_as_expected);
+    AddTestSet('Parse ValuePairs', Parse_Populates_record_as_expected);
+    AddTestSet('As ValuePairs', AsValuePairs_Exports_values_as_Expected);
+    AddTestSet('Implicit Cast To Record',Implicit_Cast_To_Static_works_as_Expected);
+    AddTestSet('Implicit Cast To Serializable',Implicit_Cast_To_Static_works_as_Expected);
+    AddTestSet('Implicit Cast to String',Implicit_Cast_To_String_works_as_Expected);
+    AddTestSet('Implicit Cast FROM String',Implicit_Cast_From_String_works_as_Expected);
+    AddTestSet('As JSON Text',AsJSON_works_as_Expected);
+    AddTestSet('From JSON Text',FromJSON_works_as_Expected);
 
 
     FinaliseSet(TearDown);

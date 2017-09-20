@@ -410,7 +410,7 @@ end;
 
 function TRecordSerializer<T>.AsJSON: String;
 begin
-  result := RecordAsJSON(typeInfo(T),@Self);
+  result := RecordAsJSON(typeInfo(T),@Self.Values);
 end;
 
 procedure TRecordSerializer<T>.AsValuePairs(AStrings: TStrings; AIndex:integer =-1);
