@@ -9,13 +9,24 @@ unit RecordUtils;
 interface
    uses System.sysUtils, System.Classes, System.Rtti, System.Generics.collections;
    type PStrings = ^TStrings;
-   
+
+   Type TArrayBounds = record
+          Low : integer;
+          High : integer;
+   end;
+
    Type TRecordSerializer<T> = Record
+     private
+       ValueArray: Array of T;
+       Index: integer;
+       function getCount: integer;
+     public
        Values : T;
        Procedure Clear;
-       Procedure Clone(ARecord: T);
-       Procedure Parse(AStrings:TStrings; AIndex: integer=-1); overload;
-       Procedure Parse(AText: String; AIndex: integer=-1); overload;
+       Procedure Clone(ARecord: T); overload;
+       Procedure Clone(ARecord: TRecordSerializer<T>); overload;
+       Function Parse(AStrings:TStrings; AIndex: integer=-1): integer; overload;
+       Function Parse(AText: String; AIndex: integer=-1): integer; overload;
        Function AsValuePairs(AIndex:integer =-1): string; overload;
        Procedure AsValuePairs(AStrings:TStrings; AIndex:integer =-1); overload;
        Function AsJSON : String; overload;
@@ -24,6 +35,7 @@ interface
        class operator Implicit(ARecord: T): TRecordSerializer<T>;
        class operator Implicit(AText: string): TRecordSerializer<T>;
        class operator Implicit(ARecord: TRecordSerializer<T>): String;
+       Property Count : integer read getCount;
    end;
 
    function IndexedName(AId: string; AIndex: integer=-1): string;
@@ -31,7 +43,7 @@ interface
    function AsValuePair(AId: string; AValue: string; AIndex: integer=-1; ALineEnding: string=''):string;
    function AsValuePairRow(AId: string; AValue: string; AIndex: integer=-1): string;
    Function RecordAsValuePairs(ATypeInfo: Pointer; APValue: Pointer; AIndex: integer = -1): string;
-   Function ParseValuesToRecord(AStrings: TStrings; ATypeInfo: Pointer; APValue: Pointer; AIndex: integer = -1): string; overload;
+   Function ParseValuesToRecord(AStrings: TStrings; ATypeInfo: Pointer; APValue: Pointer; AIndex: integer = -1): integer;
    Function GetValuePairHeader(ATypeInfo: Pointer; APValue: Pointer): string;
    Procedure CloneRecord(ATypeInfo: Pointer; APRecordToClone: Pointer; APClonedRecord : Pointer );
    Procedure ClearRecord(ATypeInfo: Pointer; APValue: Pointer);
@@ -39,11 +51,42 @@ interface
    Function RecordAsJSON(ATypeInfo: Pointer; APValue: Pointer; AIndex: integer = -1): string;
    Procedure ParseJSONtoRecord(AString: String; ATypeInfo: Pointer; APValue: Pointer);
    Function JSONToValuePairs(AJSON:string):String;
+   Function GetIndexBounds(AStrings: TStrings): TArrayBounds;
 
 
 implementation
 
-  uses System.TypInfo;
+  uses System.TypInfo,System.StrUtils;
+
+Function GetIndexBounds(AStrings: TStrings): TArrayBounds;
+var p,q,r: integer;
+    v,c : integer;
+    lText, lRow: string;
+begin
+  Result.Low := -1;
+  Result.High := MaxInt;
+  p := pos('[',AStrings.Text);
+  if p<1 then
+  begin
+    Result.High := -1;
+    exit;
+  end;
+  for lRow in AStrings do
+  begin
+    lText := copy(lRow,1,pos('=',lRow)-1);
+    p := pos('[',lText);
+    q := posex(']',lText,p);
+    if (p>0) and (q>0) then
+    begin
+      // 123456789
+      // id[0]   5-3-1 = 1
+      val(copy(ltext,p+1,q-p-1),v,c);
+      if c>0 then continue;
+      if v<result.Low then Result.Low:=v
+      else if v>Result.High then Result.High:=v;
+    end else exit;
+  end;
+end;
 
 Function JSONToValuePairs(AJSON:string):String;
 begin
@@ -66,7 +109,7 @@ begin
  if (Aindex<0) then Result := AId else Result := format('%s[%u]',[AId, AIndex]);
 end;
 
-Function ParseValuesToRecord(AStrings: TStrings; ATypeInfo: Pointer; APValue: Pointer; AIndex: integer = -1): string;
+Function ParseValuesToRecord(AStrings: TStrings; ATypeInfo: Pointer; APValue: Pointer; AIndex: integer = -1): integer;
 var
   ltype: TRTTIType;
   lfield: TRttiField;
@@ -83,59 +126,61 @@ var
   Buffer : Pointer;
   p:integer;
 begin
+  Result := 0;
   lContext := TRTTIContext.Create;
   ltype := lContext.GetType(ATypeInfo);
   lFields := lType.getFields;
-  lText:= TStringlist.create;
-  try
-    lPrefix := IndexedName(ltype.Name,AIndex);
-    lSuffix := format('[%u]',[AIndex]);
-    for lfield in lFields do
+  lPrefix := IndexedName(ltype.Name,AIndex);
+  lSuffix := format('[%u]',[AIndex]);
+  for lfield in lFields do
+  begin
+    if lField.FieldType.IsRecord then
     begin
-      if lField.FieldType.IsRecord then
-      begin
-        // Add records here.
-      end else
-      begin
-         lValue := AStrings.values[lField.Name];
-         if LValue.length=0 then lValue := AStrings.values[lField.Name+lSuffix];
-         if LValue.length=0 then lValue := AStrings.values[lPrefix+lField.Name];
-         if lValue.length=0 then continue;
-         case lField.FieldType.TypeKind of
-           tkEnumeration:
-           begin
-             lTValue.Make(getEnumValue(lField.FieldType.Handle,lValue),lField.FieldType.Handle,lTvalue);
-             lField.setValue(APValue, lTValue);
-           end;
-           tkInteger,
-           tkInt64:
-           begin
-              if tryStrToInt64(lValue,lInt) then
-                  lField.SetValue(APValue,lInt)
-              else raise Exception.Create('Invalid Integer Type Cast');
-           end;
-           tkFloat:
-           begin
-              p := pos('.',lValue);
-              if (p=0) or (lValue.Length-p<7) then
-              begin
-                if tryStrToFloat(lValue,lSingle) then
-                    lField.SetValue(APValue,lSingle)
-                else raise Exception.Create('Invalid Float Single Type Cast');
-              end else
-              begin
-                if tryStrToFloat(lValue,lDouble) then
-                    lField.SetValue(APValue,lDouble)
-                else raise Exception.Create('Invalid Float Double Type Cast');
-              end;
-           end;
-         else  lField.setValue(APValue, TValue(lValue));
+      // Add records here.
+    end else
+    begin
+       lValue := AStrings.values[lField.Name];
+       if LValue.length=0 then lValue := AStrings.values[lField.Name+lSuffix];
+       if LValue.length=0 then lValue := AStrings.values[lPrefix+lField.Name];
+       if lValue.length=0 then continue;
+       case lField.FieldType.TypeKind of
+         tkEnumeration:
+         begin
+           lTValue.Make(getEnumValue(lField.FieldType.Handle,lValue),lField.FieldType.Handle,lTvalue);
+           lField.setValue(APValue, lTValue);
+           inc(result);
          end;
-      end;
+         tkInteger,
+         tkInt64:
+         begin
+            if tryStrToInt64(lValue,lInt) then
+                lField.SetValue(APValue,lInt)
+            else raise Exception.Create('Invalid Integer Type Cast');
+            inc(result);
+         end;
+         tkFloat:
+         begin
+            p := pos('.',lValue);
+            if (p=0) or (lValue.Length-p<7) then
+            begin
+              if tryStrToFloat(lValue,lSingle) then
+                  lField.SetValue(APValue,lSingle)
+              else raise Exception.Create('Invalid Float Single Type Cast');
+            end else
+            begin
+              if tryStrToFloat(lValue,lDouble) then
+                  lField.SetValue(APValue,lDouble)
+              else raise Exception.Create('Invalid Float Double Type Cast');
+            end;
+            inc(result);
+         end;
+       else
+       begin
+          lField.setValue(APValue, TValue(lValue));
+          Inc(Result);
+       end;
+       end;
     end;
-    result := lText.text;
-  finally
-    freeAndNil(lText);
   end;
 end;
 
@@ -209,7 +254,7 @@ end;
 
 Procedure ParseJSONtoRecord(AString: String; ATypeInfo: Pointer; APValue: Pointer);
 begin
-
+  raise Exception.Create('Not Implemented');
 end;
 
 
@@ -375,17 +420,29 @@ end;
 
 procedure TRecordSerializer<T>.Clear;
 begin
-  clearRecord(TypeInfo(T),@self);
+  clearRecord(TypeInfo(T),@self.Values);
+  setlength(ValueArray,0);
+  index := -1;
+end;
+
+procedure TRecordSerializer<T>.Clone(ARecord: TRecordSerializer<T>);
+begin
+  CloneRecord(TypeInfo(T),@Arecord.Values, @Self);
 end;
 
 procedure TRecordSerializer<T>.Clone(ARecord: T);
 begin
-  CloneRecord(TypeInfo(T),@Arecord, @Self);
+  CloneRecord(TypeInfo(T),@Arecord, @Self.Values);
 end;
 
 procedure TRecordSerializer<T>.FromJSON(AJSON: string);
 begin
  self.Parse(JSONToValuePairs(AJSON));
+end;
+
+function TRecordSerializer<T>.getCount: integer;
+begin
+  result := length(Self.ValueArray);
 end;
 
 class operator TRecordSerializer<T>.Implicit(ARecord: T): TRecordSerializer<T>;
@@ -395,23 +452,45 @@ end;
 
 class operator TRecordSerializer<T>.Implicit(ASerializable: TRecordSerializer<T>): T;
 begin
-  CloneRecord(TypeInfo(T), @ASerializable.Values, @Result);  
+  CloneRecord(TypeInfo(T), @ASerializable.Values, @Result);
 end;
 
-procedure TRecordSerializer<T>.Parse(AStrings: TStrings; AIndex: integer=-1);
+Function TRecordSerializer<T>.Parse(AText: String; AIndex: integer=-1): integer;
+var lList : TStringlist;
 begin
-  ParseValuesToRecord(AStrings,TypeInfo(T),@Self.Values,AIndex);
-end;
-
-procedure TRecordSerializer<T>.Parse(AText: String; AIndex: integer=-1);
-var lList: TStringlist;
-begin
-  lList:=TStringlist.Create;
+  lList := TStringlist.create;
   try
-    lList.Text := AText;
-    self.Parse(lList,AIndex);
+     lList.Text := AText;
+     lList.Sorted := true;
+     result := Self.Parse(lList);
   finally
     freeandnil(lList);
+  end;
+end;
+
+Function TRecordSerializer<T>.Parse(AStrings: TStrings; AIndex: integer=-1): integer;
+var lIndex,
+    I,SI :integer;
+    bounds : TArrayBounds;
+    lList : TStringlist;
+begin
+  Result := 0;
+  bounds := GetIndexBounds(AStrings);
+  if bounds.High=-1 then
+  begin
+    if ParseValuesToRecord(AStrings, TypeInfo(t), @Self.Values)>0 then
+      result := 1;
+    exit;
+  end;
+  SI := self.Count+Bounds.Low;
+  for I := bounds.Low to bounds.High do
+  begin
+    Setlength(self.ValueArray,si+1);
+    if ParseValuesToRecord(AStrings,TypeInfo(T),@Self.ValueArray[si],AIndex)>0 then
+    begin
+      inc(result);
+      inc(si);
+    end;
   end;
 end;
 

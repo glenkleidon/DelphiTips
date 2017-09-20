@@ -20,13 +20,17 @@ Procedure AsJSON_works_as_Expected;
 Procedure FromJSON_works_as_Expected;
 Procedure TearDown;
 
-Type TTestRecordUnitStatictype = Record
-        number : integer;
-        text   : string;
-        bool   : boolean;
-        flNum  : single;
-End;
-     TSerialisableTestStaticType = TRecordSerializer<TTestRecordUnitStaticTYpe>;
+Type
+  TTestRecord = Record
+    number : integer;
+    text   : string;
+    bool   : boolean;
+    flNum  : single;
+  End;
+
+  TSerialisableRecord = TRecordSerializer<TTestRecord>;
+
+  TSerialisableRecords = Array of TSerialisableRecord;
 
 
 implementation
@@ -42,7 +46,7 @@ end;
 
 
 Procedure Record_Clears_as_expected;
-var lResult : TSerialisableTestStaticType;
+var lResult : TSerialisableRecord;
 begin
   NewTestCase('Static Type Clears as Expected');
   lResult.Clear;
@@ -53,7 +57,7 @@ begin
 end;
 
 Procedure Clone_copies_values_as_expected;
-var lResult,lClone : TSerialisableTestStaticType;
+var lResult,lClone : TSerialisableRecord;
 begin
    lResult.Values.number := 5;
    lResult.Values.text := 'TestValue TEXT';
@@ -68,7 +72,7 @@ end;
 
 Procedure Parse_Populates_record_as_expected;
 var lExpected: String;
-    lResult : TSerialisableTestStaticType;
+    lResult : TSerialisableRecord;
 begin
   lExpected := 'number=5'#13#10+
                'text=TestValue TEXT'#13#10+
@@ -82,7 +86,7 @@ begin
 end;
 
 Procedure Implicit_Cast_To_String_works_as_Expected;
-var lResult : TSerialisableTestStaticType;
+var lResult : TSerialisableRecord;
     lExpected : string;
 begin
   lExpected := 'number=5'#13#10+
@@ -99,7 +103,7 @@ end;
 
 Procedure Implicit_Cast_From_String_works_as_Expected;
 var lExpected: String;
-    lResult : TSerialisableTestStaticType;
+    lResult : TSerialisableRecord;
 begin
   lExpected := 'number=5'#13#10+
                'text=TestValue TEXT'#13#10+
@@ -115,7 +119,7 @@ begin
 end;
 
 Procedure AsValuePairs_Exports_values_as_Expected;
-var lResult : TSerialisableTestStaticType;
+var lResult : TSerialisableRecord;
     lExpected : string;
 begin
   lExpected := 'number=5'#13#10+
@@ -130,8 +134,8 @@ begin
 end;
 
 Procedure Implicit_Cast_To_Static_works_as_Expected;
-var lResult : TTestRecordUnitStatictype;
-var lSerialisable : TSerialisableTestStaticType;
+var lResult : TTestRecord;
+var lSerialisable : TSerialisableRecord;
 begin
    lSerialisable.Values.number := 5;
    lSerialisable.Values.text := 'TestValue TEXT';
@@ -145,8 +149,8 @@ begin
 end;
 
 Procedure Implicit_Cast_From_Static_works_as_Expected;
-var lStatic : TTestRecordUnitStatictype;
-var lResult : TSerialisableTestStaticType;
+var lStatic : TTestRecord;
+var lResult : TSerialisableRecord;
 begin
    lStatic.number := 5;
    lStatic.text := 'TestValue TEXT';
@@ -161,7 +165,7 @@ end;
 
 Procedure AsJSON_works_as_Expected;
 var lExpected: String;
-    lRecord : TSerialisableTestStaticType;
+    lRecord : TSerialisableRecord;
     lDblValue: Double;
 begin
   lDblValue := 5.0;
@@ -179,7 +183,7 @@ end;
 
 Procedure FromJSON_works_as_Expected;
 var lExpected: String;
-    lResult : TSerialisableTestStaticType;
+    lResult : TSerialisableRecord;
     lDblValue: Double;
 begin
   lDblValue := 5.0;
