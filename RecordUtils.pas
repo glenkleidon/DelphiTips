@@ -17,11 +17,11 @@ interface
 
    Type TRecordSerializer<T> = Record
      private
-       ValueArray: Array of T;
        Index: integer;
        function getCount: integer;
      public
        Values : T;
+       AllValues: Array of T;
        Procedure Clear;
        Procedure Clone(ARecord: T); overload;
        Procedure Clone(ARecord: TRecordSerializer<T>); overload;
@@ -63,28 +63,28 @@ var p,q,r: integer;
     v,c : integer;
     lText, lRow: string;
 begin
-  Result.Low := -1;
-  Result.High := MaxInt;
+  Result.Low := MaxInt;
+  Result.High := -1;
   p := pos('[',AStrings.Text);
-  if p<1 then
-  begin
-    Result.High := -1;
-    exit;
-  end;
-  for lRow in AStrings do
-  begin
-    lText := copy(lRow,1,pos('=',lRow)-1);
-    p := pos('[',lText);
-    q := posex(']',lText,p);
-    if (p>0) and (q>0) then
+  try
+    if p<1 then exit;
+    for lRow in AStrings do
     begin
-      // 123456789
-      // id[0]   5-3-1 = 1
-      val(copy(ltext,p+1,q-p-1),v,c);
-      if c>0 then continue;
-      if v<result.Low then Result.Low:=v
-      else if v>Result.High then Result.High:=v;
-    end else exit;
+      lText := copy(lRow,1,pos('=',lRow)-1);
+      p := pos('[',lText);
+      q := posex(']',lText,p);
+      if (p>0) and (q>0) then
+      begin
+        // 123456789
+        // id[0]   5-3-1 = 1
+        val(copy(ltext,p+1,q-p-1),v,c);
+        if c>0 then continue;
+        if v<result.Low then Result.Low:=v
+        else if v>Result.High then Result.High:=v;
+      end else exit;
+    end;
+  finally
+    if Result.Low=MaxInt then Result.Low := Result.High;
   end;
 end;
 
@@ -421,7 +421,7 @@ end;
 procedure TRecordSerializer<T>.Clear;
 begin
   clearRecord(TypeInfo(T),@self.Values);
-  setlength(ValueArray,0);
+  setlength(AllValues,0);
   index := -1;
 end;
 
@@ -442,7 +442,7 @@ end;
 
 function TRecordSerializer<T>.getCount: integer;
 begin
-  result := length(Self.ValueArray);
+  result := length(Self.AllValues);
 end;
 
 class operator TRecordSerializer<T>.Implicit(ARecord: T): TRecordSerializer<T>;
@@ -475,22 +475,29 @@ var lIndex,
     lList : TStringlist;
 begin
   Result := 0;
-  bounds := GetIndexBounds(AStrings);
-  if bounds.High=-1 then
+  bounds.high := -1; bounds.low := -1;
+  if AIndex=-1 then bounds := GetIndexBounds(AStrings);
+  if (AIndex>=0) or (bounds.High=-1) then
   begin
-    if ParseValuesToRecord(AStrings, TypeInfo(t), @Self.Values)>0 then
+    // When there are no arrays OR specific Array
+    if ParseValuesToRecord(AStrings, TypeInfo(t), @Self.Values, AIndex)>0 then
       result := 1;
     exit;
   end;
   SI := self.Count+Bounds.Low;
   for I := bounds.Low to bounds.High do
   begin
-    Setlength(self.ValueArray,si+1);
-    if ParseValuesToRecord(AStrings,TypeInfo(T),@Self.ValueArray[si],AIndex)>0 then
+    Setlength(self.AllValues,si+1);
+    if ParseValuesToRecord(AStrings,TypeInfo(T),@Self.AllValues[si],i)>0 then
     begin
       inc(result);
       inc(si);
     end;
+  end;
+  if (Self.count=1) and (Result=1) then
+  begin
+     index := 0;
+     self.Clone(Self.AllValues[0]);
   end;
 end;
 

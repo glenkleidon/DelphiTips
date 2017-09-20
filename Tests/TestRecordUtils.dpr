@@ -21,6 +21,8 @@ begin
     AddTestSet('Implicit Cast FROM String',Implicit_Cast_From_String_works_as_Expected);
     AddTestSet('As JSON Text',AsJSON_works_as_Expected);
     AddTestSet('From JSON Text',FromJSON_works_as_Expected);
+    AddTestSet('Parse Array',Parse_Array_Works_as_Expected);
+
 
 
     FinaliseSet(TearDown);
