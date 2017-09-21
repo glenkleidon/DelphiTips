@@ -54,7 +54,7 @@ isNew=True
 Status=mrsBusy
 ```
 ### Supported Types
-Currently only the Data types Integer, String, Boolean and any Enumerated type are supported. _NESTED Records_ is not supported at this time. 
+Currently only the Data types Integer, String, Boolean and any Enumerated type are supported. _NESTED Records_ are not supported at this time. 
 
 ### Support for Arrays
 Yes, arrays are supported.  The Above example as an array would be output as:
@@ -104,6 +104,6 @@ TMyRecord[1].Status=mrsBusy
 
 
 ### Line Endings
-Internally the string structure is managed as a TStringlist, so the line ending symantics are a consequence of that architecture. The  
+Internally the string structure is managed as a TStringlist, so the line ending symantics are a consequence of that architecture.   
 
 The \<CR\> (Carriage Return, ASCII-13) cannot be represented as a single line in the TStringlist (by default) and consequently are always converted to \<LF\> (Line Feed, ASCII-10).  So \<CRLF\> becomes \<LF\>, \<CR\> becomes \<LF\>, \<CRLF\>\<LF\> becomes \<LF\>\<LF\>.  At this stage, to preserve \<CR\>, you must pre-process the string representation using an alternate encoding scheme (eg HTML encoding )
