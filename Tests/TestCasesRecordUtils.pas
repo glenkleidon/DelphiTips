@@ -19,6 +19,8 @@ Procedure Implicit_Cast_From_String_works_as_Expected;
 Procedure AsJSON_works_as_Expected;
 Procedure FromJSON_works_as_Expected;
 Procedure Parse_Array_Works_as_Expected;
+Procedure AsValuePairs_Exports_Arrays_as_Expected;
+
 Procedure TearDown;
 
 Type
@@ -219,7 +221,7 @@ begin
                'text[0]=TestValue TEXT 2'#13#10+
                'bool[0]=True'#13#10+
                'flNum[0]=300.01';
-  checkisEqual(1,lResult.Parse(lExpected),'Expected 1 Record to be added');
+  checkisEqual(1,lResult.Parse(lExpected,spmAppend),'Expected 1 Record to be added');
   checkisEqual(2,lResult.Count,'Expected Count to be 2');
   checkisFalse(lResult.AllValues[0].bool);
   checkisEqual(5,lResult.AllValues[0].number);
@@ -245,7 +247,7 @@ begin
                'text[1]=TestValue TEXT 2'#13#10+
                'bool[1]=True'#13#10+
                'flNum[1]=300.01';
-  checkisEqual(2,lResult.Parse(lExpected),'Expected 2 Records to be added');
+  checkisEqual(2,lResult.Parse(lExpected,spmAppend),'Expected 2 Records to be added');
   checkisEqual(2,lResult.Count,'Expected Count to be 2');
 
   NewTestCase('Array Element 0 has Correct Values');
@@ -286,6 +288,59 @@ begin
   checkisEqual('TestValue TEXT 2',lResult.AllValues[1].text);
   checkisEqual(300.01,trunc(lResult.AllValues[1].flNum*1000)/1000); // double conversion...
 
+  lResult.Clear;
+
+  NewTestCase('2 Arrays, starting at 0, skipping 1 and 2 Parse Correctly');
+  lExpected := 'number[0]=5'#13#10+
+               'text[0]=TestValue TEXT'#13#10+
+               'bool[0]=False'#13#10+
+               'flNum[0]=5.663'#13#10+
+               'number[3]=6'#13#10+
+               'text[3]=TestValue TEXT 3'#13#10+
+               'bool[3]=True'#13#10+
+               'flNum[3]=300.01';
+  checkisEqual(2,lResult.Parse(lExpected),'Expected 2 Records to be added');
+  checkisEqual(4,lResult.Count,'Expected Count to be 2');
+
+  NewTestCase('Array Element 0 has Correct Values');
+  checkisFalse(lResult.AllValues[0].bool);
+  checkisEqual(5,lResult.AllValues[0].number);
+  checkisEqual('TestValue TEXT',lResult.AllValues[0].text);
+  checkisEqual(5.663,trunc(lResult.AllValues[0].flNum*1000)/1000); // double conversion...
+
+  NewTestCase('Array Element 3 has Correct Values');
+  checkisTrue(lResult.AllValues[3].bool);
+  checkisEqual(6,lResult.AllValues[3].number);
+  checkisEqual('TestValue TEXT 3',lResult.AllValues[3].text);
+  checkisEqual(300.01,trunc(lResult.AllValues[3].flNum*1000)/1000); // double conversion...
+end;
+
+Procedure AsValuePairs_Exports_Arrays_as_Expected;
+var lResult : TSerialisableRecord;
+    lExpected, lExpected2 : string;
+begin
+  NewTestCase('Single Array Exports as array Values');
+  lExpected :=
+       'number[0]=5'#13#10+
+       'text[0]=TestValue TEXT'#13#10+
+       'bool[0]=False'#13#10+
+       'flNum[0]=103'#13#10;
+  lExpected2 :=
+       'number=333'#13#10+
+       'text=TestValue TEXT 2'#13#10+
+       'bool=False'#13#10+
+       'flNum=105'#13#10;
+  checkisEqual(1,lResult.Parse(lExpected));
+  checkisEqual(lExpected,lResult.AsValuePairs);
+
+  NewTestCase('2 Array Exports as array Values');
+  checkisEqual(1,lResult.Parse(lExpected2));
+  checkisEqual(lExpected+lExpected2.Replace('=','[1]=',[rfReplaceAll])
+                ,lResult.AsValuePairs);
+
+  NewTestCase('2 Array Export Second Element as array Values');
+  checkisEqual(lExpected2.Replace('=','[1]=',[rfReplaceAll])
+                ,lResult.AsValuePairs(1));
 
 
 end;
