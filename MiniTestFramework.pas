@@ -313,7 +313,8 @@ end;
 
 Procedure ExpectException(AExceptionClassName: string;AExpectForSet: boolean=false);
 begin
-  ExpectedException := '';
+  ExpectedException := AExceptionClassName;
+  if AExpectForSet then ExpectedSetException := ExpectedException;
 end;
 
 function ValueAsString(AValue: TComparitorType): string;
@@ -445,6 +446,8 @@ begin
           end;
       cttException:
           begin
+             if AMessage='' then lMessage:= ' Exception.'
+             else lMessage := ' '+AMessage;
              if isEqual then
              begin
                 lResult := 0;
@@ -457,8 +460,6 @@ begin
                 lMessage := format('%s   Expected:<%s>%s   Actual  :<%s>',
                  [#13#10, ValueAsString(AExpected), #13#10, ValueAsString(AResult)])
              end;
-             if AMessage='' then lMessage:= ' Exception.'
-             else lMEssage := ' '+AMessage;
           end;
     else //case
       begin
@@ -567,7 +568,7 @@ begin
    if lExpected='' then lExpected := 'No Exceptions';
    Check(
      (AException.className=lExpected) or
-     (AException.Message = lExpected),
+     (pos(lExpected,AException.Message)>0),
       lExpected,
       AException.ClassName+':'+AException.Message,
       '',

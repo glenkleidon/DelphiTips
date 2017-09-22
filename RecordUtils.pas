@@ -7,9 +7,11 @@ unit RecordUtils;
 ////////////////////////////////////////////////
 
 interface
-   uses System.sysUtils, System.Classes, System.Rtti, System.Generics.collections;
+   uses sysUtils, Classes, Rtti, Generics.collections;
    type PStrings = ^TStrings;
    Type TSerializerParseMode = (spmAppend, spmUpdate);
+   Type TJSONState = (jsNone, jsInArray, jsInObject, jsInName, jsEndName,
+                       jsInQuotedValue, jsInValue, jsInEscape, jsEndValue, jsEndObject, jsEndArray, jsNextElement);
    Type TArrayBounds = record
           Low : integer;
           High : integer;
@@ -26,7 +28,7 @@ interface
        Values : T;
        AllValues: Array of T;
        Procedure Clear;
-       Procedure Clone(ARecord: T); overload;
+       Procedure Clone`(ARecord: T); overload;
        Procedure Clone(ARecord: TRecordSerializer<T>); overload;
        Function Parse(AStrings:TStrings; AMode: TSerializerParseMode=spmUpdate;
                              AIndex: integer=-1): integer; overload;
@@ -62,7 +64,7 @@ interface
 
 implementation
 
-  uses System.TypInfo,System.StrUtils;
+  uses TypInfo,StrUtils;
 
 Function GetIndexBounds(AStrings: TStrings): TArrayBounds;
 var p,q,r: integer;
@@ -95,19 +97,201 @@ begin
 end;
 
 Function JSONToValuePairs(AJSON:string):String;
+var c : char;
+    l,i,index : integer;
+    lValue, lName, lRow : string;
+    lArrayIndex : TStack<Integer>;
+    lStates: TStack<TJSONState>;
+    lState : TJSONState;
+    lList : TStringlist;
+    Procedure JSONParseError(AChar: Char);
+    begin
+      raise Exception.Create(format('JSON Parse Error %s at %u',[string(AChar), i]));
+    end;
+    Procedure Reset;
+    begin
+      lName := '';
+      lValue := '';
+    end;
+    Procedure EndValue;
+    var llIndex: string;
+    begin
+      if index>=0 then llIndex := format('[%s]',[Index]);
+      // could populate directly from here!!!!
+      lRow := format('%s%s=%s',[lName,llIndex,lValue]);
+      lList.Add(lRow);
+    end;
 begin
    // simple implementation assumes single object, no spacing
-   Result := AJSON
-       .Replace('{','')
-       .Replace('\"',#1,[rfReplaceAll])
-       .Replace('\\',#2,[rfReplaceAll])
-       .Replace('"','',[rfReplaceAll])
-       .Replace(':','=',[rfReplaceAll])
-       .Replace(',',#13#10,[rfReplaceAll])
-       .Replace(#1,'"',[rfReplaceAll])
-       .Replace(#2,'\',[rfReplaceAll])
-    ;
-    Result := copy(Result,1,Result.length-1);
+   lArrayIndex := TStack<Integer>.Create;
+   lStates:= TStack<TJSONState>.Create;
+   lList := TStringlist.Create;
+   Try
+   lStates.Push(TJSONState.jsNone);
+   l := length(AJSON);
+   for i := 1 to l do
+   begin
+     c := AJSON[i];
+     lState := lStates.peek;
+     if (c<>'"') then
+     case lState of
+        jsInQuotedValue,jsInName :
+          begin
+            if c='\' then
+               lStates.push(jsInEscape)
+            else lValue := lValue + c;
+            continue;
+          end;
+        jsInEscape :
+          begin
+            lValue := lValue + c;
+            lStates.Pop;
+          end;
+     end;
+     case c of
+       '{':
+           case lState of
+            jsNone,
+            jsNextElement,
+            jsInArray:
+             begin
+               Reset;
+               lStates.Push(TjsonState.jsInObject);
+             end;
+            jsInObject, jsInName,
+            jsEndName, jsInValue,
+            jsEndObject, jsEndArray: JSONParseError(c);
+           end;
+       '}':
+           case lState of
+            jsNone:;
+            jsInArray:;
+            jsInObject:;
+            jsInName:;
+            jsEndName:;
+            jsInValue:;
+            jsEndValue:;
+            jsEndObject:;
+            jsEndArray:;
+            jsNextElement:;
+           end;
+
+       '[':
+           case lState of
+            jsInValue
+             begin
+
+             end;
+            jsNone, jsInArray,  jsNextElement:
+             begin
+                lArrayIndex.Push(Index);
+                Index := 0;
+             end;
+            else JSONParseError(c);
+           end;
+       ']':
+           case lState of
+            jsEndValue, jsEndObject, jsEndArray:
+             begin
+                lStates.Pop;
+                if lState<>TJSONState.jsInArray then JSONParseError(c);
+
+                Index := -1;
+             end;
+            else JSONParseError(c);
+           end;
+       '"':
+           case lState of
+            jsNone,
+            jsInArray,
+            jsInObject,
+            jsNextElement:
+             begin
+               Reset;
+               lStates.Pop;
+               lState := TJSONState.jsInName;
+               lStates.Push(lState);
+             end;
+            jsEndName:
+              begin
+               lStates.Pop;
+               lState := TJSONState.jsInQuotedValue;
+               lStates.Push(lState);
+              end;
+            jsInName:
+              begin
+               lName := lValue;
+               lValue := '';
+               lStates.Pop;
+               lState := TJSONState.jsEndName;
+               lStates.Push(lState);
+              end;
+            jsInValue:
+              begin
+               lName := lValue;
+               lValue := '';
+               lStates.Pop;
+               lState := TJSONState.jsEndValue;
+               lStates.Push(lState);
+              end;
+           else JSONParseError(c);
+           end;
+       ',':
+           case lState of
+            jsEndValue,
+            jsEndArray,
+            jsEndObject:
+              begin
+                lStates.Pop;
+                lState := lStates.Peek;
+                if lState <> jsInArray then JSONParseError(c);
+                lStates.Push(TJSONState.jsNextElement);
+                inc(Index);
+              end;
+            else JSONParseError(c);
+           end;
+       ':':
+           case lState of
+            jsInName:
+            begin
+              lStates.Pop;
+              lState := jsEndName;
+              lStates.Push(lState);
+            end;
+
+            jsInValue, jsInValue
+            jsEndName:
+            begin
+            end;
+            jsNone:;
+            jsInArray:;
+            jsInObject:;
+            jsEndValue:;
+            jsEndObject:;
+            jsEndArray:;
+            jsNextElement:;
+           end;
+     end;
+     if State in [jsInValue] then lvalue = lValue + c;
+   end;
+   finally
+     freeandnil(lList);
+     freeandnil(lArrayIndex);
+     freeandnil(lStates);
+   end;
+
+
+   Result := AJSON;
+   result := StringReplace(Result,'{','',[]);
+   result := StringReplace(Result,'\"',#1,[rfReplaceAll]);
+   result := StringReplace(Result,'\\',#2,[rfReplaceAll]);
+   result := StringReplace(Result,'"','',[rfReplaceAll]);
+   result := StringReplace(Result,':','=',[rfReplaceAll]);
+   result := StringReplace(Result,',',#13#10,[rfReplaceAll]);
+   result := StringReplace(Result,#1,'"',[rfReplaceAll]);
+   result := StringReplace(Result,#2,'\',[rfReplaceAll]);
+   l := length(result)-1;
+   Result := copy(Result,1,l);
 end;
 
 function IndexedName(AId: string; AIndex: integer=-1): string;
@@ -146,9 +330,9 @@ begin
     end else
     begin
        lValue := AStrings.values[lField.Name];
-       if LValue.length=0 then lValue := AStrings.values[lField.Name+lSuffix];
-       if LValue.length=0 then lValue := AStrings.values[lPrefix+lField.Name];
-       if lValue.length=0 then continue;
+       if length(LValue)=0 then lValue := AStrings.values[lField.Name+lSuffix];
+       if length(LValue)=0 then lValue := AStrings.values[lPrefix+lField.Name];
+       if length(lValue)=0 then continue;
        case lField.FieldType.TypeKind of
          tkEnumeration:
          begin
@@ -167,7 +351,7 @@ begin
          tkFloat:
          begin
             p := pos('.',lValue);
-            if (p=0) or (lValue.Length-p<7) then
+            if (p=0) or (length(lValue)-p<7) then
             begin
               if tryStrToFloat(lValue,lSingle) then
                   lField.SetValue(APValue,lSingle)
@@ -214,7 +398,7 @@ begin
       end else
       begin
         lValue := AsValuePair(lField.Name,lField.getValue(APValue).ToString, AIndex,#13#10);
-        if lValue.Length>0 then lText.Add(lValue);
+        if length(lValue)>0 then lText.Add(lValue);
       end;
     end;
     result := lText.text;
@@ -247,7 +431,7 @@ begin
       continue;
     end;
     lValue := lField.getValue(APValue).ToString;
-    if lValue.Length=0 then continue;
+    if length(lValue)=0 then continue;
     lNoQuotes :=
        ((lField.FieldType.TypeKind in [tkInteger,tkFloat,tkInt64])
          or (lField.FieldType.Handle=lBoolHandle));
@@ -280,13 +464,13 @@ function AsValuePair(AId: string; AValue: string; AIndex: integer=-1; ALineEndin
 var lSuffix : string;
 begin
   result := '';
-  if AValue.Length>0 then
+  if length(AValue)>0 then
   begin
     if AIndex=-1 then lSuffix := '' else lSuffix := format('[%u]',[AIndex]);
     result := format('%s%s=%s',[AId,lSuffix,
-            AValue.replace(#13#10,#10,[rfReplaceAll]).
-            replace(#13,#10,[rfReplaceAll])
-            ]);
+            stringReplace(
+              stringreplace(AValue,#13#10,#10,[rfReplaceAll]),
+                #13,#10,[rfReplaceAll])]);
   end;
 end;
 
@@ -294,12 +478,16 @@ function AsJSONPair(AId: string; AValue: string;AValueQuoted:boolean=true):strin
 var lformat : string;
     function JSONEscape(Atext: string): string;
     begin
-      result := atext.Replace('\','\\',[rfReplaceAll])
-             .Replace('"','\"',[rfReplaceAll]);
+      result := StringReplace(StringReplace(atext,'\','\\',[rfReplaceAll])
+                   ,'"','\"',[rfReplaceAll]);
     end;
 begin
   result := '';
-  if AValueQuoted then lformat := '"%s":"%s"' else lformat:='"%s":%s';
+  if AValueQuoted then lformat := '"%s":"%s"' else
+  begin
+    lformat:='"%s":%s';
+    AValue := lowercase(AValue);
+  end;
   Result := format(lformat,[JSONEscape(AId),JSONEscape(AValue)]);
 end;
 
@@ -415,7 +603,7 @@ begin
  if (self.Count=0) then
  begin
    result := RecordAsValuePairs(TypeInfo(T), @self.Values, AIndex);
- end else if (AIndex>=0) and (Aindex<Count-1) then
+ end else if (AIndex>=0) and (Aindex<Count) then
  begin
    result := RecordAsValuePairs(TypeInfo(T), @self.AllValues[AIndex], AIndex);
  end else
@@ -429,8 +617,22 @@ begin
 end;
 
 function TRecordSerializer<T>.AsJSON: String;
+var i : Integer;
+    lComma: string;
 begin
-  result := RecordAsJSON(typeInfo(T),@Self.Values);
+  if Self.isArray then
+  begin
+    Result := '[';  
+    for I := 0 to High(Self.AllValues) do
+    begin
+      result := Result + lComma + 
+                RecordAsJSON(typeInfo(T),@Self.AllValues[i]);
+      lComma := ',';
+    end;
+    result := Result + ']';
+  end
+  else
+    result := RecordAsJSON(typeInfo(T),@Self.Values);
 end;
 
 procedure TRecordSerializer<T>.AsValuePairs(AStrings: TStrings; AIndex:integer =-1);
@@ -488,9 +690,9 @@ var lList : TStringlist;
 begin
   lList := TStringlist.create;
   try
-     lList.Text := AText;
-     lList.Sorted := true;
-     result := Self.Parse(lList,Amode,AIndex);
+    lList.Text := AText;
+    lList.Sorted := true;
+    result := Self.Parse(lList,Amode,AIndex);
   finally
     freeandnil(lList);
   end;
@@ -540,12 +742,35 @@ begin
               ((AIndex>=0) and (Bounds.High>=0));
 
   // We might need to change the Mode if this has just become an array
-  if (AMode=spmUpdate) and (self.isArray <> lIsArray) then
+  if (lIsArray) then
   begin
-    AMode := spmAppend;
-    lOffset := -1; // need to offset start point by 1
+    // Is an array but no bounds are specified
+    if (bounds.high=-1) then
+    begin
+      if (AMode=spmUpdate) and (AIndex<0) then
+      raise Exception.Create('Cannot update records, no index specified');
+      
+      if AMode=spmAppend then
+      begin
+        MaxId:=Self.Count;
+        setlength(AllValues,MaxID+1);
+        if (ParseValuesToRecord(AStrings, TypeInfo(T), @Self.AllValues[MaxId])>0) then
+         result := 1;
+        exit;
+      end;
+    end;
+    
+    // wasnt an array, but now is
+    if (self.isArray <> lIsArray) and (AMode=spmUpdate) then
+    begin
+      AMode := spmAppend;
+      lOffset := -1; // need to offset start point by 1
+    end;
+    //if in Append Mode, but there are no records, need to offset
+    if (MaxID<0) and (Amode=spmAppend) then lOffset:=-1;
   end;
-              
+
+             
   self.isArray := lIsArray;
 
   // is there only 1 element to Set ?
