@@ -203,9 +203,9 @@ begin
                 '"flNum":'+lDblValueStr+'}';
   lResult.FromJSON(lExpected);
   checkisFalse(lResult.Values.bool);
-  checkisEqual(lResult.Values.number,5);
-  checkisEqual(lResult.Values.text,'TestValue TEXT is ""');
-  checkisEqual(trunc(lresult.Values.flNum*1000)/1000,5); // double conversion...
+  checkisEqual(5,lResult.Values.number);
+  checkisEqual('TestValue TEXT is ""',lResult.Values.text);
+  checkisEqual(5,trunc(lresult.Values.flNum*1000)/1000); // double conversion...
 end;
 
 Procedure Parse_Array_Update_Works_as_Expected;
@@ -511,16 +511,16 @@ begin
                 '"text":"TestValue TEXT 2 is \"\"",'+
                 '"bool":true,'+
                 '"flNum":'+lDblValueStr+'}]';
-  lRecords.isArray := true;
-  Setlength(lRecords.AllValues,2);
-  lRecords.AllValues[0].number := 5;
-  lRecords.AllValues[0].text := 'TestValue TEXT is ""';
-  lRecords.AllValues[0].bool := false;
-  lRecords.AllValues[0].flNum := lDblValue;
-  lRecords.AllValues[1].number := 7;
-  lRecords.AllValues[1].text := 'TestValue TEXT 2 is ""';
-  lRecords.AllValues[1].bool := true;
-  lRecords.AllValues[1].flNum := lDblValue;
+  lRecords.FromJSON(lExpected);
+  checkisTrue(lRecords.isArray);
+  checkisEqual(lRecords.AllValues[0].number,5);
+  checkisEqual(lRecords.AllValues[0].text,'TestValue TEXT is ""');
+  checkisEqual(lRecords.AllValues[0].bool,false);
+  checkisEqual(lRecords.AllValues[0].flNum,lDblValue);
+  checkisEqual(lRecords.AllValues[1].number,7);
+  checkisEqual(lRecords.AllValues[1].text,'TestValue TEXT 2 is ""');
+  checkisTrue(lRecords.AllValues[1].bool);
+  checkisEqual(lRecords.AllValues[1].flNum,lDblValue);
   checkIsEqual(lExpected,lRecords.AsJSON);
 end;
 

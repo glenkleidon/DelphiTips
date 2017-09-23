@@ -12,6 +12,32 @@ interface
    Type TSerializerParseMode = (spmAppend, spmUpdate);
    Type TJSONState = (jsNone, jsInArray, jsInObject, jsInName, jsEndName,
                        jsInQuotedValue, jsInValue, jsInEscape, jsEndValue, jsEndObject, jsEndArray, jsNextElement);
+   Type TNamedCounter = record
+        Name: string;
+        index: integer;
+        Procedure Clear;
+        class Function New: TNamedCounter; static;
+   end;
+
+   Type TNamedCounterArray = TArray<TNamedCounter>;
+   Type TNamedCounterStack = Record
+   private
+    fList : TNamedCounterArray; 
+    function getPeek: TNamedCounter;
+    function getIndex: integer;
+    function getCurrentName: string;
+   public
+    Function Pop : TNamedCounter;
+    Function Push(ANamedIndex:TNamedCounter): Integer;
+    Procedure IncCounter;
+    Procedure NameCounter(AName: string);
+    Function CurrentCounter: Integer;
+    Procedure Clear;
+    Property Peek : TNamedCounter read getPeek;
+    Property CurrentIndex : integer read getIndex;
+    Property CurrentName : string read getCurrentName;
+   end;
+
    Type TArrayBounds = record
           Low : integer;
           High : integer;
@@ -28,7 +54,7 @@ interface
        Values : T;
        AllValues: Array of T;
        Procedure Clear;
-       Procedure Clone`(ARecord: T); overload;
+       Procedure Clone(ARecord: T); overload;
        Procedure Clone(ARecord: TRecordSerializer<T>); overload;
        Function Parse(AStrings:TStrings; AMode: TSerializerParseMode=spmUpdate;
                              AIndex: integer=-1): integer; overload;
@@ -67,7 +93,7 @@ implementation
   uses TypInfo,StrUtils;
 
 Function GetIndexBounds(AStrings: TStrings): TArrayBounds;
-var p,q,r: integer;
+var p,q: integer;
     v,c : integer;
     lText, lRow: string;
 begin
@@ -98,15 +124,15 @@ end;
 
 Function JSONToValuePairs(AJSON:string):String;
 var c : char;
-    l,i,index : integer;
+    l,i : integer;
     lValue, lName, lRow : string;
-    lArrayIndex : TStack<Integer>;
+    lIndexList : TNamedCounterStack;
     lStates: TStack<TJSONState>;
     lState : TJSONState;
     lList : TStringlist;
     Procedure JSONParseError(AChar: Char);
     begin
-      raise Exception.Create(format('JSON Parse Error %s at %u',[string(AChar), i]));
+      raise Exception.Create(format('JSON Parse Error character %s at %u',[string(AChar), i]));
     end;
     Procedure Reset;
     begin
@@ -116,182 +142,170 @@ var c : char;
     Procedure EndValue;
     var llIndex: string;
     begin
-      if index>=0 then llIndex := format('[%s]',[Index]);
+      llIndex :=  lIndexList.CurrentName;
       // could populate directly from here!!!!
       lRow := format('%s%s=%s',[lName,llIndex,lValue]);
       lList.Add(lRow);
+      Reset;
     end;
+    function EndInValue : boolean;
+    begin
+      result := false;
+      if lState<>jsInValue then exit;
+      lValue := trim(lValue);
+      Endvalue;
+      result := true;
+    end;
+
 begin
    // simple implementation assumes single object, no spacing
-   lArrayIndex := TStack<Integer>.Create;
+   lIndexList.clear;
    lStates:= TStack<TJSONState>.Create;
    lList := TStringlist.Create;
    Try
-   lStates.Push(TJSONState.jsNone);
-   l := length(AJSON);
-   for i := 1 to l do
-   begin
-     c := AJSON[i];
-     lState := lStates.peek;
-     if (c<>'"') then
-     case lState of
-        jsInQuotedValue,jsInName :
-          begin
-            if c='\' then
-               lStates.push(jsInEscape)
-            else lValue := lValue + c;
-            continue;
-          end;
-        jsInEscape :
-          begin
-            lValue := lValue + c;
-            lStates.Pop;
-          end;
-     end;
-     case c of
-       '{':
-           case lState of
-            jsNone,
-            jsNextElement,
-            jsInArray:
-             begin
-               Reset;
-               lStates.Push(TjsonState.jsInObject);
-             end;
-            jsInObject, jsInName,
-            jsEndName, jsInValue,
-            jsEndObject, jsEndArray: JSONParseError(c);
-           end;
-       '}':
-           case lState of
-            jsNone:;
-            jsInArray:;
-            jsInObject:;
-            jsInName:;
-            jsEndName:;
-            jsInValue:;
-            jsEndValue:;
-            jsEndObject:;
-            jsEndArray:;
-            jsNextElement:;
-           end;
-
-       '[':
-           case lState of
-            jsInValue
-             begin
-
-             end;
-            jsNone, jsInArray,  jsNextElement:
-             begin
-                lArrayIndex.Push(Index);
-                Index := 0;
-             end;
-            else JSONParseError(c);
-           end;
-       ']':
-           case lState of
-            jsEndValue, jsEndObject, jsEndArray:
-             begin
-                lStates.Pop;
-                if lState<>TJSONState.jsInArray then JSONParseError(c);
-
-                Index := -1;
-             end;
-            else JSONParseError(c);
-           end;
-       '"':
-           case lState of
-            jsNone,
-            jsInArray,
-            jsInObject,
-            jsNextElement:
-             begin
-               Reset;
-               lStates.Pop;
-               lState := TJSONState.jsInName;
-               lStates.Push(lState);
-             end;
-            jsEndName:
-              begin
-               lStates.Pop;
-               lState := TJSONState.jsInQuotedValue;
-               lStates.Push(lState);
-              end;
-            jsInName:
-              begin
-               lName := lValue;
-               lValue := '';
-               lStates.Pop;
-               lState := TJSONState.jsEndName;
-               lStates.Push(lState);
-              end;
-            jsInValue:
-              begin
-               lName := lValue;
-               lValue := '';
-               lStates.Pop;
-               lState := TJSONState.jsEndValue;
-               lStates.Push(lState);
-              end;
-           else JSONParseError(c);
-           end;
-       ',':
-           case lState of
-            jsEndValue,
-            jsEndArray,
-            jsEndObject:
-              begin
-                lStates.Pop;
-                lState := lStates.Peek;
-                if lState <> jsInArray then JSONParseError(c);
-                lStates.Push(TJSONState.jsNextElement);
-                inc(Index);
-              end;
-            else JSONParseError(c);
-           end;
-       ':':
-           case lState of
-            jsInName:
+     lStates.Push(TJSONState.jsNone);
+     l := length(AJSON);
+     for i := 1 to l do
+     begin
+       c := AJSON[i];
+       lState := lStates.peek;
+       if (lState=jsInEscape) or (c<>'"') then
+       case lState of
+          jsInQuotedValue,jsInName :
             begin
+              if c='\' then
+                 lStates.push(jsInEscape)
+              else lValue := lValue + c;
+              continue;
+            end;
+          jsInEscape :
+            begin
+              lValue := lValue + c;
               lStates.Pop;
-              lState := jsEndName;
-              lStates.Push(lState);
+              continue;
             end;
-
-            jsInValue, jsInValue
-            jsEndName:
-            begin
-            end;
-            jsNone:;
-            jsInArray:;
-            jsInObject:;
-            jsEndValue:;
-            jsEndObject:;
-            jsEndArray:;
-            jsNextElement:;
-           end;
+       end;
+       case c of
+         '{':
+             case lState of
+              jsNone,
+              jsNextElement,
+              jsInArray:
+               begin
+                 Reset;
+                 if lState=jsNextElement then lStates.pop;
+                 lStates.Push(TjsonState.jsInObject);
+               end;
+              jsInObject, jsInName,
+              jsEndName, jsInValue,
+              jsEndObject, jsEndArray: JSONParseError(c);
+             end;
+         '}':
+             case lState of
+              jsInValue,
+              jsEndValue,
+              jsInObject,
+              jsEndArray,
+              jsEndObject:
+               begin
+                 if EndInValue then lStates.pop;
+                 lStates.pop;
+                 lState := jsEndObject;
+                 lStates.Push(lState);
+               end;
+              else JSONParseError(c);
+             end;
+         '[':
+             case lState of
+              jsInValue, jsNone, jsInArray, jsNextElement:
+               begin
+                  lIndexList.Push(TNamedCounter.New);
+                  lIndexList.NameCounter(lName);
+                  lIndexList.IncCounter;
+                  lStates.Push(jsInArray);
+               end;
+              else JSONParseError(c);
+             end;
+         ']':
+             case lState of
+              jsInValue, jsEndValue, jsEndObject, jsEndArray:
+               begin
+                  EndInValue;
+                  lStates.Pop;
+                  if not (lStates.Peek in [jsNextElement,jsInArray]) then JSONParseError(c);
+                  lIndexList.Pop;
+               end;
+              else JSONParseError(c);
+             end;
+         '"':
+             case lState of
+              jsNone,
+              jsInArray,
+              jsInObject,
+              jsNextElement:
+               begin
+                 Reset;
+                 if not(lStates.peek in [jsInObject, jsInArray]) then lStates.Pop;
+                 lStates.Push(jsInName);
+               end;
+              jsInValue:
+                begin
+                 lStates.Pop;
+                 lState := jsInQuotedValue;
+                 lStates.Push(lState);
+                end;
+              jsInName:
+                begin
+                 lName := lValue;
+                 lValue := '';
+                 lStates.Pop;
+                 lStates.Push(jsEndName);
+                end;
+              jsInQuotedValue:
+                begin
+                 lStates.Pop;
+                 EndValue;
+                 lStates.Push(jsEndValue);
+                end;
+             else JSONParseError(c);
+             end;
+         ',':
+             case lState of
+              jsinValue, jsEndValue, jsEndArray, jsEndObject:
+                begin
+                  EndInValue;
+                  lStates.Pop;
+                  lState := lStates.Peek;
+                  case lState of
+                     jsInObject:; //ok, but nothing to do
+                     jsInArray : lIndexList.IncCounter;
+                  else JSONParseError(c);
+                  end;
+                  lStates.Push(jsNextElement);
+                end;
+              else JSONParseError(c);
+             end;
+         ':':
+             case lState of
+              jsEndName:
+              begin
+                lStates.Pop;
+                lStates.Push(jsInValue);
+              end;
+             else JSONParseError(c);
+             end;
+       end;
+       if lState in [jsInValue] then lvalue := lValue + c;
      end;
-     if State in [jsInValue] then lvalue = lValue + c;
-   end;
+     lStates.Pop;
+     if lStates.Peek<>jsNone then raise Exception.Create('JSON Text Incomplete');
+
+     result := lList.text;
    finally
      freeandnil(lList);
-     freeandnil(lArrayIndex);
+     freeandnil(lIndexList);
      freeandnil(lStates);
    end;
-
-
-   Result := AJSON;
-   result := StringReplace(Result,'{','',[]);
-   result := StringReplace(Result,'\"',#1,[rfReplaceAll]);
-   result := StringReplace(Result,'\\',#2,[rfReplaceAll]);
-   result := StringReplace(Result,'"','',[rfReplaceAll]);
-   result := StringReplace(Result,':','=',[rfReplaceAll]);
-   result := StringReplace(Result,',',#13#10,[rfReplaceAll]);
-   result := StringReplace(Result,#1,'"',[rfReplaceAll]);
-   result := StringReplace(Result,#2,'\',[rfReplaceAll]);
-   l := length(result)-1;
-   Result := copy(Result,1,l);
 end;
 
 function IndexedName(AId: string; AIndex: integer=-1): string;
@@ -305,15 +319,13 @@ var
   lfield: TRttiField;
   lfields: TArray<TRttiField>;
   lContext: TRTTIContext;
-  lText : TStringlist;
   lPrefix : string;
   lSuffix : String;
-  lTValue,lTDefaultValue : TValue;
+  lTValue : TValue;
   lValue : string;
   lInt: Int64;
   lSingle: Single;
   lDouble: Double;
-  Buffer : Pointer;
   p:integer;
 begin
   Result := 0;
@@ -382,8 +394,6 @@ var
   lText : TStringlist;
   lPrefix : string;
   lValue : string;
-  lTValue : TValue;
-  p:integer;
 begin
   ltype := TRTTIContext.Create.GetType(ATypeInfo);
   lFields := lType.getFields;
@@ -414,7 +424,6 @@ var
   lfields: TArray<TRttiField>;
   lComma : string;
   lValue : string;
-  lTValue : TValue;
   lNoQuotes: Boolean;
   lBoolHandle: PTypeInfo;
 begin
@@ -497,7 +506,6 @@ var
   ltype: TRTTIType;
   lfield: TRttiField;
   lfields: TArray<TRttiField>;
-  lPrefix : string;
   lValue : TValue;
 begin
   ltype := TRTTIContext.Create.GetType(ATypeInfo);
@@ -528,7 +536,6 @@ var
   ltype: TRTTIType;
   lfield: TRttiField;
   lfields: TArray<TRttiField>;
-  lPrefix : string;
   lValue : TValue;
 begin
   ltype := TRTTIContext.Create.GetType(ATypeInfo);
@@ -549,7 +556,6 @@ end;
 Function GetValuePairHeader(ATypeInfo: Pointer; APValue: Pointer): string;
 var
   ltype: TRTTIType;
-  lPrefix : string;
   lValue : TValue;
   lDynArray : TRttiDynamicArrayType;
   lArray : TRttiArrayType;
@@ -718,7 +724,7 @@ begin
 end;
 
 Function TRecordSerializer<T>.Parse(AStrings: TStrings; AMode: TSerializerParseMode=spmUpdate;
-             AIndex: integer=-1): integer;  
+             AIndex: integer=-1): integer;
 var lIndex,
     I,SI,MaxID :integer;
     bounds : TArrayBounds;
@@ -732,10 +738,10 @@ begin
 
   bounds.high := -1; bounds.low := -1;
   bounds := GetIndexBounds(AStrings);
-  
+
   // should it be an array now considering the data
   lIsArray := // was it previously an Array?
-               isArray OR 
+               isArray OR
                // has arrays but index not specified
               ((AIndex<0) and (bounds.High<>-1)) OR
                // has index Specified AND there are indexes specified
@@ -749,7 +755,7 @@ begin
     begin
       if (AMode=spmUpdate) and (AIndex<0) then
       raise Exception.Create('Cannot update records, no index specified');
-      
+
       if AMode=spmAppend then
       begin
         MaxId:=Self.Count;
@@ -759,7 +765,7 @@ begin
         exit;
       end;
     end;
-    
+
     // wasnt an array, but now is
     if (self.isArray <> lIsArray) and (AMode=spmUpdate) then
     begin
@@ -770,7 +776,7 @@ begin
     if (MaxID<0) and (Amode=spmAppend) then lOffset:=-1;
   end;
 
-             
+
   self.isArray := lIsArray;
 
   // is there only 1 element to Set ?
@@ -783,7 +789,7 @@ begin
 
   if ((lIsArray) and (AIndex>=0) ) then
   begin
-    if Bounds.High=-1 then 
+    if Bounds.High=-1 then
     begin
       bounds.Low := AIndex;
       bounds.High := AIndex;
@@ -836,6 +842,87 @@ class operator TRecordSerializer<T>.Implicit(
   ARecord: TRecordSerializer<T>): String;
 begin
    Result := ARecord.AsValuePairs;
+end;
+
+{ TNamedIndex }
+
+procedure TNamedCounter.Clear;
+begin
+  self.Name := '';
+  self.index := -1;
+end;
+
+class function TNamedCounter.New: TNamedCounter;
+begin
+  result.Clear;
+end;
+
+{ TNamedCounterStack }
+
+function TNamedCounterStack.getIndex: integer;
+begin
+  result := length(fList)-1;
+end;
+
+function TNamedCounterStack.getPeek: TNamedCounter;
+begin
+  Result := fList[CurrentIndex];
+end;
+
+procedure TNamedCounterStack.NameCounter(AName: string);
+begin
+  fList[CurrentIndex].Name := AName;
+end;
+
+procedure TNamedCounterStack.IncCounter;
+begin
+  inc(fList[CurrentIndex].Index); 
+end;
+
+function TNamedCounterStack.Pop: TNamedCounter;
+var lIndex : integer;
+begin
+  if length(flist)=0 then raise Exception.Create('Cannot Pop from empty stack');
+  lIndex := length(flist)-2;
+  setlength(fList,lIndex+1);
+  if (lIndex>=0) then Result := fList[lIndex];
+end;
+
+function TNamedCounterStack.Push(ANamedIndex: TNamedCounter): Integer;
+var lIndex: integer;
+begin
+  lIndex:= length(Flist);
+  setlength(fList,lIndex+1);
+  flist[lIndex].Name := ANamedIndex.Name;
+  flist[lIndex].index := ANamedIndex.index;
+  Result := lIndex;
+end;
+
+procedure TNamedCounterStack.Clear;
+begin
+  Setlength(fList,0);
+end;
+
+function TNamedCounterStack.CurrentCounter: Integer;
+begin
+  result := flist[CurrentIndex].index;
+end;
+
+Function TNamedCounterStack.getCurrentName: string;
+var lNamedIndex : TNamedCounter;
+    lDot : string;
+begin
+  result := '';
+  lDot := '';
+  for lNamedIndex in FList do
+  begin
+    if length(lNamedIndex.Name)>0 then 
+      Result := Result + format('%s%s[%u]',
+              [lDot,lNamedIndex.Name,lNamedIndex.index])
+    else 
+      Result := Result + format('[%u]',[lNamedIndex.index]);
+    lDot := '.';
+  end;
 end;
 
 end.
