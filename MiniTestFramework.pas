@@ -189,6 +189,7 @@ begin
   l := length(MiniTestCases);
   for i := 0 to l-1 do
   Try
+    if not assigned(MiniTestCases[i].Execute) then continue;
     if MiniTestCases[i].TestClass<>'' then
       NewTestSet(MiniTestCases[i].TestClass,MiniTestCases[i].Skip);
     ExpectException(MiniTestCases[i].ExpectedException,true);
