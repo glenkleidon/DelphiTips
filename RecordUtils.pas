@@ -26,6 +26,7 @@ interface
     function getPeek: TNamedCounter;
     function getIndex: integer;
     function getCurrentName: string;
+    function getFormatString: String;
    public
     Function Pop : TNamedCounter;
     Function Push(ANamedIndex:TNamedCounter): Integer;
@@ -36,6 +37,7 @@ interface
     Property Peek : TNamedCounter read getPeek;
     Property CurrentIndex : integer read getIndex;
     Property CurrentName : string read getCurrentName;
+    Property FormatString : String read getFormatString;
    end;
 
    Type TArrayBounds = record
@@ -140,11 +142,9 @@ var c : char;
       lValue := '';
     end;
     Procedure EndValue;
-    var llIndex: string;
     begin
-      llIndex :=  lIndexList.CurrentName;
       // could populate directly from here!!!!
-      lRow := format('%s%s=%s',[lName,llIndex,lValue]);
+      lRow := format( lIndexList.CurrentName+'=%s',[lValue]);
       lList.Add(lRow);
       Reset;
     end;
@@ -188,28 +188,29 @@ begin
        case c of
          '{':
              case lState of
+              jsInValue,
               jsNone,
               jsNextElement,
               jsInArray:
                begin
+                 if lState=jsInValue then lStates.pop;
                  Reset;
-                 if lState=jsNextElement then lStates.pop;
+                 if lStates.peek=jsNextElement then lStates.pop;
                  lStates.Push(TjsonState.jsInObject);
+                 lIndexList.Push(TNamedCounter.New);
                end;
-              jsInObject, jsInName,
-              jsEndName, jsInValue,
-              jsEndObject, jsEndArray: JSONParseError(c);
+              else JSONParseError(c);
              end;
          '}':
              case lState of
-              jsInValue,
-              jsEndValue,
-              jsInObject,
-              jsEndArray,
-              jsEndObject:
+              jsInObject, 
+              jsInValue, jsEndValue, jsEndArray, jsEndObject:
                begin
-                 if EndInValue then lStates.pop;
-                 lStates.pop;
+                 EndInValue;
+                 if lState<>jsInObject then lStates.Pop;
+                 // now we should be in inObject
+                 lStates.Pop; // pop out of current object
+                 lIndexList.Pop;
                  lState := jsEndObject;
                  lStates.Push(lState);
                end;
@@ -219,8 +220,8 @@ begin
              case lState of
               jsInValue, jsNone, jsInArray, jsNextElement:
                begin
+                  if lState=jsInValue then lStates.pop;
                   lIndexList.Push(TNamedCounter.New);
-                  lIndexList.NameCounter(lName);
                   lIndexList.IncCounter;
                   lStates.Push(jsInArray);
                end;
@@ -232,8 +233,10 @@ begin
                begin
                   EndInValue;
                   lStates.Pop;
-                  if not (lStates.Peek in [jsNextElement,jsInArray]) then JSONParseError(c);
+                  if not(lStates.peek=jsInArray) then JSONParseError(c);
+                  lStates.Pop; // pop out of the current array
                   lIndexList.Pop;
+                  lStates.push(jsEndArray);
                end;
               else JSONParseError(c);
              end;
@@ -251,12 +254,14 @@ begin
               jsInValue:
                 begin
                  lStates.Pop;
+                 lValue := '';
                  lState := jsInQuotedValue;
                  lStates.Push(lState);
                 end;
               jsInName:
                 begin
                  lName := lValue;
+                 lIndexList.NameCounter(lName);
                  lValue := '';
                  lStates.Pop;
                  lStates.Push(jsEndName);
@@ -303,7 +308,6 @@ begin
      result := lList.text;
    finally
      freeandnil(lList);
-     freeandnil(lIndexList);
      freeandnil(lStates);
    end;
 end;
@@ -910,19 +914,42 @@ end;
 
 Function TNamedCounterStack.getCurrentName: string;
 var lNamedIndex : TNamedCounter;
-    lDot : string;
+    i,l,sda : integer;
+    lDot,lNameStr,lCountStr : string;
 begin
   result := '';
-  lDot := '';
-  for lNamedIndex in FList do
+  lDot := '';                              
+  l:=length(fList)-1;
+  for i := 0 to l do
   begin
-    if length(lNamedIndex.Name)>0 then 
-      Result := Result + format('%s%s[%u]',
-              [lDot,lNamedIndex.Name,lNamedIndex.index])
+    lNamedIndex := fList[i];
+    lNameStr := lNamedIndex.Name;
+    lCountStr := '';
+    if lNamedIndex.index>=0 then lCountStr := format('[%u]',[lNamedIndex.index]); 
+    if length(lNamedIndex.Name)>0 then
+    begin
+      if True then
+
+      Result := Result + format('%s%s%s',
+              [lDot,lNameStr,lCountStr]);
+    end
     else 
-      Result := Result + format('[%u]',[lNamedIndex.index]);
+    begin
+      if i=0 then
+      begin
+        if l>0 then fList[1].index := lNamedIndex.index;
+        continue;
+      end;
+      if i=l then lNameStr := '%s';
+      Result := Result + format('%s%s',[lNameStr,lCountStr]);
+    end;
     lDot := '.';
   end;
+end;
+
+function TNamedCounterStack.getFormatString: String;
+begin
+ //  
 end;
 
 end.

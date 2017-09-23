@@ -1,0 +1,48 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{DF0A1F98-FD5D-42DA-B33B-5FBDD8591165}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="TestRecordUtils.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="TestMiniTestFramework.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="TestRecordUtils">
+        <MSBuild Projects="TestRecordUtils.dproj"/>
+    </Target>
+    <Target Name="TestRecordUtils:Clean">
+        <MSBuild Projects="TestRecordUtils.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="TestRecordUtils:Make">
+        <MSBuild Projects="TestRecordUtils.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="TestMiniTestFramework">
+        <MSBuild Projects="TestMiniTestFramework.dproj"/>
+    </Target>
+    <Target Name="TestMiniTestFramework:Clean">
+        <MSBuild Projects="TestMiniTestFramework.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="TestMiniTestFramework:Make">
+        <MSBuild Projects="TestMiniTestFramework.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="TestRecordUtils;TestMiniTestFramework"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="TestRecordUtils:Clean;TestMiniTestFramework:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="TestRecordUtils:Make;TestMiniTestFramework:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>

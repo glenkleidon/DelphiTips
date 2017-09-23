@@ -7,6 +7,9 @@ interface
       ,RecordUtils
    (**)
   ;
+// Tools for RecordUtils
+procedure JSONTOValuePairs_Works_as_Expected;
+// RecordUtils
 Procedure Setup;
 Procedure Record_Clears_as_expected;
 Procedure Clone_copies_values_as_expected;
@@ -41,6 +44,74 @@ Type
 
 
 implementation
+
+// JSON Tool Tests
+procedure JSONTOValuePairs_Works_as_Expected;
+var lExpected, lResult: String;
+begin
+  lExpected :=
+      'ValuePair[0].id=1'#13#10+
+      'ValuePair[0].Name=Name'#13#10+
+      'ValuePair[0].Object1.One=One'#13#10+
+      'ValuePair[0].Object1.Two=Two'#13#10+
+      'ValuePair[0].Object1.Three=3'#13#10+
+      'ValuePair[0].Object1.ObjectArray[0].id=22'#13#10+
+      'ValuePair[0].Object1.ObjectArray[0].Name=Object2-0'#13#10+
+      'ValuePair[0].Object1.ObjectArray[1].id=23'#13#10+
+      'ValuePair[0].Object1.ObjectArray[1].Name=Object2-1'#13#10+
+      'ValuePair[1].id=2'#13#10+
+      'ValuePair[1].Name=Name2'#13#10+
+      'ValuePair[1].Object1.One=1'#13#10+
+      'ValuePair[1].Object1.Two=2'#13#10+
+      'ValuePair[1].Object1.Three=Three'#13#10+
+      'ValuePair[1].Object1.ObjectArray[0].id=33'#13#10+
+      'ValuePair[1].Object1.ObjectArray[0].Name=Object2-3'#13#10+
+      'ValuePair[1].Object1.ObjectArray[1].id=34'#13#10+
+      'ValuePair[1].Object1.ObjectArray[1].Name=Object2-4'#13#10;
+
+  lResult := JSONToValuePairs(
+    '{'#13#10+
+    '	"ValuePair": [{'#13#10+
+    '		"id": 1,'#13#10+
+    '		"Name": "Name",'#13#10+
+    '		"Object1": {'#13#10+
+    '			"One": "One",'#13#10+
+    '			"Two": "Two",'#13#10+
+    '			"Three": 3,'#13#10+
+    '			"ObjectArray": [{'#13#10+
+    '				"id": 22,'#13#10+
+    '				"Name": "Object2-0"'#13#10+
+    '			},'#13#10+
+    '			{'#13#10+
+    '				"id": 23,'#13#10+
+    '				"Name": "Object2-1"'#13#10+
+    '			}]'#13#10+
+    '		}'#13#10+
+    '	},'#13#10+
+    '	{'#13#10+
+    '		"id": 2,'#13#10+
+    '		"Name": "Name2",'#13#10+
+    '		"Object1": {'#13#10+
+    '			"One": 1,'#13#10+
+    '			"Two": 2,'#13#10+
+    '			"Three": "Three",'#13#10+
+    '			"ObjectArray": [{'#13#10+
+    '				"id": 33,'#13#10+
+    '				"Name": "Object2-3"'#13#10+
+    '			},'#13#10+
+    '			{'#13#10+
+    '				"id": 34,'#13#10+
+    '				"Name": "Object2-4"'#13#10+
+    '			}]'#13#10+
+    '		}'#13#10+
+    '	}'#13#10+
+    '	]'#13#10+
+    '}'
+  );
+  checkisEqual(lExpected,lResult);
+
+end;
+
 
 Procedure Setup;
 begin

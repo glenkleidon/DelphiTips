@@ -10,6 +10,17 @@ uses
 
 begin
   try
+
+    Title('Test Cases For Tools used for RecordUtils');
+    PrepareSet(nil);
+    AddTestSet('JSON to Value Pairs', JSONTOValuePairs_Works_as_Expected);
+    FinaliseSet(nil);
+    RunTestSets;
+    TestSummary;
+
+//
+//
+    Title('Test Cases For RecordUtils');
     PrepareSet(Setup);
     AddTestSet('Clear Record', Record_Clears_as_expected);
     AddTestSet('Clone Record', Clone_copies_values_as_expected);
@@ -32,7 +43,6 @@ begin
                 false,'Cannot update records, no index specified');
     FinaliseSet(TearDown);
 
-    Title('Test Cases For RecordUtils');
     RunTestSets;
     TestSummary;
 
@@ -46,6 +56,6 @@ begin
           'Test case:' ,CurrentTestClass,';',CurrentTestCase,
           E.Message);
 		  ExitCode := 1;
-	  end; 
+	  end;
   end;
 end.
