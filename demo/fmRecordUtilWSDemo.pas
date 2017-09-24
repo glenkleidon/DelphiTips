@@ -11,10 +11,9 @@ uses
 
 
 type
-  TForm1 = class(TForm)
-    IdHTTP1: TIdHTTP;
+  TServerForm = class(TForm)
     Button1: TButton;
-    IdHTTPServer1: TIdHTTPServer;
+    DeckWebServer: TIdHTTPServer;
     ListBox1: TListBox;
     CardPanel: TPanel;
     SpinEdit1: TSpinEdit;
@@ -22,15 +21,19 @@ type
     ListBox2: TListBox;
     CardsLeftLabel: TLabel;
     ServerGroupBox: TGroupBox;
-    Memo1: TMemo;
     Timer1: TTimer;
+    DealerGroupBox: TGroupBox;
+    GroupBox1: TGroupBox;
+    ClientType: TComboBox;
+    AddClientButton: TButton;
     procedure FormCreate(Sender: TObject);
     procedure Button1Click(Sender: TObject);
     procedure ListBox1Click(Sender: TObject);
     procedure DealButtonClick(Sender: TObject);
-    procedure IdHTTPServer1CommandGet(AContext: TIdContext;
+    procedure DeckWebServerCommandGet(AContext: TIdContext;
       ARequestInfo: TIdHTTPRequestInfo; AResponseInfo: TIdHTTPResponseInfo);
     procedure Timer1Timer(Sender: TObject);
+    procedure AddClientButtonClick(Sender: TObject);
   private
     { Private declarations }
     fServerCards: TCards;
@@ -40,15 +43,35 @@ type
   end;
 
 var
-  Form1: TForm1;
+  ServerForm: TServerForm;
 
 implementation
 
 {$R *.dfm}
+   uses fmRecordUtilsWSClient, Shellapi;
 
 
+procedure TServerForm.AddClientButtonClick(Sender: TObject);
+var lPlayerForm: TPlayerForm;
+    lURL : string;
+begin
+  lURL := Format('http://localhost:%u/',
+                       [self.DeckWebServer.DefaultPort]);
+  case self.ClientType.ItemIndex of
+    0 : //
+        begin
+          lPlayerForm:= TPlayerForm.Create(Self);
+          lPlayerForm.URLEdit.Text := lUrl+'Deal';
+          lPlayerForm.Show; // now owned by the form
+        end;
+    1 : //
+        begin
+          shellexecute(self.Handle,'open',pchar(lURL+'/Client'),'','',SW_SHOWNORMAL);
+        end;
+  end;
+end;
 
-procedure TForm1.Button1Click(Sender: TObject);
+procedure TServerForm.Button1Click(Sender: TObject);
 begin
   self.fServerCards.Shuffle;
   self.ListBox1.Items.Text := fServerCards.Names;
@@ -56,38 +79,20 @@ begin
   self.ListBox1Click(Self);
 end;
 
-procedure TForm1.DealButtonClick(Sender: TObject);
-var lCardsDealt,i : integer;
-    lCard : TWebCard;
-    lElement: PWebCard;
+procedure TServerForm.DealButtonClick(Sender: TObject);
+var lCards : TCards;
+    lWebRequest : TWebCardRequest;
 begin
-  lCardsDealt:=0;
-  i :=-1;
   self.ListBox2.Items.Clear;
-  while lCardsDealt<Self.SpinEdit1.Value do
-  begin
-    inc(i);
-    lCard := self.fServerCards.Deck.Values[i];
-    if not lCard.isDealt then
-    begin
-      inc(lCardsDealt);
-      // IMPORTANT DISTINCTION
-      //   lCard here is a copy of the pointer to the Element
-      //   lElement is a Pointer TO the 'i'th Record element.
-      listbox1.ItemIndex := i;
-      lElement := self.fServerCards.Deck.Elements[i];
-      lElement.isDealt := true;
-      listBox2.Items.Add(lCard.Name);
-      ListBox1Click(self);
-    end;
-
-    if i>ListBox1.items.count-1 then exit;
-  end;
+  lWebRequest.NumberOfCards := self.SpinEdit1.Value;
+  lWebRequest.PlayersName := 'Server';
+  lCards.Deck := self.fServerCards.Deal(lWebRequest);
+  listBox2.Items.Text := lCards.Names;
   listBox1.SetFocus;
   Self.EnableDealing(true);
 end;
 
-procedure TForm1.EnableDealing(AEnable: boolean);
+procedure TServerForm.EnableDealing(AEnable: boolean);
 begin
   self.DealButton.Enabled := AEnable;
   self.SpinEdit1.Enabled := AEnable;
@@ -95,19 +100,30 @@ begin
   self.CardsLeftLabel.Caption := IntToStr(Self.fServerCards.Count);
 end;
 
-procedure TForm1.FormCreate(Sender: TObject);
+procedure TServerForm.FormCreate(Sender: TObject);
 begin
-  //
   EnableDealing(false);
 end;
 
-procedure TForm1.IdHTTPServer1CommandGet(AContext: TIdContext;
+procedure TServerForm.DeckWebServerCommandGet(AContext: TIdContext;
   ARequestInfo: TIdHTTPRequestInfo; AResponseInfo: TIdHTTPResponseInfo);
-Type TSWebCardRequest = TRecordSerializer<TWebCardRequest>;
   var lWebRequest : TSWebCardRequest;
+  Function contentStreamAsString: string;
+  var lStream: TStringStream;
+  begin
+     lStream := TStringStream.Create();
+     try
+       lStream.CopyFrom(ARequestInfo.PostStream,0);
+       result := lStream.DataString;
+     finally
+       freeAndNil(lStream);
+     end;
+  end;
 begin
+  if pos('json',lowercase(ARequestInfo.ContentType))>0 then
+    lWebREquest.FromJSON(ContentStreamAsString)
+  else lWebRequest := ARequestInfo.Params.Text;
 
-  lWebRequest.Parse(ARequestInfo.Params);
   lWebRequest.Value.AcceptResponse := ARequestInfo.Accept;
   try
     AResponseInfo.ContentText := Self.fServerCards.Deal(lWebRequest);
@@ -121,7 +137,7 @@ begin
 
 end;
 
-procedure TForm1.ListBox1Click(Sender: TObject);
+procedure TServerForm.ListBox1Click(Sender: TObject);
 var lCard: TSWebCard;
 begin
   self.EnableDealing(false);
@@ -130,19 +146,21 @@ begin
 
   self.EnableDealing(True);
   lCard := self.fServerCards.Deck.Values[ListBox1.ItemIndex];
-  self.CardPanel.Font.Color := lCard.value.Colour;
-  self.CardPanel.Caption := lCard.value.Name;
-  if lCard.value.isDealt then
-    self.CardPanel.Font.Style := [fsItalic]
-  else
-    self.CardPanel.Font.Style := [fsBold];
-  memo1.Text := lCard.AsJSON;
+
+  DrawCard(Self.CardPanel, lCard.Value);
 end;
 
 
-procedure TForm1.Timer1Timer(Sender: TObject);
+procedure TServerForm.Timer1Timer(Sender: TObject);
+var lPosition: Integer;
 begin
-  self.ListBox1Click(Self);
+  lPosition := Self.fServerCards.Deck.Position;
+  if timer1.Tag <> lPosition then
+  begin
+     self.ListBox1Click(Self);
+     self.ListBox1.ItemIndex := lPosition;
+  end;
+  timer1.Tag := lPosition;
 end;
 
 end.

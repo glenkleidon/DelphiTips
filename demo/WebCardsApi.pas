@@ -5,6 +5,12 @@ interface
 
 const
   CARD_RANKS = ' 2 3 4 5 6 7 8 910 J Q K A';
+
+  ENCODING_FORMATS : array[0..2] of string = (
+      'application/octet-stream',
+      'application/json',
+      'application/x-www-form-urlencoded');
+
 type
   TCardSuit = (Harts,Diamonds,Clubs,Spades);
 
@@ -28,6 +34,8 @@ type
     AcceptResponse: String;
   End;
 
+  TSWebCardRequest = TRecordSerializer<TWebCardRequest>;
+
   TCards = Record
     Deck : TSWebCard;
     public
@@ -37,11 +45,29 @@ type
      Function Deal(AWebRequest: TWebCardRequest): String;
   End;
 
-
+function SerializerEncodingFromText(AText: String): TSerializerEncoding;
+function TextFromSerializerEncoding(AEncoding: TSerializerEncoding): string;
 
 implementation
 
 { TDeck }
+
+function SerializerEncodingFromText(AText: String): TSerializerEncoding;
+var i: integer;
+begin
+  result := TSerializerEncoding.seJSON;
+  for i := 0 to 2 do
+    if sameText(AText,ENCODING_FORMATS[i]) then
+    begin
+      Result := TSerializerEncoding(i);
+      exit;
+    end;
+end;
+
+function TextFromSerializerEncoding(AEncoding: TSerializerEncoding): string;
+begin
+  result := ENCODING_FORMATS[ord(AEncoding)];
+end;
 
 function TCards.Count: integer;
 var lCard: TWebCard;
@@ -58,7 +84,7 @@ var lCards: TSWebCard;
 begin
   lCards.count := AWebRequest.NumberOfCards;
   if (Deck.Count<1) then raise Exception.Create('Deck not Shuffled.');
-  if (Deck.position = Deck.Count) then raise Exception.Create('No Cards left in Deck');
+  if (Deck.position >= Deck.Count-1) then raise Exception.Create('No Cards left in Deck');
   
   i := Deck.position-1;
   c := 0;
@@ -80,7 +106,7 @@ begin
 
   if pos('application/json',lowercase(AWebRequest.AcceptResponse))>0 then
     Result := lCards.AsJSON
-  else if pos('x-www-form-urlencoded',lowercase(AWebRequest.AcceptResponse))>0 then
+  else if pos('urlencoded',lowercase(AWebRequest.AcceptResponse))>0 then
     Result := lCards.AsURLEncoded
   else
     Result := lCards.AsValuePairs;

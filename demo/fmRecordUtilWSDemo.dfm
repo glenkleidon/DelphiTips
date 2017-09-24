@@ -1,9 +1,10 @@
-object Form1: TForm1
+object ServerForm: TServerForm
   Left = 0
   Top = 0
-  Caption = 'Form1'
-  ClientHeight = 358
-  ClientWidth = 635
+  BorderStyle = bsSingle
+  Caption = 'Cards'
+  ClientHeight = 368
+  ClientWidth = 195
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -17,18 +18,24 @@ object Form1: TForm1
   object ServerGroupBox: TGroupBox
     Left = 0
     Top = 0
-    Width = 176
-    Height = 358
-    Align = alLeft
+    Width = 195
+    Height = 368
+    Align = alClient
     Caption = 'Server'#39's Deck'
     TabOrder = 0
-    ExplicitLeft = 177
+    ExplicitLeft = 48
+    ExplicitTop = 56
+    ExplicitWidth = 193
+    DesignSize = (
+      195
+      368)
     object CardsLeftLabel: TLabel
-      Left = 77
-      Top = 319
-      Width = 49
+      Left = 8
+      Top = 329
+      Width = 65
       Height = 24
       Alignment = taCenter
+      Anchors = [akLeft, akBottom]
       AutoSize = False
       Caption = '0'
       Font.Charset = DEFAULT_CHARSET
@@ -39,19 +46,10 @@ object Form1: TForm1
       ParentFont = False
       Layout = tlCenter
     end
-    object Button1: TButton
-      Left = 6
-      Top = 319
-      Width = 49
-      Height = 25
-      Caption = 'Shuffle'
-      TabOrder = 0
-      OnClick = Button1Click
-    end
     object CardPanel: TPanel
       Left = 79
-      Top = 29
-      Width = 82
+      Top = 19
+      Width = 101
       Height = 41
       BevelOuter = bvNone
       Color = clCream
@@ -62,51 +60,88 @@ object Form1: TForm1
       Font.Style = []
       ParentBackground = False
       ParentFont = False
-      TabOrder = 1
+      TabOrder = 0
     end
-    object DealButton: TButton
+    object ListBox1: TListBox
+      Left = 8
+      Top = 50
+      Width = 65
+      Height = 273
+      Anchors = [akLeft, akTop, akBottom]
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -27
+      Font.Name = 'Terminal'
+      Font.Style = []
+      ItemHeight = 24
+      ParentFont = False
+      TabOrder = 1
+      OnClick = ListBox1Click
+    end
+    object Button1: TButton
+      Left = 6
+      Top = 19
+      Width = 67
+      Height = 25
+      Anchors = [akLeft, akBottom]
+      Caption = 'Shuffle'
+      TabOrder = 2
+      OnClick = Button1Click
+    end
+    object GroupBox1: TGroupBox
       Left = 79
-      Top = 76
+      Top = 279
+      Width = 101
+      Height = 74
+      Caption = 'Players'
+      TabOrder = 3
+      object ClientType: TComboBox
+        Left = 8
+        Top = 14
+        Width = 82
+        Height = 21
+        Style = csDropDownList
+        ItemIndex = 0
+        TabOrder = 0
+        Text = 'Windows'
+        Items.Strings = (
+          'Windows'
+          'Web')
+      end
+      object AddClientButton: TButton
+        Left = 16
+        Top = 41
+        Width = 59
+        Height = 22
+        Caption = 'Add'
+        TabOrder = 1
+        OnClick = AddClientButtonClick
+      end
+    end
+  end
+  object DealerGroupBox: TGroupBox
+    Left = 79
+    Top = 66
+    Width = 101
+    Height = 207
+    Caption = 'Dealer Cards'
+    TabOrder = 1
+    DesignSize = (
+      101
+      207)
+    object DealButton: TButton
+      Left = 4
+      Top = 20
       Width = 41
       Height = 25
       Caption = 'Deal'
       Enabled = False
-      TabOrder = 2
+      TabOrder = 0
       OnClick = DealButtonClick
     end
-    object ListBox1: TListBox
-      Left = 8
-      Top = 29
-      Width = 65
-      Height = 284
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -27
-      Font.Name = 'Terminal'
-      Font.Style = []
-      ItemHeight = 24
-      ParentFont = False
-      TabOrder = 3
-      OnClick = ListBox1Click
-    end
-    object ListBox2: TListBox
-      Left = 77
-      Top = 108
-      Width = 49
-      Height = 205
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -27
-      Font.Name = 'Terminal'
-      Font.Style = []
-      ItemHeight = 24
-      ParentFont = False
-      TabOrder = 4
-      OnClick = ListBox1Click
-    end
     object SpinEdit1: TSpinEdit
-      Left = 120
-      Top = 76
+      Left = 53
+      Top = 20
       Width = 40
       Height = 26
       Enabled = False
@@ -118,48 +153,39 @@ object Form1: TForm1
       MaxValue = 52
       MinValue = 1
       ParentFont = False
-      TabOrder = 5
-      Value = 0
+      TabOrder = 1
+      Value = 1
+    end
+    object ListBox2: TListBox
+      Left = 23
+      Top = 51
+      Width = 49
+      Height = 142
+      Anchors = [akLeft, akTop, akBottom]
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -27
+      Font.Name = 'Terminal'
+      Font.Style = []
+      ItemHeight = 24
+      ParentFont = False
+      TabOrder = 2
+      OnClick = ListBox1Click
+      ExplicitHeight = 150
     end
   end
-  object Memo1: TMemo
-    Left = 192
-    Top = 13
-    Width = 217
-    Height = 89
-    Lines.Strings = (
-      'Memo1')
-    TabOrder = 1
-  end
-  object IdHTTP1: TIdHTTP
-    AllowCookies = True
-    ProxyParams.BasicAuthentication = False
-    ProxyParams.ProxyPort = 0
-    Request.ContentLength = -1
-    Request.ContentRangeEnd = -1
-    Request.ContentRangeStart = -1
-    Request.ContentRangeInstanceLength = -1
-    Request.Accept = 'text/html, */*'
-    Request.BasicAuthentication = False
-    Request.UserAgent = 'Mozilla/3.0 (compatible; Indy Library)'
-    Request.Ranges.Units = 'bytes'
-    Request.Ranges = <>
-    HTTPOptions = [hoForceEncodeParams]
-    Left = 584
-    Top = 56
-  end
-  object IdHTTPServer1: TIdHTTPServer
+  object DeckWebServer: TIdHTTPServer
     Active = True
     Bindings = <>
     DefaultPort = 8181
-    OnCommandGet = IdHTTPServer1CommandGet
-    Left = 584
+    OnCommandGet = DeckWebServerCommandGet
+    Left = 272
     Top = 8
   end
   object Timer1: TTimer
     Interval = 500
     OnTimer = Timer1Timer
-    Left = 200
-    Top = 168
+    Left = 160
+    Top = 240
   end
 end

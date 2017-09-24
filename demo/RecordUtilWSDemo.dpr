@@ -2,15 +2,16 @@ program RecordUtilWSDemo;
 
 uses
   Forms,
-  fmRecordUtilWSDemo in 'fmRecordUtilWSDemo.pas' {Form1},
+  fmRecordUtilWSDemo in 'fmRecordUtilWSDemo.pas' {ServerForm},
   RecordUtils in '..\RecordUtils.pas',
-  WebCardsApi in 'WebCardsApi.pas';
+  WebCardsApi in 'WebCardsApi.pas',
+  fmRecordUtilsWSClient in 'fmRecordUtilsWSClient.pas' {PlayerForm};
 
 {$R *.res}
 
 begin
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
-  Application.CreateForm(TForm1, Form1);
+  Application.CreateForm(TServerForm, ServerForm);
   Application.Run;
 end.
