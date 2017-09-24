@@ -10,6 +10,7 @@ interface
    uses sysUtils, Classes, Rtti, Generics.collections;
    type PStrings = ^TStrings;
    Type TSerializerParseMode = (spmAppend, spmUpdate);
+   Type TSerializerEncoding = (seValuePairs, seJSON, seURLEncoding);
    Type TJSONState = (jsNone, jsInArray, jsInObject, jsInName, jsEndName,
                        jsInQuotedValue, jsInValue, jsInEscape, jsEndValue, jsEndObject, jsEndArray, jsNextElement);
    Type TNamedCounter = record
@@ -22,7 +23,7 @@ interface
    Type TNamedCounterArray = TArray<TNamedCounter>;
    Type TNamedCounterStack = Record
    private
-    fList : TNamedCounterArray; 
+    fList : TNamedCounterArray;
     function getPeek: TNamedCounter;
     function getIndex: integer;
     function getCurrentName: string;
@@ -59,13 +60,15 @@ interface
        Procedure Clone(ARecord: T); overload;
        Procedure Clone(ARecord: TRecordSerializer<T>); overload;
        Function Parse(AStrings:TStrings; AMode: TSerializerParseMode=spmUpdate;
-                             AIndex: integer=-1): integer; overload;
+                             AIndex: integer=-1; AFormat: TSerializerEncoding=seValuePairs): integer; overload;
        Function Parse(AText: String; AMode: TSerializerParseMode = spmUpdate;
-                             AIndex: integer=-1): integer; overload;
-       Function AsValuePairs(AIndex:integer =-1): string; overload;
-       Procedure AsValuePairs(AStrings:TStrings; AIndex:integer =-1); overload;
+                             AIndex: integer=-1; AFormat: TSerializerEncoding=seValuePairs): integer; overload;
+       Function AsValuePairs(AIndex:integer =-1; AFormat: TSerializerEncoding=seValuePairs): string; overload;
+       Procedure AsValuePairs(AStrings:TStrings; AIndex:integer =-1; AFormat: TSerializerEncoding=seValuePairs); overload;
        Function AsJSON : String; overload;
        Procedure FromJSON(AJSON: string);
+       Function AsURLEncoded : string;
+       Procedure FromURLEncoded(AURLEncoded: string);
        class operator Implicit(ASerializable: TRecordSerializer<T>): T;
        class operator Implicit(ARecord: T): TRecordSerializer<T>;
        class operator Implicit(AText: string): TRecordSerializer<T>;
@@ -76,10 +79,11 @@ interface
 
    function IndexedName(AId: string; AIndex: integer=-1): string;
    function ParseStringAsIndex(AId: string; AStrings: TStrings; AIndex: integer=-1): string;
-   function AsValuePair(AId: string; AValue: string; AIndex: integer=-1; ALineEnding: string=''):string;
-   function AsValuePairRow(AId: string; AValue: string; AIndex: integer=-1): string;
-   Function RecordAsValuePairs(ATypeInfo: Pointer; APValue: Pointer; AIndex: integer = -1): string;
-   Function ParseValuesToRecord(AStrings: TStrings; ATypeInfo: Pointer; APValue: Pointer; AIndex: integer = -1): integer;
+   function AsValuePair(AId: string; AValue: string; AIndex: integer=-1; ALineEnding: string=''; AFormat: TSerializerEncoding=seValuePairs):string;
+   function AsValuePairRow(AId: string; AValue: string; AIndex: integer=-1; AFormat: TSerializerEncoding=seValuePairs): string;
+   Function RecordAsValuePairs(ATypeInfo: Pointer; APValue: Pointer; AIndex: integer = -1; AFormat: TSerializerEncoding=seValuePairs): string;
+   Function ParseValuesToRecord(AStrings: TStrings; ATypeInfo: Pointer; APValue: Pointer; AIndex: integer = -1;
+                   AFormat: TSerializerEncoding = seValuePairs): integer;
    Function GetValuePairHeader(ATypeInfo: Pointer; APValue: Pointer): string;
    Procedure CloneRecord(ATypeInfo: Pointer; APRecordToClone: Pointer; APClonedRecord : Pointer );
    Procedure ClearRecord(ATypeInfo: Pointer; APValue: Pointer);
@@ -92,7 +96,9 @@ interface
 
 implementation
 
-  uses TypInfo,StrUtils;
+  uses TypInfo,StrUtils,
+     httpApp       // URL Encoding support... NOT UTF Safe!!
+     ;
 
 Function GetIndexBounds(AStrings: TStrings): TArrayBounds;
 var p,q: integer;
@@ -317,7 +323,8 @@ begin
  if (Aindex<0) then Result := AId else Result := format('%s[%u]',[AId, AIndex]);
 end;
 
-Function ParseValuesToRecord(AStrings: TStrings; ATypeInfo: Pointer; APValue: Pointer; AIndex: integer = -1): integer;
+Function ParseValuesToRecord(AStrings: TStrings; ATypeInfo: Pointer; APValue: Pointer; AIndex: integer = -1;
+    AFormat: TSerializerEncoding = seValuePairs): integer;
 var
   ltype: TRTTIType;
   lfield: TRttiField;
@@ -327,6 +334,7 @@ var
   lSuffix : String;
   lTValue : TValue;
   lValue : string;
+  lFieldName: string;
   lInt: Int64;
   lSingle: Single;
   lDouble: Double;
@@ -345,10 +353,13 @@ begin
       // Add records here.
     end else
     begin
-       lValue := AStrings.values[lField.Name];
-       if length(LValue)=0 then lValue := AStrings.values[lField.Name+lSuffix];
-       if length(LValue)=0 then lValue := AStrings.values[lPrefix+lField.Name];
+       lFieldName := lField.Name;
+       if AFormat=seURLEncoding then lFieldname := HTTPEncode(lFieldname);
+       lValue := AStrings.values[lFieldName];
+       if length(LValue)=0 then lValue := AStrings.values[lFieldName+lSuffix];
+       if length(LValue)=0 then lValue := AStrings.values[lPrefix+lFieldName];
        if length(lValue)=0 then continue;
+       if AFormat=seURLEncoding then lValue := httpDecode(lValue);
        case lField.FieldType.TypeKind of
          tkEnumeration:
          begin
@@ -390,7 +401,8 @@ begin
   end;
 end;
 
-Function RecordAsValuePairs(ATypeInfo: Pointer; APValue: Pointer; AIndex: integer = -1): string;
+Function RecordAsValuePairs(ATypeInfo: Pointer; APValue: Pointer; AIndex: integer = -1;
+  AFormat: TSerializerEncoding=seValuePairs): string;
 var
   ltype: TRTTIType;
   lfield: TRttiField;
@@ -411,7 +423,7 @@ begin
         // Add records here.
       end else
       begin
-        lValue := AsValuePair(lField.Name,lField.getValue(APValue).ToString, AIndex,#13#10);
+        lValue := AsValuePair(lField.Name,lField.getValue(APValue).ToString, AIndex,#13#10,AFormat);
         if length(lValue)>0 then lText.Add(lValue);
       end;
     end;
@@ -468,23 +480,34 @@ begin
   result := AStrings.Values[Aid+lSuffix];
 end;
 
-function AsValuePairRow(AId: string; AValue: string; AIndex: integer=-1): string;
+function AsValuePairRow(AId: string; AValue: string; AIndex: integer=-1;
+      AFormat: TSerializerEncoding=seValuePairs): string;
 begin
-  result :=  AsValuePair(AId, AValue, AIndex,#13#10);
+  result :=  AsValuePair(AId, AValue, AIndex,#13#10, Aformat);
 end;
 
-function AsValuePair(AId: string; AValue: string; AIndex: integer=-1; ALineEnding: string=''):string;
+function AsValuePair(AId: string; AValue: string; AIndex: integer=-1;
+           ALineEnding: string=''; AFormat: TSerializerEncoding=seValuePairs):string;
 var lSuffix : string;
 begin
   result := '';
   if length(AValue)>0 then
   begin
-    if AIndex=-1 then lSuffix := '' else lSuffix := format('[%u]',[AIndex]);
-    result := format('%s%s=%s',[AId,lSuffix,
-            stringReplace(
+    if AFormat=seURLEncoding then
+    begin
+      // by default from HTTPApp which should be available in very version of delphi
+      AId := HTTPEncode(AId);
+      AValue := HTTPEncode(AValue);
+    end else
+    begin
+      AValue :=  stringReplace(
               stringreplace(AValue,#13#10,#10,[rfReplaceAll]),
-                #13,#10,[rfReplaceAll])]);
+                #13,#10,[rfReplaceAll]) ;
+    end;
+    if AIndex=-1 then lSuffix := '' else lSuffix := format('[%u]',[AIndex]);
+    result := format('%s%s=%s',[AId,lSuffix,AValue]);
   end;
+
 end;
 
 function AsJSONPair(AId: string; AValue: string;AValueQuoted:boolean=true):string;
@@ -607,21 +630,21 @@ end;
 
 { TRecordSerializer<T> }
 
-function TRecordSerializer<T>.AsValuePairs(AIndex:integer =-1): string;
+function TRecordSerializer<T>.AsValuePairs(AIndex:integer =-1; AFormat: TSerializerEncoding=seValuePairs): string;
 var i,l :integer;
 begin
  if (self.Count=0) then
  begin
-   result := RecordAsValuePairs(TypeInfo(T), @self.Values, AIndex);
+   result := RecordAsValuePairs(TypeInfo(T), @self.Values, AIndex, AFormat);
  end else if (AIndex>=0) and (Aindex<Count) then
  begin
-   result := RecordAsValuePairs(TypeInfo(T), @self.AllValues[AIndex], AIndex);
+   result := RecordAsValuePairs(TypeInfo(T), @self.AllValues[AIndex], AIndex, Aformat);
  end else
  begin
    l := self.Count-1;
    for i := 0 to l do
    begin
-     result := result + RecordAsValuePairs(TypeInfo(T), @self.AllValues[i], i);
+     result := result + RecordAsValuePairs(TypeInfo(T), @self.AllValues[i], i, AFormat);
    end;
  end;
 end;
@@ -632,7 +655,7 @@ var i : Integer;
 begin
   if Self.isArray then
   begin
-    Result := '[';  
+    Result := '[';
     for I := 0 to High(Self.AllValues) do
     begin
       result := Result + lComma + 
@@ -645,9 +668,16 @@ begin
     result := RecordAsJSON(typeInfo(T),@Self.Values);
 end;
 
-procedure TRecordSerializer<T>.AsValuePairs(AStrings: TStrings; AIndex:integer =-1);
+function TRecordSerializer<T>.AsURLEncoded: string;
 begin
-  AStrings.Text := RecordAsValuePairs(TypeInfo(T), @self.Values, AIndex);
+   Result := stringreplace(
+          AsValuePairs(-1,seURLEncoding), #13#10, '&', [rfReplaceAll]);
+   Result := copy(Result,1,length(Result)-1);
+end;
+
+procedure TRecordSerializer<T>.AsValuePairs(AStrings: TStrings; AIndex:integer =-1; AFormat: TSerializerEncoding=seValuePairs);
+begin
+  AStrings.Text := RecordAsValuePairs(TypeInfo(T), @self.Values, AIndex, AFormat);
 end;
 
 procedure TRecordSerializer<T>.Clear;
@@ -673,6 +703,11 @@ begin
  self.Parse(JSONToValuePairs(AJSON));
 end;
 
+procedure TRecordSerializer<T>.FromURLEncoded(AURLEncoded: string);
+begin
+  Parse(stringReplace(AURLEncoded,'&',#13#10, [rfReplaceAll]),spmUpdate,-1,seURLEncoding);
+end;
+
 function TRecordSerializer<T>.getCount: integer;
 begin
   result := length(Self.AllValues);
@@ -695,14 +730,14 @@ begin
 end;
 
 Function TRecordSerializer<T>.Parse(AText: String; AMode: TSerializerParseMode=spmUpdate;
-          AIndex: integer=-1): integer; 
+          AIndex: integer=-1; AFormat: TSerializerEncoding=seValuePairs): integer;
 var lList : TStringlist;
 begin
   lList := TStringlist.create;
   try
     lList.Text := AText;
     lList.Sorted := true;
-    result := Self.Parse(lList,Amode,AIndex);
+    result := Self.Parse(lList,Amode,AIndex,AFormat);
   finally
     freeandnil(lList);
   end;
@@ -712,7 +747,7 @@ procedure TRecordSerializer<T>.setIsArray(const Value: boolean);
 begin
   if Value then
   begin
-    if self.Count=0 then 
+    if self.Count=0 then
     begin
       setlength(AllValues,1);
       fIndex := 0;
@@ -728,7 +763,7 @@ begin
 end;
 
 Function TRecordSerializer<T>.Parse(AStrings: TStrings; AMode: TSerializerParseMode=spmUpdate;
-             AIndex: integer=-1): integer;
+             AIndex: integer=-1; AFormat: TSerializerEncoding=seValuePairs): integer;
 var lIndex,
     I,SI,MaxID :integer;
     bounds : TArrayBounds;
@@ -764,7 +799,7 @@ begin
       begin
         MaxId:=Self.Count;
         setlength(AllValues,MaxID+1);
-        if (ParseValuesToRecord(AStrings, TypeInfo(T), @Self.AllValues[MaxId])>0) then
+        if (ParseValuesToRecord(AStrings, TypeInfo(T), @Self.AllValues[MaxId],-1,AFormat)>0) then
          result := 1;
         exit;
       end;
@@ -786,7 +821,7 @@ begin
   // is there only 1 element to Set ?
   if ( (not lIsArray) and (Amode=spmUpdate) ) then
   begin
-    if (ParseValuesToRecord(AStrings, TypeInfo(T), @Self.Values, AIndex)>0) then
+    if (ParseValuesToRecord(AStrings, TypeInfo(T), @Self.Values, AIndex, AFormat)>0) then
        result := 1;
     exit;
   end;
@@ -806,7 +841,7 @@ begin
         format('Index out of bounds %u',[bounds.high]))
       else SetLength(Self.AllValues,bounds.High)
     end;
-    if (ParseValuesToRecord(AStrings, TypeInfo(T), @Self.AllValues[bounds.High], AIndex)>0) then
+    if (ParseValuesToRecord(AStrings, TypeInfo(T), @Self.AllValues[bounds.High], AIndex, AFormat)>0) then
        result := 1;
     exit;
   end;
@@ -822,7 +857,7 @@ begin
         format('Index out of bounds %u',[si]))
       else SetLength(Self.AllValues,si+1)
     end;
-    if ParseValuesToRecord(AStrings,TypeInfo(T),@Self.AllValues[si],i)>0 then
+    if ParseValuesToRecord(AStrings,TypeInfo(T),@Self.AllValues[si],i, AFormat)>0 then
     begin
       inc(result);
     end;
@@ -914,7 +949,7 @@ end;
 
 Function TNamedCounterStack.getCurrentName: string;
 var lNamedIndex : TNamedCounter;
-    i,l,sda : integer;
+    i,l: integer;
     lDot,lNameStr,lCountStr : string;
 begin
   result := '';

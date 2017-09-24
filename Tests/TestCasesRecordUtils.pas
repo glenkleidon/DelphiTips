@@ -21,6 +21,8 @@ Procedure Implicit_Cast_To_String_works_as_Expected;
 Procedure Implicit_Cast_From_String_works_as_Expected;
 Procedure AsJSON_works_as_Expected;
 Procedure FromJSON_works_as_Expected;
+Procedure AsURLEncoded_works_as_Expected;
+Procedure FromURLEncoded_works_as_Expected;
 Procedure Parse_Array_Works_as_Expected;
 Procedure Parse_Array_Update_Works_as_Expected;
 Procedure Parse_Array_Exceptions_Detected_as_expected;
@@ -277,6 +279,38 @@ begin
   checkisEqual(5,lResult.Values.number);
   checkisEqual('TestValue TEXT is ""',lResult.Values.text);
   checkisEqual(5,trunc(lresult.Values.flNum*1000)/1000); // double conversion...
+end;
+
+Procedure AsURLEncoded_works_as_Expected;
+var lResult : TSerialisableRecord;
+    lExpected : string;
+begin
+  lExpected :=
+     'number=5&'+
+     'text=TestValue+is+15%25+%26+%0D%0A&'+
+     'bool=False&'+
+     'flNum=0';
+   lResult.Values.number := 5;
+   lResult.Values.text := 'TestValue is 15% & '#13#10;
+   lResult.Values.bool := false;
+   lResult.Values.flNum := 0;
+   checkisEqual(lExpected,lResult.AsURLEncoded);
+end;
+
+Procedure FromURLEncoded_works_as_Expected;
+var lExpected: String;
+    lResult : TSerialisableRecord;
+begin
+  lExpected :=
+     'number=5&'+
+     'text=TestValue+is+15%25+%26+%0D%0A&'+
+     'bool=False&'+
+     'flNum=5.663';
+  lResult.FromURLEncoded(lExpected);
+  checkisFalse(lResult.Values.bool);
+  checkisEqual(5,lResult.Values.number);
+  checkisEqual('TestValue is 15% & '#13#10,lResult.Values.text);
+  checkisEqual(5.663,trunc(lresult.Values.flNum*1000)/1000); // double conversion...
 end;
 
 Procedure Parse_Array_Update_Works_as_Expected;
