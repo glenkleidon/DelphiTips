@@ -52,10 +52,10 @@ interface
        fIndex: integer;
        function getCount: integer;
        function getIsArray: boolean;
-       procedure setIsArray(const Value: boolean);
+       procedure setIsArray(const AValue: boolean);
      public
-       Values : T;
-       AllValues: Array of T;
+       Value : T;
+       Values: Array of T;
        Procedure Clear;
        Procedure Clone(ARecord: T); overload;
        Procedure Clone(ARecord: TRecordSerializer<T>); overload;
@@ -659,16 +659,16 @@ var i,l :integer;
 begin
  if (self.Count=0) then
  begin
-   result := RecordAsValuePairs(TypeInfo(T), @self.Values, AIndex, AFormat);
+   result := RecordAsValuePairs(TypeInfo(T), @self.Value, AIndex, AFormat);
  end else if (AIndex>=0) and (Aindex<Count) then
  begin
-   result := RecordAsValuePairs(TypeInfo(T), @self.AllValues[AIndex], AIndex, Aformat);
+   result := RecordAsValuePairs(TypeInfo(T), @self.Values[AIndex], AIndex, Aformat);
  end else
  begin
    l := self.Count-1;
    for i := 0 to l do
    begin
-     result := result + RecordAsValuePairs(TypeInfo(T), @self.AllValues[i], i, AFormat);
+     result := result + RecordAsValuePairs(TypeInfo(T), @self.Values[i], i, AFormat);
    end;
  end;
 end;
@@ -680,16 +680,16 @@ begin
   if Self.isArray then
   begin
     Result := '[';
-    for I := 0 to High(Self.AllValues) do
+    for I := 0 to High(Self.Values) do
     begin
       result := Result + lComma + 
-                RecordAsJSON(typeInfo(T),@Self.AllValues[i]);
+                RecordAsJSON(typeInfo(T),@Self.Values[i]);
       lComma := ',';
     end;
     result := Result + ']';
   end
   else
-    result := RecordAsJSON(typeInfo(T),@Self.Values);
+    result := RecordAsJSON(typeInfo(T),@Self.Value);
 end;
 
 function TRecordSerializer<T>.AsURLEncoded: string;
@@ -701,25 +701,25 @@ end;
 
 procedure TRecordSerializer<T>.AsValuePairs(AStrings: TStrings; AIndex:integer =-1; AFormat: TSerializerEncoding=seValuePairs);
 begin
-  AStrings.Text := RecordAsValuePairs(TypeInfo(T), @self.Values, AIndex, AFormat);
+  AStrings.Text := RecordAsValuePairs(TypeInfo(T), @self.Value, AIndex, AFormat);
 end;
 
 procedure TRecordSerializer<T>.Clear;
 begin
-  clearRecord(TypeInfo(T),@self.Values);
-  setlength(AllValues,0);
+  clearRecord(TypeInfo(T),@self.Value);
+  setlength(Values,0);
   findex := -1;
   fIsArray := '';
 end;
 
 procedure TRecordSerializer<T>.Clone(ARecord: TRecordSerializer<T>);
 begin
-  CloneRecord(TypeInfo(T),@Arecord.Values, @Self);
+  CloneRecord(TypeInfo(T),@Arecord.Value, @Self);
 end;
 
 procedure TRecordSerializer<T>.Clone(ARecord: T);
 begin
-  CloneRecord(TypeInfo(T),@Arecord, @Self.Values);
+  CloneRecord(TypeInfo(T),@Arecord, @Self.Value);
 end;
 
 procedure TRecordSerializer<T>.FromJSON(AJSON: string);
@@ -734,7 +734,7 @@ end;
 
 function TRecordSerializer<T>.getCount: integer;
 begin
-  result := length(Self.AllValues);
+  result := length(Self.Values);
   if result>0 then fIsArray:='True';
 end;
 
@@ -750,7 +750,7 @@ end;
 
 class operator TRecordSerializer<T>.Implicit(ASerializable: TRecordSerializer<T>): T;
 begin
-  CloneRecord(TypeInfo(T), @ASerializable.Values, @Result);
+  CloneRecord(TypeInfo(T), @ASerializable.Value, @Result);
 end;
 
 Function TRecordSerializer<T>.Parse(AText: String; AMode: TSerializerParseMode=spmUpdate;
@@ -767,20 +767,20 @@ begin
   end;
 end;
 
-procedure TRecordSerializer<T>.setIsArray(const Value: boolean);
+procedure TRecordSerializer<T>.setIsArray(const AValue: boolean);
 begin
-  if Value then
+  if AValue then
   begin
     if self.Count=0 then
     begin
-      setlength(AllValues,1);
+      setlength(Values,1);
       fIndex := 0;
-      CloneREcord(TypeInfo(T),@Values,@AllValues[0]);
+      CloneREcord(TypeInfo(T),@Value,@Values[0]);
     end;
     fIsArray:='True';
   end else
   begin
-    if (self.Count>0) then Setlength(AllValues,0);
+    if (self.Count>0) then Setlength(Values,0);
     fIsArray:='';
     fIndex := -1;
   end;
@@ -822,8 +822,8 @@ begin
       if AMode=spmAppend then
       begin
         MaxId:=Self.Count;
-        setlength(AllValues,MaxID+1);
-        if (ParseValuesToRecord(AStrings, TypeInfo(T), @Self.AllValues[MaxId],-1,AFormat)>0) then
+        setlength(Values,MaxID+1);
+        if (ParseValuesToRecord(AStrings, TypeInfo(T), @Self.Values[MaxId],-1,AFormat)>0) then
          result := 1;
         exit;
       end;
@@ -845,7 +845,7 @@ begin
   // is there only 1 element to Set ?
   if ( (not lIsArray) and (Amode=spmUpdate) ) then
   begin
-    if (ParseValuesToRecord(AStrings, TypeInfo(T), @Self.Values, AIndex, AFormat)>0) then
+    if (ParseValuesToRecord(AStrings, TypeInfo(T), @Self.Value, AIndex, AFormat)>0) then
        result := 1;
     exit;
   end;
@@ -863,9 +863,9 @@ begin
       if AMode=spmUpdate then
        raise Exception.Create(
         format('Index out of bounds %u',[bounds.high]))
-      else SetLength(Self.AllValues,bounds.High)
+      else SetLength(Self.Values,bounds.High)
     end;
-    if (ParseValuesToRecord(AStrings, TypeInfo(T), @Self.AllValues[bounds.High], AIndex, AFormat)>0) then
+    if (ParseValuesToRecord(AStrings, TypeInfo(T), @Self.Values[bounds.High], AIndex, AFormat)>0) then
        result := 1;
     exit;
   end;
@@ -879,9 +879,9 @@ begin
     begin
       if AMode=spmUpdate then raise Exception.Create(
         format('Index out of bounds %u',[si]))
-      else SetLength(Self.AllValues,si+1)
+      else SetLength(Self.Values,si+1)
     end;
-    if ParseValuesToRecord(AStrings,TypeInfo(T),@Self.AllValues[si],i, AFormat)>0 then
+    if ParseValuesToRecord(AStrings,TypeInfo(T),@Self.Values[si],i, AFormat)>0 then
     begin
       inc(result);
     end;
@@ -890,7 +890,7 @@ begin
   if (Self.count=1) and (Result=1) then
   begin
      findex := 0;
-     self.Clone(Self.AllValues[0]);
+     self.Clone(Self.Values[0]);
   end;
 end;
 

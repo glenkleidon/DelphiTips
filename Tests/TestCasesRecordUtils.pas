@@ -157,24 +157,24 @@ var lResult : TSerialisableRecord;
 begin
   NewTestCase('Static Type Clears as Expected');
   lResult.Clear;
-  checkisTrue(lResult.Values.number=0);
-  checkisTrue(lResult.Values.text='');
-  checkisFalse(lResult.Values.bool);
-  checkisTrue(lResult.Values.flNum=0);
+  checkisTrue(lResult.Value.number=0);
+  checkisTrue(lResult.Value.text='');
+  checkisFalse(lResult.Value.bool);
+  checkisTrue(lResult.Value.flNum=0);
 end;
 
-Procedure Clone_copies_values_as_expected;
+Procedure Clone_copies_Values_as_expected;
 var lResult,lClone : TSerialisableRecord;
 begin
-   lResult.Values.number := 5;
-   lResult.Values.text := 'TestValue TEXT';
-   lResult.Values.bool := false;
-   lResult.Values.flNum := 5.663;
-   lClone.clone(lResult.Values);
-   checkisEqual(lResult.Values.number,lClone.Values.number);
-   checkisEqual(lResult.Values.text,lClone.Values.text);
-   checkisEqual(lResult.Values.bool,lClone.Values.bool);
-   checkisEqual(lResult.Values.flNum,lClone.Values.flNum);
+   lResult.Value.number := 5;
+   lResult.Value.text := 'TestValue TEXT';
+   lResult.Value.bool := false;
+   lResult.Value.flNum := 5.663;
+   lClone.clone(lResult.Value);
+   checkisEqual(lResult.Value.number,lClone.Value.number);
+   checkisEqual(lResult.Value.text,lClone.Value.text);
+   checkisEqual(lResult.Value.bool,lClone.Value.bool);
+   checkisEqual(lResult.Value.flNum,lClone.Value.flNum);
 end;
 
 Procedure Parse_Populates_record_as_expected;
@@ -186,10 +186,10 @@ begin
                'bool=False'#13#10+
                'flNum=5.663';
   lResult.Parse(lExpected);
-  checkisFalse(lResult.Values.bool);
-  checkisEqual(5,lResult.Values.number);
-  checkisEqual('TestValue TEXT',lResult.Values.text);
-  checkisEqual(5.663,trunc(lresult.Values.flNum*1000)/1000); // double conversion...
+  checkisFalse(lResult.Value.bool);
+  checkisEqual(5,lResult.Value.number);
+  checkisEqual('TestValue TEXT',lResult.Value.text);
+  checkisEqual(5.663,trunc(lresult.Value.flNum*1000)/1000); // double conversion...
 end;
 
 Procedure Implicit_Cast_To_String_works_as_Expected;
@@ -200,10 +200,10 @@ begin
              'text=TestValue TEXT'#13#10+
              'bool=False'#13#10+
              'flNum=0'#13#10;
-   lResult.Values.number := 5;
-   lResult.Values.text := 'TestValue TEXT';
-   lResult.Values.bool := false;
-   lResult.Values.flNum := 0;
+   lResult.Value.number := 5;
+   lResult.Value.text := 'TestValue TEXT';
+   lResult.Value.bool := false;
+   lResult.Value.flNum := 0;
    checkisEqual(lExpected,lResult);
 
 end;
@@ -217,10 +217,10 @@ begin
                'bool=False'#13#10+
                'flNum=5.663';
   lResult := lExpected;
-  checkisFalse(lResult.Values.bool);
-  checkisEqual(5,lResult.Values.number);
-  checkisEqual('TestValue TEXT',lResult.Values.text);
-  checkisEqual(5.663,trunc(lresult.Values.flNum*1000)/1000); // double conversion...
+  checkisFalse(lResult.Value.bool);
+  checkisEqual(5,lResult.Value.number);
+  checkisEqual('TestValue TEXT',lResult.Value.text);
+  checkisEqual(5.663,trunc(lresult.Value.flNum*1000)/1000); // double conversion...
 
   lExpected :=
      'number=5&'+
@@ -228,14 +228,14 @@ begin
      'bool=False&'+
      'flNum=5.663';
   lResult := lExpected;
-  checkisFalse(lResult.Values.bool);
-  checkisEqual(5,lResult.Values.number);
-  checkisEqual('TestValue is 15% & '#13#10,lResult.Values.text);
-  checkisEqual(5.663,trunc(lresult.Values.flNum*1000)/1000); // double conversion...
+  checkisFalse(lResult.Value.bool);
+  checkisEqual(5,lResult.Value.number);
+  checkisEqual('TestValue is 15% & '#13#10,lResult.Value.text);
+  checkisEqual(5.663,trunc(lresult.Value.flNum*1000)/1000); // double conversion...
 
 end;
 
-Procedure AsValuePairs_Exports_values_as_Expected;
+Procedure AsValuePairs_Exports_Values_as_Expected;
 var lResult : TSerialisableRecord;
     lExpected : string;
 begin
@@ -243,10 +243,10 @@ begin
              'text=TestValue TEXT'#13#10+
              'bool=False'#13#10+
              'flNum=0'#13#10;
-   lResult.Values.number := 5;
-   lResult.Values.text := 'TestValue TEXT';
-   lResult.Values.bool := false;
-   lResult.Values.flNum := 0;
+   lResult.Value.number := 5;
+   lResult.Value.text := 'TestValue TEXT';
+   lResult.Value.bool := false;
+   lResult.Value.flNum := 0;
    checkisEqual(lExpected,lResult.AsValuePairs);
 end;
 
@@ -254,15 +254,15 @@ Procedure Implicit_Cast_To_Static_works_as_Expected;
 var lResult : TTestRecord;
 var lSerialisable : TSerialisableRecord;
 begin
-   lSerialisable.Values.number := 5;
-   lSerialisable.Values.text := 'TestValue TEXT';
-   lSerialisable.Values.bool := false;
-   lSerialisable.Values.flNum := 5.663;
+   lSerialisable.Value.number := 5;
+   lSerialisable.Value.text := 'TestValue TEXT';
+   lSerialisable.Value.bool := false;
+   lSerialisable.Value.flNum := 5.663;
    lResult := lSerialisable;
-   checkisEqual(lSerialisable.Values.number,lResult.number);
-   checkisEqual(lSerialisable.Values.text,lResult.text);
-   checkisEqual(lResult.bool,lSerialisable.Values.bool);
-   checkisEqual(lSerialisable.Values.flNum,lResult.flNum);
+   checkisEqual(lSerialisable.Value.number,lResult.number);
+   checkisEqual(lSerialisable.Value.text,lResult.text);
+   checkisEqual(lResult.bool,lSerialisable.Value.bool);
+   checkisEqual(lSerialisable.Value.flNum,lResult.flNum);
 end;
 
 Procedure Implicit_Cast_From_Static_works_as_Expected;
@@ -274,10 +274,10 @@ begin
    lStatic.bool := false;
    lStatic.flNum := 5.663;
    lResult := lStatic;
-   checkisEqual(lResult.Values.number,lStatic.number);
-   checkisEqual(lResult.Values.text,lStatic.text);
-   checkisEqual(lResult.Values.bool,lStatic.bool);
-   checkisEqual(lResult.Values.flNum,lStatic.flNum);
+   checkisEqual(lResult.Value.number,lStatic.number);
+   checkisEqual(lResult.Value.text,lStatic.text);
+   checkisEqual(lResult.Value.bool,lStatic.bool);
+   checkisEqual(lResult.Value.flNum,lStatic.flNum);
 end;
 
 Procedure AsJSON_works_as_Expected;
@@ -292,10 +292,10 @@ begin
                 '"text":"TestValue TEXT is \"\"",'+
                 '"bool":false,'+
                 '"flNum":'+lDblValueStr+'}';
-  lRecord.Values.number := 5;
-  lRecord.Values.text := 'TestValue TEXT is ""';
-  lRecord.Values.bool := false;
-  lRecord.Values.flNum := lDblValue;
+  lRecord.Value.number := 5;
+  lRecord.Value.text := 'TestValue TEXT is ""';
+  lRecord.Value.bool := false;
+  lRecord.Value.flNum := lDblValue;
   checkIsEqual(lExpected,lRecord.AsJSON);
 end;
 
@@ -312,10 +312,10 @@ begin
                 '"bool":False,'+
                 '"flNum":'+lDblValueStr+'}';
   lResult.FromJSON(lExpected);
-  checkisFalse(lResult.Values.bool);
-  checkisEqual(5,lResult.Values.number);
-  checkisEqual('TestValue TEXT is ""',lResult.Values.text);
-  checkisEqual(5,trunc(lresult.Values.flNum*1000)/1000); // double conversion...
+  checkisFalse(lResult.Value.bool);
+  checkisEqual(5,lResult.Value.number);
+  checkisEqual('TestValue TEXT is ""',lResult.Value.text);
+  checkisEqual(5,trunc(lresult.Value.flNum*1000)/1000); // double conversion...
 end;
 
 Procedure AsURLEncoded_works_as_Expected;
@@ -327,10 +327,10 @@ begin
      'text=TestValue+is+15%25+%26+%0D%0A&'+
      'bool=False&'+
      'flNum=0';
-   lResult.Values.number := 5;
-   lResult.Values.text := 'TestValue is 15% & '#13#10;
-   lResult.Values.bool := false;
-   lResult.Values.flNum := 0;
+   lResult.Value.number := 5;
+   lResult.Value.text := 'TestValue is 15% & '#13#10;
+   lResult.Value.bool := false;
+   lResult.Value.flNum := 0;
    checkisEqual(lExpected,lResult.AsURLEncoded);
 end;
 
@@ -344,10 +344,10 @@ begin
      'bool=False&'+
      'flNum=5.663';
   lResult.FromURLEncoded(lExpected);
-  checkisFalse(lResult.Values.bool);
-  checkisEqual(5,lResult.Values.number);
-  checkisEqual('TestValue is 15% & '#13#10,lResult.Values.text);
-  checkisEqual(5.663,trunc(lresult.Values.flNum*1000)/1000); // double conversion...
+  checkisFalse(lResult.Value.bool);
+  checkisEqual(5,lResult.Value.number);
+  checkisEqual('TestValue is 15% & '#13#10,lResult.Value.text);
+  checkisEqual(5.663,trunc(lresult.Value.flNum*1000)/1000); // double conversion...
 end;
 
 Procedure Parse_Array_Update_Works_as_Expected;
@@ -367,16 +367,16 @@ begin
   checkisEqual(2,lResult.Count,'Expected Count to be 2');
 
   NewTestCase('Array Element 0 has Correct Values');
-  checkisFalse(lResult.AllValues[0].bool);
-  checkisEqual(5,lResult.AllValues[0].number);
-  checkisEqual('TestValue TEXT',lResult.AllValues[0].text);
-  checkisEqual(5.663,trunc(lResult.AllValues[0].flNum*1000)/1000); // double conversion...
+  checkisFalse(lResult.Values[0].bool);
+  checkisEqual(5,lResult.Values[0].number);
+  checkisEqual('TestValue TEXT',lResult.Values[0].text);
+  checkisEqual(5.663,trunc(lResult.Values[0].flNum*1000)/1000); // double conversion...
 
   NewTestCase('Array Element 1 has Correct Values');
-  checkisTrue(lResult.AllValues[1].bool);
-  checkisEqual(6,lResult.AllValues[1].number);
-  checkisEqual('TestValue TEXT 2',lResult.AllValues[1].text);
-  checkisEqual(300.01,trunc(lResult.AllValues[1].flNum*1000)/1000); // double conversion...
+  checkisTrue(lResult.Values[1].bool);
+  checkisEqual(6,lResult.Values[1].number);
+  checkisEqual('TestValue TEXT 2',lResult.Values[1].text);
+  checkisEqual(300.01,trunc(lResult.Values[1].flNum*1000)/1000); // double conversion...
 
   NewTestCase('Update Single Row');
 
@@ -388,10 +388,10 @@ begin
   checkisEqual(2,lResult.Count,'Expected Count to be 2');
 
   NewTestCase('Array Element 0 has Correct Values');
-  checkisFalse(lResult.AllValues[0].bool);
-  checkisEqual(128,lResult.AllValues[0].number);
-  checkisEqual('TestValue TEXT 4',lResult.AllValues[0].text);
-  checkisEqual(21.2,trunc(lResult.AllValues[0].flNum*1000)/1000); // double conversion...
+  checkisFalse(lResult.Values[0].bool);
+  checkisEqual(128,lResult.Values[0].number);
+  checkisEqual('TestValue TEXT 4',lResult.Values[0].text);
+  checkisEqual(21.2,trunc(lResult.Values[0].flNum*1000)/1000); // double conversion...
 
   lExpected := 'number[0]=6'#13#10+
                'text[0]=TestValue TEXT 2'#13#10+
@@ -405,16 +405,16 @@ begin
   checkisEqual(2,lResult.Count,'Expected Count to be 2');
 
   NewTestCase('Array Element 0 has Correct Values');
-  checkisTrue(lResult.AllValues[0].bool);
-  checkisEqual(6,lResult.AllValues[0].number);
-  checkisEqual('TestValue TEXT 2',lResult.AllValues[0].text);
-  checkisEqual(301,trunc(lResult.AllValues[0].flNum*1000)/1000); // double conversion...
+  checkisTrue(lResult.Values[0].bool);
+  checkisEqual(6,lResult.Values[0].number);
+  checkisEqual('TestValue TEXT 2',lResult.Values[0].text);
+  checkisEqual(301,trunc(lResult.Values[0].flNum*1000)/1000); // double conversion...
 
   NewTestCase('Array Element 1 has Correct Values');
-  checkisFalse(lResult.AllValues[1].bool);
-  checkisEqual(8,lResult.AllValues[1].number);
-  checkisEqual('TestValue TEXT 3',lResult.AllValues[1].text);
-  checkisEqual(5.01,trunc(lResult.AllValues[1].flNum*1000)/1000); // double conversion...
+  checkisFalse(lResult.Values[1].bool);
+  checkisEqual(8,lResult.Values[1].number);
+  checkisEqual('TestValue TEXT 3',lResult.Values[1].text);
+  checkisEqual(5.01,trunc(lResult.Values[1].flNum*1000)/1000); // double conversion...
 
   NewTestCase('Update Single index without specifying bounds');
   lExpected := 'number=3'#13#10+
@@ -426,10 +426,10 @@ begin
   checkisEqual(2,lResult.Count,'Expected Count to be 2');
 
   NewTestCase('Array Element 1 has Correct Values');
-  checkisFalse(lResult.AllValues[1].bool);
-  checkisEqual(3,lResult.AllValues[1].number);
-  checkisEqual('TestValue TEXT 6',lResult.AllValues[1].text);
-  checkisEqual(44.2,trunc(lResult.AllValues[1].flNum*1000)/1000); // double conversion...
+  checkisFalse(lResult.Values[1].bool);
+  checkisEqual(3,lResult.Values[1].number);
+  checkisEqual('TestValue TEXT 6',lResult.Values[1].text);
+  checkisEqual(44.2,trunc(lResult.Values[1].flNum*1000)/1000); // double conversion...
 
   NewTestCase('Update Single Index using Index');
   lExpected := 'number=3'#13#10+
@@ -441,10 +441,10 @@ begin
   checkisEqual(3,lResult.Count,'Expected Count to be 3');
 
   NewTestCase('Array Element 1 has Correct Values');
-  checkisFalse(lResult.AllValues[1].bool);
-  checkisEqual(3,lResult.AllValues[1].number);
-  checkisEqual('TestValue TEXT 6',lResult.AllValues[1].text);
-  checkisEqual(44.2,trunc(lResult.AllValues[1].flNum*1000)/1000); // double conversion...
+  checkisFalse(lResult.Values[1].bool);
+  checkisEqual(3,lResult.Values[1].number);
+  checkisEqual('TestValue TEXT 6',lResult.Values[1].text);
+  checkisEqual(44.2,trunc(lResult.Values[1].flNum*1000)/1000); // double conversion...
 
 end;
 
@@ -483,10 +483,10 @@ begin
                'bool[0]=False'#13#10+
                'flNum[0]=5.663';
   checkisEqual(1,lResult.Parse(lExpected));
-  checkisFalse(lResult.Values.bool);
-  checkisEqual(5,lResult.Values.number);
-  checkisEqual('TestValue TEXT',lResult.Values.text);
-  checkisEqual(5.663,trunc(lresult.Values.flNum*1000)/1000); // double conversion...
+  checkisFalse(lResult.Value.bool);
+  checkisEqual(5,lResult.Value.number);
+  checkisEqual('TestValue TEXT',lResult.Value.text);
+  checkisEqual(5.663,trunc(lresult.Value.flNum*1000)/1000); // double conversion...
 
   NewTestCase('Second Parse Appends to existing Array');
   lExpected := 'number[0]=6'#13#10+
@@ -495,18 +495,18 @@ begin
                'flNum[0]=300.01';
   checkisEqual(1,lResult.Parse(lExpected,spmAppend),'Expected 1 Record to be added');
   checkisEqual(2,lResult.Count,'Expected Count to be 2');
-  checkisFalse(lResult.AllValues[0].bool);
-  checkisEqual(5,lResult.AllValues[0].number);
-  checkisEqual('TestValue TEXT',lResult.AllValues[0].text);
-  checkisEqual(5.663,trunc(lResult.AllValues[0].flNum*1000)/1000); // double conversion...
-  checkisTrue(lResult.AllValues[1].bool);
-  checkisEqual(6,lResult.AllValues[1].number);
-  checkisEqual('TestValue TEXT 2',lResult.AllValues[1].text);
-  checkisEqual(300.01,trunc(lResult.AllValues[1].flNum*1000)/1000); // double conversion...
+  checkisFalse(lResult.Values[0].bool);
+  checkisEqual(5,lResult.Values[0].number);
+  checkisEqual('TestValue TEXT',lResult.Values[0].text);
+  checkisEqual(5.663,trunc(lResult.Values[0].flNum*1000)/1000); // double conversion...
+  checkisTrue(lResult.Values[1].bool);
+  checkisEqual(6,lResult.Values[1].number);
+  checkisEqual('TestValue TEXT 2',lResult.Values[1].text);
+  checkisEqual(300.01,trunc(lResult.Values[1].flNum*1000)/1000); // double conversion...
 
   NewTestCase('Clear Array Works as Expected');
   lResult.Clear;
-  Checkistrue(lResult.Values.number=0);
+  Checkistrue(lResult.Value.number=0);
   Checkisequal(lresult.Count,0);
 
 
@@ -523,16 +523,16 @@ begin
   checkisEqual(2,lResult.Count,'Expected Count to be 2');
 
   NewTestCase('Array Element 0 has Correct Values');
-  checkisFalse(lResult.AllValues[0].bool);
-  checkisEqual(5,lResult.AllValues[0].number);
-  checkisEqual('TestValue TEXT',lResult.AllValues[0].text);
-  checkisEqual(5.663,trunc(lResult.AllValues[0].flNum*1000)/1000); // double conversion...
+  checkisFalse(lResult.Values[0].bool);
+  checkisEqual(5,lResult.Values[0].number);
+  checkisEqual('TestValue TEXT',lResult.Values[0].text);
+  checkisEqual(5.663,trunc(lResult.Values[0].flNum*1000)/1000); // double conversion...
 
   NewTestCase('Array Element 1 has Correct Values');
-  checkisTrue(lResult.AllValues[1].bool);
-  checkisEqual(6,lResult.AllValues[1].number);
-  checkisEqual('TestValue TEXT 2',lResult.AllValues[1].text);
-  checkisEqual(300.01,trunc(lResult.AllValues[1].flNum*1000)/1000); // double conversion...
+  checkisTrue(lResult.Values[1].bool);
+  checkisEqual(6,lResult.Values[1].number);
+  checkisEqual('TestValue TEXT 2',lResult.Values[1].text);
+  checkisEqual(300.01,trunc(lResult.Values[1].flNum*1000)/1000); // double conversion...
 
   lResult.Clear;
 
@@ -549,16 +549,16 @@ begin
   checkisEqual(2,lResult.Count,'Expected Count to be 2');
 
   NewTestCase('Array Element 0 has Correct Values');
-  checkisFalse(lResult.AllValues[0].bool);
-  checkisEqual(5,lResult.AllValues[0].number);
-  checkisEqual('TestValue TEXT',lResult.AllValues[0].text);
-  checkisEqual(5.663,trunc(lResult.AllValues[0].flNum*1000)/1000); // double conversion...
+  checkisFalse(lResult.Values[0].bool);
+  checkisEqual(5,lResult.Values[0].number);
+  checkisEqual('TestValue TEXT',lResult.Values[0].text);
+  checkisEqual(5.663,trunc(lResult.Values[0].flNum*1000)/1000); // double conversion...
 
   NewTestCase('Array Element 1 has Correct Values');
-  checkisTrue(lResult.AllValues[1].bool);
-  checkisEqual(6,lResult.AllValues[1].number);
-  checkisEqual('TestValue TEXT 2',lResult.AllValues[1].text);
-  checkisEqual(300.01,trunc(lResult.AllValues[1].flNum*1000)/1000); // double conversion...
+  checkisTrue(lResult.Values[1].bool);
+  checkisEqual(6,lResult.Values[1].number);
+  checkisEqual('TestValue TEXT 2',lResult.Values[1].text);
+  checkisEqual(300.01,trunc(lResult.Values[1].flNum*1000)/1000); // double conversion...
 
   lResult.Clear;
 
@@ -575,16 +575,16 @@ begin
   checkisEqual(4,lResult.Count,'Expected Count to be 2');
 
   NewTestCase('Array Element 0 has Correct Values');
-  checkisFalse(lResult.AllValues[0].bool);
-  checkisEqual(5,lResult.AllValues[0].number);
-  checkisEqual('TestValue TEXT',lResult.AllValues[0].text);
-  checkisEqual(5.663,trunc(lResult.AllValues[0].flNum*1000)/1000); // double conversion...
+  checkisFalse(lResult.Values[0].bool);
+  checkisEqual(5,lResult.Values[0].number);
+  checkisEqual('TestValue TEXT',lResult.Values[0].text);
+  checkisEqual(5.663,trunc(lResult.Values[0].flNum*1000)/1000); // double conversion...
 
   NewTestCase('Array Element 3 has Correct Values');
-  checkisTrue(lResult.AllValues[3].bool);
-  checkisEqual(6,lResult.AllValues[3].number);
-  checkisEqual('TestValue TEXT 3',lResult.AllValues[3].text);
-  checkisEqual(300.01,trunc(lResult.AllValues[3].flNum*1000)/1000); // double conversion...
+  checkisTrue(lResult.Values[3].bool);
+  checkisEqual(6,lResult.Values[3].number);
+  checkisEqual('TestValue TEXT 3',lResult.Values[3].text);
+  checkisEqual(300.01,trunc(lResult.Values[3].flNum*1000)/1000); // double conversion...
 end;
 
 Procedure AsValuePairs_Exports_Arrays_as_Expected;
@@ -655,14 +655,14 @@ begin
                 '"flNum":'+lDblValueStr+'}]';
   lRecords.FromJSON(lExpected);
   checkisTrue(lRecords.isArray);
-  checkisEqual(lRecords.AllValues[0].number,5);
-  checkisEqual(lRecords.AllValues[0].text,'TestValue TEXT is ""');
-  checkisEqual(lRecords.AllValues[0].bool,false);
-  checkisEqual(lRecords.AllValues[0].flNum,lDblValue);
-  checkisEqual(lRecords.AllValues[1].number,7);
-  checkisEqual(lRecords.AllValues[1].text,'TestValue TEXT 2 is ""');
-  checkisTrue(lRecords.AllValues[1].bool);
-  checkisEqual(lRecords.AllValues[1].flNum,lDblValue);
+  checkisEqual(lRecords.Values[0].number,5);
+  checkisEqual(lRecords.Values[0].text,'TestValue TEXT is ""');
+  checkisEqual(lRecords.Values[0].bool,false);
+  checkisEqual(lRecords.Values[0].flNum,lDblValue);
+  checkisEqual(lRecords.Values[1].number,7);
+  checkisEqual(lRecords.Values[1].text,'TestValue TEXT 2 is ""');
+  checkisTrue(lRecords.Values[1].bool);
+  checkisEqual(lRecords.Values[1].flNum,lDblValue);
   checkIsEqual(lExpected,lRecords.AsJSON);
 end;
 
