@@ -30,12 +30,28 @@ If using versions of Delphi 2005 or 2006, You may have trouble with the
 do have trouble, simply remove the DPROJ file and get Delphi to rebuild from the
 DPR file.
 
-## Record Utils - Utils for cloning, clearing, serialising/Deserialising Pascal Record Types
+## Delphi Record Types Utils (RecordUtils.pas) - Generic Support for JSON, URL Encoding and Value pairs.  
 
-Pascal Records are extremely useful for working with the Parallel Type Library because they are automatically memory managed.  However  not not being classes, they are more difficult to automatically
-populate from Streamed Data without using published properties.
+Pascal Records are extremely useful in general in Pascal.  Because they are automatically memory managed in Delphi, they are very easy to work with, work well with the Parallel Task Library and tend to be better for Function programming styles. However, they have limitations because they are not classes, they are more difficult to automatically populate from Streamed Data without using published properties.
 
-The RecordUtils.pas file uses RTTI to automatically serialise and deserialse as value pairs. eg
+This project started as a way to manage REST Services in a way closest to the way it is done in JavaScript/NodeJS.  Simply declare the object and then use it with the response.
+
+## What does the Record Utils Unit accomplish?
+   1. Safe shallow COPY (_*clone*_) any record to another record of the same type ensuring reference counting is preserved
+   2. Automatically CLEAR any declared Record.
+   3. Cast between TEXT (Value Pairs, URL Encoding, or JSON ) and Record.
+   4. Automatically generate a Web Post from a Record and apply a Web Response to vanilla Pascal record in 1 line of code.
+
+Because you are using records, you do not need to manage the memory, so coding becomes much simpler and more readable.
+
+## Tasks
+_*RecordUtils.pas*_ uses RTTI to automatically serialise and deserialse records as Text.  This allows you to:
+   1. Automatically store a record INI file and then *IMPLICITLY* populate the record  _*from*_ an INI File.
+   2. Assign all the properties to a record OR Record Array from a string
+   3. Create simple records in a Server Application and pass them to client application without using Client Data Sets or OLEVariants. (Great for DataSnap or Web Service Applications)
+   4. One of the most useful benefits is to consume REST service and automatically populate the response into an array of Records with no code.
+
+ eg
 ```
 TMyRecordStatus = (mrsNone, mrsBusy, mrsIdle); 
 TMyRecord=Record
@@ -45,6 +61,7 @@ TMyRecord=Record
   Status : TMyRecordStatus; // enum
 end;
 ```
+To Store this as an
 
 WIll be serialised as 
 ```

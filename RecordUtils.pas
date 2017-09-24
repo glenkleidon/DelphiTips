@@ -53,12 +53,14 @@ interface
        function getCount: integer;
        function getIsArray: boolean;
        procedure setIsArray(const AValue: boolean);
+       procedure setCount(const AValue: integer);
+       function getElementReference(AIndex: integer): Pointer;
      public
        Value : T;
-       Values: Array of T;
+       Values: TArray<T>;
        Procedure Clear;
-       Procedure Clone(ARecord: T); overload;
-       Procedure Clone(ARecord: TRecordSerializer<T>); overload;
+       Procedure Clone(ARecord: T; AIndex: integer =-1); overload;
+       Procedure Clone(ARecord: TRecordSerializer<T>; AIndex: integer=-1); overload;
        Function Parse(AStrings:TStrings; AMode: TSerializerParseMode=spmUpdate;
                              AIndex: integer=-1; AFormat: TSerializerEncoding=seValuePairs): integer; overload;
        Function Parse(AText: String; AMode: TSerializerParseMode = spmUpdate;
@@ -73,8 +75,10 @@ interface
        class operator Implicit(ARecord: T): TRecordSerializer<T>;
        class operator Implicit(AText: string): TRecordSerializer<T>;
        class operator Implicit(ARecord: TRecordSerializer<T>): String;
-       Property Count : integer read getCount;
+       Property Count : integer read getCount write setCount;
        Property isArray: boolean read getIsArray write setIsArray;
+       Property Elements[AIndex : integer] : Pointer read getElementReference;
+       Property Position : integer read fIndex write fIndex;
    end;
 
    function IndexedName(AId: string; AIndex: integer=-1): string;
@@ -712,14 +716,26 @@ begin
   fIsArray := '';
 end;
 
-procedure TRecordSerializer<T>.Clone(ARecord: TRecordSerializer<T>);
+procedure TRecordSerializer<T>.Clone(ARecord: TRecordSerializer<T>; AIndex: integer=-1);
 begin
-  CloneRecord(TypeInfo(T),@Arecord.Value, @Self);
+  if AIndex=-1 then
+    CloneRecord(TypeInfo(T),@Arecord.Value, @Self.Value)
+  else
+  begin
+    if (AIndex>Self.Count-1) then self.Count := AIndex-1;
+    CloneRecord(TypeInfo(T),@ARecord.Value, @Self.Values[AIndex]);
+  end;
 end;
 
-procedure TRecordSerializer<T>.Clone(ARecord: T);
+procedure TRecordSerializer<T>.Clone(ARecord: T; AIndex: integer=-1);
 begin
-  CloneRecord(TypeInfo(T),@Arecord, @Self.Value);
+  if AIndex=-1 then
+    CloneRecord(TypeInfo(T),@ARecord, @Self.Value)
+  else
+  begin
+    if (AIndex>Self.Count-1) then self.Count := AIndex+1;
+    CloneRecord(TypeInfo(T),@ARecord, @Self.Values[AIndex]);
+  end;
 end;
 
 procedure TRecordSerializer<T>.FromJSON(AJSON: string);
@@ -738,6 +754,11 @@ begin
   if result>0 then fIsArray:='True';
 end;
 
+function TRecordSerializer<T>.getElementReference(AIndex: integer): Pointer;
+begin
+   Result := @Self.Values[AIndex]; // let the range checking throw exception.
+end;
+
 function TRecordSerializer<T>.getIsArray: boolean;
 begin
   result := (Count>0) or (fIsArray='True');
@@ -745,7 +766,7 @@ end;
 
 class operator TRecordSerializer<T>.Implicit(ARecord: T): TRecordSerializer<T>;
 begin
-   result.clone(ARecord);
+  result.clone(ARecord);
 end;
 
 class operator TRecordSerializer<T>.Implicit(ASerializable: TRecordSerializer<T>): T;
@@ -765,6 +786,14 @@ begin
   finally
     freeandnil(lList);
   end;
+end;
+
+procedure TRecordSerializer<T>.setCount(const AValue: integer);
+var lValue: integer;
+begin
+  lValue := AValue;
+  if lValue<0 then lValue := 0;
+  setlength(Self.Values,lValue);
 end;
 
 procedure TRecordSerializer<T>.setIsArray(const AValue: boolean);
