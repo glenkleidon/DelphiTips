@@ -92,6 +92,7 @@ interface
    Procedure ParseJSONtoRecord(AString: String; ATypeInfo: Pointer; APValue: Pointer);
    Function JSONToValuePairs(AJSON:string):String;
    Function GetIndexBounds(AStrings: TStrings): TArrayBounds;
+   Function isURLEncoding(var AString: string): boolean;
 
 
 implementation
@@ -99,6 +100,29 @@ implementation
   uses TypInfo,StrUtils,
      httpApp       // URL Encoding support... NOT UTF Safe!!
      ;
+
+Function isURLEncoding(var AString: string): boolean;
+var pAmp,pAmp2, pCR, pCr2, pEqual : integer;
+begin
+  // to be URL Encoded, it must have & and =
+  Result := false;
+  pAmp   := pos('&',AString);
+  if pAmp<1 then exit;
+  result := true;
+  pCr    := pos(#13,AString);
+  if pCr<1 then exit;
+
+  // Could still be either
+  pAmp2  :=posex('&',AString,pAmp+1);
+  pCr2   :=posEx(#13,AString,pCr+1);
+
+  if (pCr2<1) and (pAmp2>0) then exit;  // ok almost certainly
+
+  pEqual :=Posex('=',Astring,pAmp+1);
+  if (pEqual>0) and (pEqual<pAmp2) then exit;// if its not, its a very good imitation
+
+  result := false;
+end;
 
 Function GetIndexBounds(AStrings: TStrings): TArrayBounds;
 var p,q: integer;
@@ -874,7 +898,10 @@ end;
 class operator TRecordSerializer<T>.Implicit(
   AText: string): TRecordSerializer<T>;
 begin
-   Result.Parse(AText);
+   if isURLEncoding(AText) then
+     Result.FromURLEncoded(AText)
+   else
+     Result.Parse(AText);
 end;
 
 class operator TRecordSerializer<T>.Implicit(

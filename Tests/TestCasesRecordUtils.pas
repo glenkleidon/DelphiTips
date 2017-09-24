@@ -9,6 +9,7 @@ interface
   ;
 // Tools for RecordUtils
 procedure JSONTOValuePairs_Works_as_Expected;
+procedure ISURLEncoding_works_as_expected;
 // RecordUtils
 Procedure Setup;
 Procedure Record_Clears_as_expected;
@@ -113,7 +114,33 @@ begin
   checkisEqual(lExpected,lResult);
 
 end;
+// URL Encoding
+procedure ISURLEncoding_works_as_expected;
+var lURL, lVp: string;
+begin
+  newTestCase('URL or VP Text has No Ambiguity');
+  lURL :=
+     'number=5&'+
+     'text=TestValue+is+15%25+%26+%0D%0A&'+
+     'bool=False&'+
+     'flNum=5.663';
+  lVP :=
+   'number=5'#13#10+
+   'text=TestValue TEXT'#13#10+
+   'bool=False'#13#10+
+   'flNum=5.663';
 
+  checkIsTrue(isURLEncoding(lURL));
+  checkIsFalse(isURLEncoding(lVP));
+
+  newTestCase('Check when both & and CR are present');
+  lURL := lURL+#13#10;
+  lVP  := stringreplace(lVP,'TEXT','& TEXT',[]);
+  checkIsTrue(isURLEncoding(lURL),'URL Detect Failed');
+  checkIsFalse(isURLEncoding(lVp),'Value Pair Detect Failed');
+
+
+end;
 
 Procedure Setup;
 begin
@@ -190,10 +217,20 @@ begin
                'bool=False'#13#10+
                'flNum=5.663';
   lResult := lExpected;
-  lResult.Parse(lExpected);
   checkisFalse(lResult.Values.bool);
   checkisEqual(5,lResult.Values.number);
   checkisEqual('TestValue TEXT',lResult.Values.text);
+  checkisEqual(5.663,trunc(lresult.Values.flNum*1000)/1000); // double conversion...
+
+  lExpected :=
+     'number=5&'+
+     'text=TestValue+is+15%25+%26+%0D%0A&'+
+     'bool=False&'+
+     'flNum=5.663';
+  lResult := lExpected;
+  checkisFalse(lResult.Values.bool);
+  checkisEqual(5,lResult.Values.number);
+  checkisEqual('TestValue is 15% & '#13#10,lResult.Values.text);
   checkisEqual(5.663,trunc(lresult.Values.flNum*1000)/1000); // double conversion...
 
 end;

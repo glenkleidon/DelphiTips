@@ -14,6 +14,7 @@ begin
     Title('Test Cases For Tools used for RecordUtils');
     PrepareSet(nil);
     AddTestSet('JSON to Value Pairs', JSONTOValuePairs_Works_as_Expected);
+    AddTestSet('Is URL Encoding', IsURLEncoding_works_as_expected);
     FinaliseSet(nil);
     RunTestSets;
     TestSummary;
@@ -30,8 +31,8 @@ begin
     AddTestSet('Implicit Cast FROM String',Implicit_Cast_From_String_works_as_Expected);
     AddTestSet('As JSON Text',AsJSON_works_as_Expected);
     AddTestSet('From JSON Text',FromJSON_works_as_Expected);
-    AddTestSet('As HTTP Form Data',AsURLEncoded_works_as_Expected);
-    AddTestSet('From HTTP Form Data',FromURLEncoded_works_as_Expected);
+    AddTestSet('As HTTP URLEncoding ',AsURLEncoded_works_as_Expected);
+    AddTestSet('From HTTP URLEncoding ',FromURLEncoded_works_as_Expected);
     AddTestSet('Parse Array Update',Parse_Array_Update_Works_as_Expected);
     AddTestSet('Parse Array Append',Parse_Array_Works_as_Expected);
     AddTestSet('As ValuePairs for Arrays',AsValuePairs_Exports_Arrays_as_Expected);
