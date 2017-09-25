@@ -4,7 +4,7 @@ object ServerForm: TServerForm
   BorderStyle = bsSingle
   Caption = 'Cards'
   ClientHeight = 368
-  ClientWidth = 195
+  ClientWidth = 186
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -18,16 +18,14 @@ object ServerForm: TServerForm
   object ServerGroupBox: TGroupBox
     Left = 0
     Top = 0
-    Width = 195
+    Width = 186
     Height = 368
     Align = alClient
     Caption = 'Server'#39's Deck'
     TabOrder = 0
-    ExplicitLeft = 48
-    ExplicitTop = 56
-    ExplicitWidth = 193
+    ExplicitWidth = 195
     DesignSize = (
-      195
+      186
       368)
     object CardsLeftLabel: TLabel
       Left = 8
@@ -171,16 +169,16 @@ object ServerForm: TServerForm
       ParentFont = False
       TabOrder = 2
       OnClick = ListBox1Click
-      ExplicitHeight = 150
     end
   end
   object DeckWebServer: TIdHTTPServer
     Active = True
     Bindings = <>
     DefaultPort = 8181
+    ParseParams = False
     OnCommandGet = DeckWebServerCommandGet
-    Left = 272
-    Top = 8
+    Left = 24
+    Top = 240
   end
   object Timer1: TTimer
     Interval = 500

@@ -104,7 +104,8 @@ begin
   self.Deck.Position := i;
   lCards.Count := c;
 
-  if pos('application/json',lowercase(AWebRequest.AcceptResponse))>0 then
+  if (length(AWebRequest.AcceptResponse)=0) or
+     (pos('application/json',lowercase(AWebRequest.AcceptResponse))>0) then
     Result := lCards.AsJSON
   else if pos('urlencoded',lowercase(AWebRequest.AcceptResponse))>0 then
     Result := lCards.AsURLEncoded

@@ -120,11 +120,18 @@ procedure TServerForm.DeckWebServerCommandGet(AContext: TIdContext;
      end;
   end;
 begin
-  if pos('json',lowercase(ARequestInfo.ContentType))>0 then
+  if ARequestInfo.ContentLength<1 then
+    lWebRequest.FromURLEncoded(ARequestInfo.QueryParams)
+  else if pos('json',lowercase(ARequestInfo.ContentType))>0 then
     lWebREquest.FromJSON(ContentStreamAsString)
-  else lWebRequest := ARequestInfo.Params.Text;
+  else lWebRequest := ContentStreamAsString;
 
-  lWebRequest.Value.AcceptResponse := ARequestInfo.Accept;
+  // ensure we have a good return type.
+  if lWebRequest.Value.AcceptResponse='' then
+      lWebRequest.Value.AcceptResponse := ARequestInfo.Accept;
+  if lWebRequest.Value.AcceptResponse='' then
+      lWebRequest.Value.AcceptResponse := ARequestInfo.ContentType;
+
   try
     AResponseInfo.ContentText := Self.fServerCards.Deal(lWebRequest);
   except

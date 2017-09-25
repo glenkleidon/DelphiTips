@@ -82,11 +82,11 @@ end;
 
 function TPlayerForm.Fetch(AWebRequest: TSWebCardRequest): String;
 var lhttp:TidHttp;
-    lList : TStringlist;
+    lRequestContent : TStringStream;
     lFormat: String;
 begin
   lHttp := TidHttp.Create(nil);
-  lList := TStringlist.Create;
+  lREquestContent := nil;
   try
 
     lFormat := lowercase(AWebRequest.value.AcceptResponse);
@@ -94,12 +94,15 @@ begin
     lhttp.Request.ContentType := lFormat;
 
     case SerializerEncodingFromText(lFormat) of
-        seValuePairs: lList.Text := AWebRequest.AsValuePairs;
-        seJSON: lList.Text := AWebRequest.AsJSON;
-        seURLEncoding: lList.Text := AWebRequest.AsURLEncoded;
+        seValuePairs: lRequestContent :=
+                TStringStream.Create(AWebRequest.AsValuePairs);
+        seJSON: lRequestContent :=
+                TStringStream.Create(AWebRequest.AsJSON);
+        seURLEncoding: lRequestContent :=
+                TStringStream.Create(AWebRequest.AsURLEncoded);
     end;
     try
-     result := lhttp.Post(self.URLEdit.Text,lList);
+     result := lhttp.Post(self.URLEdit.Text,lRequestContent);
     Except
      on e:EIdHTTPProtocolException do
      begin
@@ -110,7 +113,7 @@ begin
 
   finally
     freeandnil(lHttp);
-    freeandnil(lList);
+    freeandnil(lRequestContent);
   end;
 
 end;
