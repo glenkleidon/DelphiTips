@@ -114,8 +114,7 @@ begin
 end;
 
 function TCards.Names: String;
-var lName: string;
-    lCard : TWebCard;
+var lCard : TWebCard;
 begin
   result := '';
   for lCard in Self.Deck.Values do
@@ -159,9 +158,10 @@ end;
 
 function TWebCardHelper.Colour: TColor;
 begin
+  Result := clRed;
   case self.Suit of
     Harts,
-    Diamonds: result := clRed;
+    Diamonds: Result := clRed;
     Clubs,
     Spades: Result := clBlack;
   end;

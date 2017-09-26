@@ -27,6 +27,7 @@ type
     fCards: TCards;
     function Fetch(AWebRequest: TSWebCardRequest): String;
     procedure AddCard(AWebCard: TWebCard);
+    procedure RemoveCards;
     Procedure ShowCards;
   public
     { Public declarations }
@@ -55,16 +56,24 @@ end;
 
 procedure TPlayerForm.AddCard(AWebCard: TWebCard);
 var lPanel: TPanel;
+    lWidth : integer;
 begin
+  if AWebCard.Rank='' then exit;
   lPanel := TPanel.Create(nil);
+  lPanel.Font := DefaultCardPanel.font;
   lPanel.Color := DefaultCardPanel.Color;
   lPanel.Align := AlLeft;
   lPanel.Height := DefaultCardPanel.Height;
   lPanel.Width := DefaultCardPanel.Width;
-  lPanel.BevelOuter := bvNone;
-  lPanel.Left :=  CardHolderPanel.ComponentCount*lPanel.Width;
+  lPanel.BevelOuter := bvLowered;
+  lWidth := (1+CardHolderPanel.ControlCount)*lPanel.Width+8;
+  if CardHolderPanel.width<lWidth then CardHolderPanel.Width := lWidth;
+  lPanel.Left := lWidth-1;
   lPanel.Parent := CardHolderPanel;
+  lPanel.Tag := -100; // easy way to identify them
   DrawCard(lPanel, AWebCard);
+  lPanel.SetFocus;
+  ScrollBox1.ScrollInView(lPanel);
 end;
 
 procedure TPlayerForm.DealButtonClick(Sender: TObject);
@@ -128,9 +137,30 @@ begin
   Caption := 'Player: '+ Self.PlayersNameEdit.Text;
 end;
 
-procedure TPlayerForm.ShowCards;
+procedure TPlayerForm.RemoveCards;
+var lCardPanel: TControl;
+    i: integer;
 begin
-  showMessage(intToStr(Self.fCards.Deck.Count));
+  for i := CardHolderPanel.ControlCount-1 downto 0 do
+  begin
+    lCardPanel := CardHolderPanel.Controls[i];
+    if (lCardPanel.ClassNameIs('TPanel')) and (lCardPanel.Tag=-100) then
+    begin
+       lCardPanel.parent.RemoveControl(lCardPanel);
+       lCardPanel.Free;
+    end;
+  end;
+end;
+
+procedure TPlayerForm.ShowCards;
+var lCard: TWebCard;
+begin
+  // Remove all The Cards
+  RemoveCards;
+  // ReAdd all the cards, including any new ones.
+  for lCard in self.fCards.Deck.Values do
+    if lCard.Rank<>'' then AddCard(lCard);
+
 end;
 
 end.
