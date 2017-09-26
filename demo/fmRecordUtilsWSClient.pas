@@ -19,6 +19,7 @@ type
     Label1: TLabel;
     URLEdit: TLabeledEdit;
     ErrorMsg: TLabel;
+    UserPanel: TPanel;
     procedure DealButtonClick(Sender: TObject);
     procedure PlayersNameEditChange(Sender: TObject);
     procedure FormShow(Sender: TObject);

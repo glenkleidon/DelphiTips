@@ -97,6 +97,7 @@ interface
    Function JSONToValuePairs(AJSON:string):String;
    Function GetIndexBounds(AStrings: TStrings): TArrayBounds;
    Function isURLEncoding(var AString: string): boolean;
+   Function isJSONEncoding(var AString: string): boolean;
 
 
 implementation
@@ -127,6 +128,12 @@ begin
 
   result := false;
 end;
+
+Function isJSONEncoding(var AString: string): boolean;
+begin
+
+end;
+
 
 Function GetIndexBounds(AStrings: TStrings): TArrayBounds;
 var p,q: integer;
@@ -192,7 +199,6 @@ var c : char;
     end;
 
 begin
-   // simple implementation assumes single object, no spacing
    lIndexList.clear;
    lStates:= TStack<TJSONState>.Create;
    lList := TStringlist.Create;
@@ -745,7 +751,7 @@ end;
 
 procedure TRecordSerializer<T>.FromURLEncoded(AURLEncoded: string);
 begin
-  Parse(stringReplace(AURLEncoded,'&',#13#10, [rfReplaceAll]),spmUpdate,-1,seURLEncoding);
+  Parse(AURLEncoded,spmUpdate,-1,seURLEncoding);
 end;
 
 function TRecordSerializer<T>.getCount: integer;
@@ -780,6 +786,15 @@ var lList : TStringlist;
 begin
   lList := TStringlist.create;
   try
+    case AFormat of
+      seValuePairs: ;
+      seJSON :
+       begin
+         AText := JSONToValuePairs(AText);
+         AFormat := seValuePairs
+       end;
+      seURLEncoding: Atext := stringReplace(AText,'&',#13#10, [rfReplaceAll]);
+    end;
     lList.Text := AText;
     lList.Sorted := true;
     result := Self.Parse(lList,Amode,AIndex,AFormat);
@@ -827,6 +842,11 @@ begin
   Result := 0;
   MaxID := self.Count-1;
   lOffset := 0;
+  case AFormat of
+    seValuePairs: ;
+    seJSON : AStrings.text := JSONToValuePairs(AStrings.text);
+    seURLEncoding: AStrings.text := stringReplace(AStrings.text,'&',#13#10, [rfReplaceAll]);
+  end;
 
   bounds.high := -1; bounds.low := -1;
   bounds := GetIndexBounds(AStrings);

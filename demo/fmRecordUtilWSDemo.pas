@@ -34,10 +34,18 @@ type
       ARequestInfo: TIdHTTPRequestInfo; AResponseInfo: TIdHTTPResponseInfo);
     procedure Timer1Timer(Sender: TObject);
     procedure AddClientButtonClick(Sender: TObject);
+    procedure CardPanelClick(Sender: TObject);
+    procedure DeckWebServerCommandOther(AContext: TIdContext;
+      ARequestInfo: TIdHTTPRequestInfo; AResponseInfo: TIdHTTPResponseInfo);
   private
     { Private declarations }
     fServerCards: TCards;
+    fWebClientCSSStream : TMemoryStream;
+    fWebClientStream: TMemoryStream;
     Procedure EnableDealing(AEnable: boolean);
+    Procedure GetWebClient(AStream: TStream);
+    Procedure GetStyleSheet(AStream: TStream);
+    procedure GetLocalFile(AFilename: string; AStream: TStream);
   public
     { Public declarations }
   end;
@@ -66,7 +74,7 @@ begin
         end;
     1 : //
         begin
-          shellexecute(self.Handle,'open',pchar(lURL+'/Client'),'','',SW_SHOWNORMAL);
+          shellexecute(self.Handle,'open',pchar(lURL+'WebClient'),'','',SW_SHOWNORMAL);
         end;
   end;
 end;
@@ -77,6 +85,12 @@ begin
   self.ListBox1.Items.Text := fServerCards.Names;
   self.ListBox1.ItemIndex := 0;
   self.ListBox1Click(Self);
+end;
+
+procedure TServerForm.CardPanelClick(Sender: TObject);
+begin
+  // Quick reset of Web Client for debugging purposes
+  freeandnil(self.fWebClientStream);
 end;
 
 procedure TServerForm.DealButtonClick(Sender: TObject);
@@ -105,21 +119,93 @@ begin
   EnableDealing(false);
 end;
 
+procedure TServerForm.GetStyleSheet(AStream: TStream);
+begin
+  if self.fWebClientCSSStream=nil then
+  begin
+    fWebClientCSSStream := TMemoryStream.Create;
+    GetLocalFile('webclient.css', fWebClientCSSStream);
+  end;
+  AStream.copyfrom(fWebClientCSSStream,0);
+end;
+
+procedure TServerForm.GetWebClient(AStream: TStream);
+begin
+  if self.fWebClientStream=nil then
+  begin
+    fWebClientStream := TMemoryStream.Create;
+    GetLocalFile('webclient.html', fWebClientStream);
+  end;
+  AStream.copyfrom(fWebClientStream,0);
+end;
+
+procedure TServerForm.GetLocalFile(AFilename: string; AStream: TStream);
+var lFileStream : TFileStream;
+    lFilePath: String;
+begin
+  lFilePath := ExtractFilePath(ParamStr(0)) + AFileName;
+  lFileStream := TFileStream.Create(lFilePath, fmOpenRead or fmShareDenyNone);
+  try
+    AStream.CopyFrom(lFileStream,0);
+  finally
+    freeandnil(lFileStream);
+  end;
+end;
+
 procedure TServerForm.DeckWebServerCommandGet(AContext: TIdContext;
   ARequestInfo: TIdHTTPRequestInfo; AResponseInfo: TIdHTTPResponseInfo);
   var lWebRequest : TSWebCardRequest;
+      lOrigin : string;
   Function contentStreamAsString: string;
   var lStream: TStringStream;
   begin
-     lStream := TStringStream.Create();
-     try
-       lStream.CopyFrom(ARequestInfo.PostStream,0);
-       result := lStream.DataString;
-     finally
-       freeAndNil(lStream);
+     if ARequestInfo.PostStream=nil then
+       Result := ARequestInfo.FormParams
+     else
+     begin
+       lStream := TStringStream.Create();
+       try
+         lStream.CopyFrom(ARequestInfo.PostStream,0);
+         result := lStream.DataString;
+       finally
+         freeAndNil(lStream);
+       end;
      end;
   end;
 begin
+  // Access control - allow AJAX redirects.
+  lOrigin := ArequestInfo.RawHeaders.values['Origin'];
+  if length(lOrigin)=0 then lOrigin := '*';
+  AresponseInfo.CustomHeaders.Values['Access-Control-Allow-Origin'] := lOrigin;
+
+
+  if Pos('favicon',lowercase(ARequestInfo.URI))>0 then
+  begin
+    AResponseInfo.ResponseNo := 404;
+    Exit;
+  end;
+
+  /// Style sheet for the client
+  if pos('.css',lowercase(ARequestInfo.URI))>0 then
+  begin
+     AResponseInfo.ContentStream := TMemoryStream.create;
+     GetStyleSheet(AResponseInfo.ContentStream);
+     AResponseInfo.ContentType := 'text/css; charset=utf-8';
+     AResponseInfo.ResponseNo := 200;
+     exit;
+  end;
+
+  // Are they requesting the WebClient?
+  if pos('webclient',lowercase(ARequestInfo.URI))>0 then
+  begin
+     AResponseInfo.ContentStream := TMemoryStream.create;
+     GetWebClient(AResponseInfo.ContentStream);
+     AResponseInfo.ContentType := 'text/html; charset=utf-8';
+     AResponseInfo.ResponseNo := 200;
+     exit;
+  end;
+
+
   if ARequestInfo.ContentLength<1 then
     lWebRequest.FromURLEncoded(ARequestInfo.QueryParams)
   else if pos('json',lowercase(ARequestInfo.ContentType))>0 then
@@ -142,6 +228,28 @@ begin
     end;
   end;
 
+end;
+
+procedure TServerForm.DeckWebServerCommandOther(AContext: TIdContext;
+  ARequestInfo: TIdHTTPRequestInfo; AResponseInfo: TIdHTTPResponseInfo);
+  var lOrigin: string;
+begin
+  // Set any access control...
+  if sameText(ARequestInfo.Command ,'OPTIONS') then
+  begin
+    lOrigin := ArequestInfo.RawHeaders.values['Origin'];
+    if length(lOrigin)=0 then lOrigin := '*';
+    // Return Access Control and Options.
+    AResponseInfo.ResponseNo := 200;
+    AResponseINfo.ResponseText := '';
+    AResponseInfo.Date := Now;
+    AResponseinfo.CustomHeaders.Values['Access-Control-Allow-Origin'] := lOrigin;
+    AResponseinfo.CustomHeaders.Values['Access-Control-Allow-Methods'] := 'POST, GET, OPTIONS';
+    AResponseinfo.CustomHeaders.Values['Access-Control-Allow-Headers'] := 'Content-Type, Origin, Access-Control-Allow-Origin, Access-Control-Allow-Methods';
+    AResponseinfo.CustomHeaders.Values['Access-Control-Max-Age'] := '86400';
+    AResponseinfo.CustomHeaders.Values['Vary'] := 'Accept-Encoding, Origin';
+    exit;
+  end;
 end;
 
 procedure TServerForm.ListBox1Click(Sender: TObject);

@@ -23,7 +23,6 @@ object ServerForm: TServerForm
     Align = alClient
     Caption = 'Server'#39's Deck'
     TabOrder = 0
-    ExplicitWidth = 195
     DesignSize = (
       186
       368)
@@ -59,6 +58,7 @@ object ServerForm: TServerForm
       ParentBackground = False
       ParentFont = False
       TabOrder = 0
+      OnClick = CardPanelClick
     end
     object ListBox1: TListBox
       Left = 8
@@ -176,6 +176,7 @@ object ServerForm: TServerForm
     Bindings = <>
     DefaultPort = 8181
     ParseParams = False
+    OnCommandOther = DeckWebServerCommandOther
     OnCommandGet = DeckWebServerCommandGet
     Left = 24
     Top = 240

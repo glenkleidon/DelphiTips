@@ -36,18 +36,18 @@ Pascal Records are extremely useful in general in Pascal.  Because they are auto
 
 This project started as a way to manage REST Services in a way closest to the way it is done in JavaScript/NodeJS.  Simply declare the object and then use it with the response.
 
-## What does the Record Utils Unit accomplish?
-   1. Safe shallow COPY (_*clone*_) any record to another record of the same type ensuring reference counting is preserved
+## What functionality does RecordUtils Provide?
+   1. Safe shallow COPY (_*clone*_) any record to another record of the same type ensuring reference counting is preserved (and therefore memory is properly managed)
    2. Automatically CLEAR any declared Record.
    3. Cast between TEXT (Value Pairs, URL Encoding, or JSON ) and Record.
-   4. Automatically generate a Web Post from a Record and apply a Web Response to vanilla Pascal record in 1 line of code.
+   4. Assign all the properties to a record OR Record Array from a string
 
 Because you are using records, you do not need to manage the memory, so coding becomes much simpler and more readable.
 
 ## Tasks
-_*RecordUtils.pas*_ uses RTTI to automatically serialise and deserialse records as Text.  This allows you to:
-   1. Automatically store a record INI file and then *IMPLICITLY* populate the record  _*from*_ an INI File.
-   2. Assign all the properties to a record OR Record Array from a string
+_*RecordUtils.pas*_ uses RTTI to automatically serialise and deserialse records as Text.  This allows you to do things like:
+   1. Automatically store a record INI file and then *IMPLICITLY* populate the record _*from*_ an INI File.
+   2. Automatically generate a Web Post from a Record and apply a Web Response to vanilla Pascal record in 1 line of code.
    3. Create simple records in a Server Application and pass them to client application without using Client Data Sets or OLEVariants. (Great for DataSnap or Web Service Applications)
    4. One of the most useful benefits is to consume REST service and automatically populate the response into an array of Records with no code.
 
