@@ -3,7 +3,7 @@ program TestMiniTestFramework;
 {$APPTYPE CONSOLE}
 
 uses
-  SysUtils,System, ADODb
+  SysUtils,
   MiniTestFramework in '..\MiniTestFramework.pas',
   TestCasesMiniTestFramework in 'TestCasesMiniTestFramework.pas';
 
