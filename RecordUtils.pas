@@ -199,12 +199,15 @@ var c : char;
     end;
 
 begin
+   result := '';
+   l := length(AJSON);
+   if l=0 then exit;
+   // ok there is work to do...
    lIndexList.clear;
    lStates:= TStack<TJSONState>.Create;
    lList := TStringlist.Create;
    Try
      lStates.Push(TJSONState.jsNone);
-     l := length(AJSON);
      for i := 1 to l do
      begin
        c := AJSON[i];
@@ -323,10 +326,13 @@ begin
                   lState := lStates.Peek;
                   case lState of
                      jsInObject:; //ok, but nothing to do
-                     jsInArray : lIndexList.IncCounter;
+                     jsInArray :
+                       begin
+                         lIndexList.IncCounter;
+                         lStates.Push(jsNextElement);
+                       end;
                   else JSONParseError(c);
                   end;
-                  lStates.Push(jsNextElement);
                 end;
               else JSONParseError(c);
              end;

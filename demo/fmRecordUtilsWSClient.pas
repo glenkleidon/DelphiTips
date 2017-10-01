@@ -80,7 +80,7 @@ end;
 procedure TPlayerForm.DealButtonClick(Sender: TObject);
 var lWebRequest: TSWebCardRequest;
 begin
-  self.ErrorMsg.Visible := false;
+  self.ErrorMsg.Caption := '';
   lWebRequest.Value.PlayersName := self.PlayersNameEdit.Text;
   lWebRequest.Value.NumberOfCards := Self.SpinEdit1.Value;
   lWebRequest.Value.AcceptResponse := self.ResponseFormat.Text;
@@ -117,7 +117,6 @@ begin
      on e:EIdHTTPProtocolException do
      begin
        self.ErrorMsg.Caption := e.ErrorMessage;
-       self.ErrorMsg.Visible := true;
      end;
     end;
 

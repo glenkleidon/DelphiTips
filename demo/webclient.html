@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <meta name="description" content="">
     <meta name="author" content="">
+    <meta http-equiv="pragma" content="no-cache">
+    <meta http-equiv="cache-control" content="no-store,no-cache">
 
     <title>RecordUtils Playing Card Client</title>
 
@@ -84,15 +86,17 @@
                 url : svcURL,
                 success: function(data, status){
                   console.log(data);
-                //  $("#errorMsg").attr("hidden")=true;
-                  $("#errorMsg").text('OK');
+                  var errordiv =  $("#errorMsg");
+                  errordiv.text("");
+                  errordiv.removeClass('alert alert-primary');
                   myDeck.addCards(JSON.parse(data));
                   $("#cardHolder").html(cardsAsHTML);
                 },
                 error: function(xhr, status, error) {
                     myDeck.clear();
-                    $("#errorMsg").text(xhr.responseText);
-                  //  $("#errorMsg").attr("hidden")=false;
+                    var errordiv =  $("#errorMsg");
+                    errordiv.text(xhr.responseText);
+                    errordiv.addClass('alert alert-primary');
                 }
             });
       };
@@ -111,20 +115,18 @@
       </div>
       <div class="container">
         <div class="row">
-          <div class="alert alert-primary" id="errorMsg"></div>
+          <div id="errorMsg"></div>
         </div>
         <div class="row">
-            <div class="form-inline my-2 my-lg-0">
+            <span class="form-inline">
                 <label for="URL" class="col col-sm-3 col-lg-3 col-md-3 col-xl-3">URL</label> 
-                <input id="URL"  class="form-control mr-sm-2" type="text" aria-label="URL" value ="http://localhost:8181/Deal">
-            </div>
-        </div>
-        <div class="row">
-            <div class="form-inline my-2 my-lg-0">
+                <input id="URL"  class="form-control col col-sm-9 col-lg-9 col-md-9 col-xl-9" type="text" aria-label="URL" size=40 value ="http://localhost:8181/Deal">
+            </span>
+            <div class="form-inline">
                 <label for="PlayersName" class="col col-sm-3 col-lg-3 col-md-3 col-xl-3">Players Name</label> 
-                <input id="PlayersName"  class="form-control mr-sm-2" type="text" placeholder="Players Name" aria-label="Players Name">
-                <input id="NumberOfCards" class="form-control mr-sm-1 col col-sm-1 col-md-1 col-lg-1 col-xl-1" type="text" placeholder="1" aria-label="NumberOfCards">
-                <button class="btn btn-outline-success my-2 my-sm-0 col col-sm-2 col-md-2 col-lg-2 col-xl-2" type="button" onclick="getCards()">Hit me</button>
+                <input id="PlayersName"  class="form-control" type="text" placeholder="Players Name" aria-label="Players Name">
+                <button class="btn btn-outline-success col col-sm-2 col-md-2 col-lg-2 col-xl-2" type="button" onclick="getCards()">Hit me</button>
+                <input id="NumberOfCards" class="form-control col col-sm-1 col-md-1 col-lg-1 col-xl-1" type="text" placeholder="1" aria-label="NumberOfCards">
             </div>
         </div>
         <div class="row" id="cardHolder"></div>

@@ -202,6 +202,7 @@ begin
      GetWebClient(AResponseInfo.ContentStream);
      AResponseInfo.ContentType := 'text/html; charset=utf-8';
      AResponseInfo.ResponseNo := 200;
+     AresponseINfo.CustomHeaders.Values['Cache-Control'] := 'no-cache, no-store';
      exit;
   end;
 

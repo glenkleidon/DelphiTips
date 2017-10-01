@@ -3,7 +3,7 @@ object PlayerForm: TPlayerForm
   Top = 0
   Caption = 'Player:'
   ClientHeight = 201
-  ClientWidth = 418
+  ClientWidth = 423
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -16,13 +16,12 @@ object PlayerForm: TPlayerForm
   TextHeight = 13
   object ErrorMsg: TLabel
     Left = 0
-    Top = 177
-    Width = 418
+    Top = 0
+    Width = 423
     Height = 24
-    Align = alBottom
+    Align = alTop
     Alignment = taCenter
     AutoSize = False
-    Caption = 'Error Msg'
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
     Font.Height = -16
@@ -30,17 +29,22 @@ object PlayerForm: TPlayerForm
     Font.Style = []
     ParentFont = False
     Layout = tlCenter
-    Visible = False
     ExplicitLeft = 8
-    ExplicitTop = 158
+    ExplicitTop = 18
+    ExplicitWidth = 418
   end
   object ScrollBox1: TScrollBox
     Left = 0
-    Top = 0
-    Width = 418
-    Height = 57
-    Align = alTop
+    Top = 138
+    Width = 423
+    Height = 63
+    Align = alBottom
+    Anchors = [akLeft, akTop, akRight, akBottom]
     TabOrder = 0
+    ExplicitLeft = 8
+    ExplicitTop = 159
+    ExplicitWidth = 418
+    ExplicitHeight = 57
     object CardHolderPanel: TPanel
       Left = 0
       Top = 0
@@ -52,16 +56,18 @@ object PlayerForm: TPlayerForm
   end
   object UserPanel: TPanel
     Left = 0
-    Top = 57
-    Width = 418
-    Height = 120
+    Top = 24
+    Width = 423
+    Height = 114
     Align = alClient
     BevelOuter = bvNone
     TabOrder = 1
-    ExplicitTop = 55
+    ExplicitTop = 57
+    ExplicitWidth = 418
+    ExplicitHeight = 120
     DesignSize = (
-      418
-      120)
+      423
+      114)
     object Label1: TLabel
       Left = 265
       Top = 6
@@ -72,7 +78,7 @@ object PlayerForm: TPlayerForm
     object URLEdit: TLabeledEdit
       Left = 8
       Top = 22
-      Width = 251
+      Width = 256
       Height = 21
       Anchors = [akLeft, akTop, akRight]
       EditLabel.Width = 19
@@ -80,9 +86,10 @@ object PlayerForm: TPlayerForm
       EditLabel.Caption = 'URL'
       TabOrder = 0
       OnChange = PlayersNameEditChange
+      ExplicitWidth = 251
     end
     object SpinEdit1: TSpinEdit
-      Left = 370
+      Left = 375
       Top = 72
       Width = 40
       Height = 26
@@ -97,6 +104,7 @@ object PlayerForm: TPlayerForm
       ParentFont = False
       TabOrder = 1
       Value = 1
+      ExplicitLeft = 370
     end
     object ResponseFormat: TComboBox
       Left = 265
@@ -115,7 +123,7 @@ object PlayerForm: TPlayerForm
     object PlayersNameEdit: TLabeledEdit
       Left = 8
       Top = 75
-      Width = 251
+      Width = 256
       Height = 21
       Anchors = [akLeft, akTop, akRight]
       EditLabel.Width = 65
@@ -123,9 +131,10 @@ object PlayerForm: TPlayerForm
       EditLabel.Caption = 'Players Name'
       TabOrder = 3
       OnChange = PlayersNameEditChange
+      ExplicitWidth = 251
     end
     object DealButton: TButton
-      Left = 265
+      Left = 270
       Top = 71
       Width = 72
       Height = 25
@@ -133,11 +142,12 @@ object PlayerForm: TPlayerForm
       Caption = 'Hit Me'
       TabOrder = 4
       OnClick = DealButtonClick
+      ExplicitLeft = 265
     end
   end
   object DefaultCardPanel: TPanel
-    Left = 16
-    Top = 8
+    Left = 8
+    Top = 152
     Width = 66
     Height = 41
     BevelOuter = bvNone
