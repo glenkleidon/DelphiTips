@@ -156,6 +156,7 @@ procedure TServerForm.DeckWebServerCommandGet(AContext: TIdContext;
   ARequestInfo: TIdHTTPRequestInfo; AResponseInfo: TIdHTTPResponseInfo);
   var lWebRequest : TSWebCardRequest;
       lOrigin : string;
+      lUri : string;
   Function contentStreamAsString: string;
   var lStream: TStringStream;
   begin
@@ -178,15 +179,17 @@ begin
   if length(lOrigin)=0 then lOrigin := '*';
   AresponseInfo.CustomHeaders.Values['Access-Control-Allow-Origin'] := lOrigin;
 
+  lUri := ARequestInfo.Document;   // ARequestInfo.URI in XE and later...
 
-  if Pos('favicon',lowercase(ARequestInfo.URI))>0 then
+
+  if Pos('favicon',lowercase(lURI))>0 then
   begin
     AResponseInfo.ResponseNo := 404;
     Exit;
   end;
 
   /// Style sheet for the client
-  if pos('.css',lowercase(ARequestInfo.URI))>0 then
+  if pos('.css',lowercase(lURI))>0 then
   begin
      AResponseInfo.ContentStream := TMemoryStream.create;
      GetStyleSheet(AResponseInfo.ContentStream);
@@ -196,7 +199,7 @@ begin
   end;
 
   // Are they requesting the WebClient?
-  if pos('webclient',lowercase(ARequestInfo.URI))>0 then
+  if pos('webclient',lowercase(lURI))>0 then
   begin
      AResponseInfo.ContentStream := TMemoryStream.create;
      GetWebClient(AResponseInfo.ContentStream);
