@@ -20,6 +20,7 @@ Procedure Implicit_Cast_To_Static_works_as_Expected;
 Procedure Implicit_Cast_From_Static_works_as_Expected;
 Procedure Implicit_Cast_To_String_works_as_Expected;
 Procedure Implicit_Cast_From_String_works_as_Expected;
+Procedure Check_REsult_from_function_contains_correct_pointers;
 Procedure AsJSON_works_as_Expected;
 Procedure FromJSON_works_as_Expected;
 Procedure AsURLEncoded_works_as_Expected;
@@ -30,15 +31,19 @@ Procedure Parse_Array_Exceptions_Detected_as_expected;
 Procedure Parse_Array_Update_Exceptions_Detected_as_expected;
 Procedure AsValuePairs_Exports_Arrays_as_Expected;
 Procedure AsJSON_Exports_Arrays_as_Expected;
+Procedure Enums_as_Integer_works_as_Expected;
 
 Procedure TearDown;
 
 Type
+  TCards = (Hart,Spade,Diamond,Club);
+
   TTestRecord = Record
     number : integer;
     text   : string;
     bool   : boolean;
     flNum  : single;
+    card   : TCards;
   End;
 
   TSerialisableRecord = TRecordSerializer<TTestRecord>;
@@ -184,12 +189,14 @@ begin
   lExpected := 'number=5'#13#10+
                'text=TestValue TEXT'#13#10+
                'bool=False'#13#10+
-               'flNum=5.663';
+               'flNum=5.663'#13#10+
+               'card=Hart';
   lResult.Parse(lExpected);
   checkisFalse(lResult.Value.bool);
   checkisEqual(5,lResult.Value.number);
   checkisEqual('TestValue TEXT',lResult.Value.text);
   checkisEqual(5.663,trunc(lresult.Value.flNum*1000)/1000); // double conversion...
+  checkIsEqual(Hart,lResult.Value.card);
 end;
 
 Procedure Implicit_Cast_To_String_works_as_Expected;
@@ -199,11 +206,13 @@ begin
   lExpected := 'number=5'#13#10+
              'text=TestValue TEXT'#13#10+
              'bool=False'#13#10+
-             'flNum=0'#13#10;
+             'flNum=0'#13#10+
+             'card=Hart'#13#10;
    lResult.Value.number := 5;
    lResult.Value.text := 'TestValue TEXT';
    lResult.Value.bool := false;
    lResult.Value.flNum := 0;
+   lResult.Value.card := Hart;
    checkisEqual(lExpected,lResult);
 
 end;
@@ -215,9 +224,13 @@ begin
   lExpected := 'number=5'#13#10+
                'text=TestValue TEXT'#13#10+
                'bool=False'#13#10+
-               'flNum=5.663';
+               'flNum=5.663'#13#10+
+               'card=Spade';
   lResult := lExpected;
   checkisFalse(lResult.Value.bool);
+  lResult.Value.bool := Not lResult.Value.bool;
+  checkisTrue(lResult.Value.bool);
+  checkisEqual(Spade,lResult.Value.card);
   checkisEqual(5,lResult.Value.number);
   checkisEqual('TestValue TEXT',lResult.Value.text);
   checkisEqual(5.663,trunc(lresult.Value.flNum*1000)/1000); // double conversion...
@@ -226,12 +239,14 @@ begin
      'number=5&'+
      'text=TestValue+is+15%25+%26+%0D%0A&'+
      'bool=False&'+
-     'flNum=5.663';
+     'flNum=5.663'#13#10+
+     'card=Club';
   lResult := lExpected;
   checkisFalse(lResult.Value.bool);
   checkisEqual(5,lResult.Value.number);
   checkisEqual('TestValue is 15% & '#13#10,lResult.Value.text);
   checkisEqual(5.663,trunc(lresult.Value.flNum*1000)/1000); // double conversion...
+  checkisEqual(Club,lResult.Value.card);
 
 end;
 
@@ -242,11 +257,13 @@ begin
   lExpected := 'number=5'#13#10+
              'text=TestValue TEXT'#13#10+
              'bool=False'#13#10+
-             'flNum=0'#13#10;
+             'flNum=0'#13#10+
+             'card=Hart'#13#10;
    lResult.Value.number := 5;
    lResult.Value.text := 'TestValue TEXT';
    lResult.Value.bool := false;
    lResult.Value.flNum := 0;
+   lResult.Value.card := Hart;
    checkisEqual(lExpected,lResult.AsValuePairs);
 end;
 
@@ -291,11 +308,14 @@ begin
   lExpected := '{"number":5,'+
                 '"text":"TestValue TEXT is \"\"",'+
                 '"bool":false,'+
-                '"flNum":'+lDblValueStr+'}';
+                '"flNum":'+lDblValueStr+','+
+                '"card":"Diamond"'+
+                '}';
   lRecord.Value.number := 5;
   lRecord.Value.text := 'TestValue TEXT is ""';
   lRecord.Value.bool := false;
   lRecord.Value.flNum := lDblValue;
+  lRecord.Value.card := Diamond;
   checkIsEqual(lExpected,lRecord.AsJSON);
 end;
 
@@ -318,6 +338,47 @@ begin
   checkisEqual(5,trunc(lresult.Value.flNum*1000)/1000); // double conversion...
 end;
 
+function PointerCheck(AText: String): TTestRecord;
+var lSerialisable: TSerialisableRecord;
+begin
+ // This function serves to prove that the data is copied in a sensible way.
+ // There are two implicit casts here. The Parse method is called on
+ // the Local Variable lSerialisable and then, the Result.Clone method is called
+ // to Copy the the value into Result
+ lSerialisable := AText;
+ Result := lSerialisable;
+end;
+
+Procedure Check_Result_from_function_contains_correct_pointers;
+var lExpected: String;
+    lResult : TSerialisableRecord;
+begin
+  lExpected := 'number=5'#13#10+
+               'text=TestValue TEXT'#13#10+
+               'bool=False'#13#10+
+               'flNum=5.663';
+  lResult := PointerCheck(lExpected);
+  checkisFalse(lResult.Value.bool);
+  lResult.Value.bool := Not lResult.Value.bool;
+  checkisTrue(lResult.Value.bool);
+
+  checkisEqual(5,lResult.Value.number);
+  checkisEqual('TestValue TEXT',lResult.Value.text);
+  checkisEqual(5.663,trunc(lresult.Value.flNum*1000)/1000); // double conversion...
+
+  lExpected :=
+     'number=5&'+
+     'text=TestValue+is+15%25+%26+%0D%0A&'+
+     'bool=False&'+
+     'flNum=5.663';
+  lResult := lExpected;
+  checkisFalse(lResult.Value.bool);
+  checkisEqual(5,lResult.Value.number);
+  checkisEqual('TestValue is 15% & '#13#10,lResult.Value.text);
+  checkisEqual(5.663,trunc(lresult.Value.flNum*1000)/1000); // double conversion...
+end;
+
+
 Procedure AsURLEncoded_works_as_Expected;
 var lResult : TSerialisableRecord;
     lExpected : string;
@@ -326,11 +387,13 @@ begin
      'number=5&'+
      'text=TestValue+is+15%25+%26+%0D%0A&'+
      'bool=False&'+
-     'flNum=0';
+     'flNum=0&'+
+     'card=Hart';
    lResult.Value.number := 5;
    lResult.Value.text := 'TestValue is 15% & '#13#10;
    lResult.Value.bool := false;
    lResult.Value.flNum := 0;
+   lResult.Value.card := Hart;
    checkisEqual(lExpected,lResult.AsURLEncoded);
 end;
 
@@ -596,12 +659,15 @@ begin
        'number[0]=5'#13#10+
        'text[0]=TestValue TEXT'#13#10+
        'bool[0]=False'#13#10+
-       'flNum[0]=103'#13#10;
+       'flNum[0]=103'#13#10+
+       'card[0]=Hart'#13#10;
+
   lExpected2 :=
        'number=333'#13#10+
        'text=TestValue TEXT 2'#13#10+
        'bool=False'#13#10+
-       'flNum=105'#13#10;
+       'flNum=105'#13#10+
+       'card=Hart'#13#10;
   checkisEqual(1,lResult.Parse(lExpected));
   checkisEqual(lExpected,lResult.AsValuePairs);
 
@@ -624,17 +690,48 @@ begin
        'number[0]=5'#13#10+
        'text[0]=TestValue TEXT'#13#10+
        'bool[0]=False'#13#10+
-       'flNum[0]=103'#13#10;
+       'flNum[0]=103'#13#10+
+       'card[0]=Hart'#13#10;
   lExpected2 :=
        'number[1]=333'#13#10+
        'text[1]=TestValue TEXT 2'#13#10+
        'bool[1]=False'#13#10+
-       'flNum[1]=105'#13#10;
+       'flNum[1]=105'#13#10+
+       'card[1]=Hart'#13#10;
   checkisEqual(1,lResult.Parse(lExpected));
   checkisEqual(lExpected,lResult.AsValuePairs);
 
   NewTestCase('2 Array Exports as array Values');
   lResult.Parse(lExpected2,spmUpdate);
+end;
+
+Procedure Enums_as_Integer_works_as_Expected;
+var lExpected: String;
+    lResult : TSerialisableRecord;
+begin
+  lExpected := 'number=5'#13#10+
+               'text=TestValue TEXT'#13#10+
+               'bool=0'#13#10+
+               'flNum=5.663'#13#10+
+               'card=1';
+  lResult.Parse(lExpected);
+  checkisFalse(lResult.Value.bool);
+  checkisEqual(5,lResult.Value.number);
+  checkisEqual('TestValue TEXT',lResult.Value.text);
+  checkisEqual(5.663,trunc(lresult.Value.flNum*1000)/1000); // double conversion...
+  checkIsEqual(Spade,lResult.Value.card);
+ lExpected := 'number=5'#13#10+
+               'text=TestValue TEXT2'#13#10+
+               'bool=1'#13#10+
+               'flNum=5.663'#13#10+
+               'card=3';
+  lResult.Parse(lExpected);
+  checkisTrue(lResult.Value.bool);
+  checkisEqual(5,lResult.Value.number);
+  checkisEqual('TestValue TEXT2',lResult.Value.text);
+  checkisEqual(5.663,trunc(lresult.Value.flNum*1000)/1000); // double conversion...
+  checkIsEqual(Club,lResult.Value.card);
+e
 end;
 
 Procedure AsJSON_Exports_Arrays_as_Expected;
@@ -648,21 +745,27 @@ begin
   lExpected := '[{"number":5,'+
                 '"text":"TestValue TEXT is \"\"",'+
                 '"bool":false,'+
-                '"flNum":'+lDblValueStr+'},'+
+                '"flNum":'+lDblValueStr+','+
+                '"card":"Spade"'+
+                '},'+
                 '{"number":7,'+
                 '"text":"TestValue TEXT 2 is \"\"",'+
                 '"bool":true,'+
-                '"flNum":'+lDblValueStr+'}]';
+                '"flNum":'+lDblValueStr+','+
+                '"card":"Club"'+
+                '}]';
   lRecords.FromJSON(lExpected);
   checkisTrue(lRecords.isArray);
   checkisEqual(lRecords.Values[0].number,5);
   checkisEqual(lRecords.Values[0].text,'TestValue TEXT is ""');
   checkisEqual(lRecords.Values[0].bool,false);
   checkisEqual(lRecords.Values[0].flNum,lDblValue);
+  checkisEqual(lRecords.Values[0].Card,Spade);
   checkisEqual(lRecords.Values[1].number,7);
   checkisEqual(lRecords.Values[1].text,'TestValue TEXT 2 is ""');
   checkisTrue(lRecords.Values[1].bool);
   checkisEqual(lRecords.Values[1].flNum,lDblValue);
+  checkisEqual(lRecords.Values[1].Card,Club);
   checkIsEqual(lExpected,lRecords.AsJSON);
 end;
 

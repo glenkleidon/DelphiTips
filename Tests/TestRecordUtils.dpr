@@ -25,10 +25,12 @@ begin
     AddTestSet('Clone Record', Clone_copies_values_as_expected);
     AddTestSet('Parse ValuePairs', Parse_Populates_record_as_expected);
     AddTestSet('As ValuePairs', AsValuePairs_Exports_values_as_Expected);
+    AddTestSet('Enums and Integer', Enums_as_Integer_works_as_Expected);
     AddTestSet('Implicit Cast To Record',Implicit_Cast_To_Static_works_as_Expected);
     AddTestSet('Implicit Cast To Serializable',Implicit_Cast_To_Static_works_as_Expected);
     AddTestSet('Implicit Cast to String',Implicit_Cast_To_String_works_as_Expected);
     AddTestSet('Implicit Cast FROM String',Implicit_Cast_From_String_works_as_Expected);
+    AddTestSet('Assign from Function returns Correct References', Check_Result_from_function_contains_correct_pointers);
     AddTestSet('As JSON Text',AsJSON_works_as_Expected);
     AddTestSet('From JSON Text',FromJSON_works_as_Expected);
     AddTestSet('As HTTP URLEncoding ',AsURLEncoded_works_as_Expected);

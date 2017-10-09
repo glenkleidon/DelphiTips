@@ -403,7 +403,10 @@ begin
        case lField.FieldType.TypeKind of
          tkEnumeration:
          begin
-           lTValue.Make(getEnumValue(lField.FieldType.Handle,lValue),lField.FieldType.Handle,lTvalue);
+           if tryStrToInt64(lValue,lInt) then
+              lTValue.Make(lInt,lField.FieldType.Handle,lTvalue)
+           else
+              lTValue.Make(getEnumValue(lField.FieldType.Handle,lValue),lField.FieldType.Handle,lTvalue);
            lField.setValue(APValue, lTValue);
            inc(result);
          end;
