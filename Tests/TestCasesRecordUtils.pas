@@ -731,7 +731,6 @@ begin
   checkisEqual('TestValue TEXT2',lResult.Value.text);
   checkisEqual(5.663,trunc(lresult.Value.flNum*1000)/1000); // double conversion...
   checkIsEqual(Club,lResult.Value.card);
-e
 end;
 
 Procedure AsJSON_Exports_Arrays_as_Expected;
