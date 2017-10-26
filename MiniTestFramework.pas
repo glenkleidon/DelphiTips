@@ -16,7 +16,7 @@ Const
   FOREGROUND_PURPLE=5;
 
   clTitle = FOREGROUND_YELLOW;
-  clError = FOREGROUND_RED;
+  clError = FOREGROUND_RED or FOREGROUND_INTENSITY;
   clPass  = FOREGROUND_GREEN;
   clMessage=FOREGROUND_CYAN;
   clDefault=FOREGROUND_DEFAULT;
@@ -189,6 +189,7 @@ begin
   l := length(MiniTestCases);
   for i := 0 to l-1 do
   Try
+    if not assigned(MiniTestCases[i].Execute) then continue;
     if MiniTestCases[i].TestClass<>'' then
       NewTestSet(MiniTestCases[i].TestClass,MiniTestCases[i].Skip);
     ExpectException(MiniTestCases[i].ExpectedException,true);
@@ -313,7 +314,8 @@ end;
 
 Procedure ExpectException(AExceptionClassName: string;AExpectForSet: boolean=false);
 begin
-  ExpectedException := '';
+  ExpectedException := AExceptionClassName;
+  if AExpectForSet then ExpectedSetException := ExpectedException;
 end;
 
 function ValueAsString(AValue: TComparitorType): string;
@@ -445,6 +447,8 @@ begin
           end;
       cttException:
           begin
+             if AMessage='' then lMessage:= ' Exception.'
+             else lMessage := ' '+AMessage;
              if isEqual then
              begin
                 lResult := 0;
@@ -457,28 +461,27 @@ begin
                 lMessage := format('%s   Expected:<%s>%s   Actual  :<%s>',
                  [#13#10, ValueAsString(AExpected), #13#10, ValueAsString(AResult)])
              end;
-             if AMessage='' then lMessage:= ' Exception.'
-             else lMEssage := ' '+AMessage;
           end;
     else //case
       begin
         try
           lMessage := '';
           Outcome := CompareValues(AExpected,AResult);
+          lMessageColour := clPass;
           if IsEqual<>Outcome then
           begin
             lResult := 2;
             inc(SetFailedTestCases);
+            lMessageColour := clError;
             if AMessage = '' then
             begin
-              lMessageColour := clError;
               if isEqual then
                 lMessage := format('%s   Expected:<%s>%s   Actual  :<%s>',
                  [#13#10, ValueAsString(AExpected), #13#10, ValueAsString(AResult)])
               else
                 lMessage := format('%s   Expected outcomes to differ, but both returned %s%s',
                  [#13#10, ValueAsString(AExpected)]);
-            end;
+            end else lMessage:=#13#10'   ' + AMessage;
             exit;
           end;
           inc(SetPassedTestCases);
@@ -567,7 +570,7 @@ begin
    if lExpected='' then lExpected := 'No Exceptions';
    Check(
      (AException.className=lExpected) or
-     (AException.Message = lExpected),
+     (pos(lExpected,AException.Message)>0),
       lExpected,
       AException.ClassName+':'+AException.Message,
       '',
