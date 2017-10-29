@@ -52,6 +52,8 @@ var
 Procedure Title(AText: string);
 
 Procedure AddTestSet(ATestClass: string; AProcedure : TTestCaseProcedure;
+    ASkipped:boolean=False; AExpectedException: string = ''); deprecated; // wrong naming convention.
+Procedure AddTestCase(ATestClass: string; AProcedure : TTestCaseProcedure;
     ASkipped:boolean=False; AExpectedException: string = '');
 Procedure PrepareSet(AProcedure: TTestCaseProcedure);
 Procedure FinaliseSet(AProcedure: TTestCaseProcedure);
@@ -156,6 +158,12 @@ begin
 end;
 
 Procedure AddTestSet(ATestClass: string; AProcedure : TTestCaseProcedure;
+  ASkipped: Boolean; AExpectedException: string);
+begin
+  AddTestCase(ATestClass, AProcedure, ASkipped, AExpectedException);
+end;
+
+Procedure AddTestCase(ATestClass: string; AProcedure : TTestCaseProcedure;
   ASkipped: Boolean; AExpectedException: string);
 var l:integer;
 begin
@@ -471,8 +479,8 @@ begin
           if IsEqual<>Outcome then
           begin
             lResult := 2;
-            inc(SetFailedTestCases);
             lMessageColour := clError;
+            inc(SetFailedTestCases);
             if AMessage = '' then
             begin
               if isEqual then
