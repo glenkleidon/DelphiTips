@@ -61,6 +61,7 @@ Procedure FinalizeSet(AProcedure: TTestCaseProcedure);
 Procedure RunTestSets;
 
 Procedure NewTest(ACase: string; ATestClassName: string = '');
+Procedure NewCase(ATestCaseName: string);
 Procedure NewTestCase(ACase: string; ATestClassName: string = '');
 Procedure NewTestSet(AClassName: string; ASkipped: boolean=false);
 Function  CheckIsEqual(AExpected, AResult: TComparitorType;
@@ -81,6 +82,9 @@ Procedure Print(AText: String; AColour: smallint = FOREGROUND_DEFAULT);
 Procedure PrintLn(AText: String; AColour: smallint = FOREGROUND_DEFAULT);
 
 implementation
+Const
+  NIL_EXCEPTION_CLASSNAME = 'NilException';
+  NO_EXCEPTION_EXPECTED = 'No Exceptions';
 
 Type
   TCheckTestType = (cttComparison, cttSkip, cttException);
@@ -178,12 +182,12 @@ end;
 
 Procedure PrepareSet(AProcedure: TTestCaseProcedure);
 begin
-  AddTestSet('',AProcedure);
+  AddTestCase('',AProcedure);
 end;
 
 Procedure FinaliseSet(AProcedure: TTestCaseProcedure);
 begin
-  AddTestSet('',AProcedure);
+  AddTestCase('',AProcedure);
 end;
 
 Procedure FinalizeSet(AProcedure: TTestCaseProcedure);
@@ -456,6 +460,7 @@ begin
           end;
       cttException:
           begin
+             lMessageColour := clMessage;
              if AMessage='' then lMessage:= ' Exception.'
              else lMessage := ' '+AMessage;
              if isEqual then
@@ -574,14 +579,28 @@ end;
 
 Procedure CheckException(AException: Exception);
 var lExpected: string;
+    lExceptionClassName: string;
+    lExceptionMessage: string;
 begin
    lExpected := ExpectedException;
-   if lExpected='' then lExpected := 'No Exceptions';
+   if (AException=nil) then
+   begin
+     lExceptionClassName:= NIL_EXCEPTION_CLASSNAME;
+     lExceptionMessage  := NO_EXCEPTION_EXPECTED;
+   end
+   else
+   begin
+    lExceptionClassName:=AException.className;
+    lExceptionMessage := AException.Message;
+   end;
+
+
+   if lExpected='' then lExpected := NO_EXCEPTION_EXPECTED;
    Check(
-     (AException.className=lExpected) or
-     (pos(lExpected,AException.Message)>0),
+     (lExceptionClassName=lExpected) or
+     (pos(lExpected,lExceptionMessage)>0),
       lExpected,
-      AException.ClassName+':'+AException.Message,
+      lExceptionClassName+':'+lExceptionMessage,
       '',
       cttException);
 end;
@@ -594,6 +613,11 @@ begin
   Result := CheckisTrue(true,lMessage,Skipped);
 end;
 
+
+Procedure NewCase(ATestCaseName: string);
+begin
+  newTest('',ATestCaseName);
+end;
 
 procedure NewTestCase(ACase: string; ATestClassName: string);
 begin
