@@ -46,6 +46,7 @@ begin
 
    TestSummary;
 
+   readln;
 
   except
     on E: Exception do

@@ -60,6 +60,7 @@ Procedure FinaliseSet(AProcedure: TTestCaseProcedure);
 Procedure FinalizeSet(AProcedure: TTestCaseProcedure);
 Procedure RunTestSets;
 
+Procedure NewTest(ACase: string; ATestClassName: string = '');
 Procedure NewTestCase(ACase: string; ATestClassName: string = '');
 Procedure NewTestSet(AClassName: string; ASkipped: boolean=false);
 Function  CheckIsEqual(AExpected, AResult: TComparitorType;
@@ -595,6 +596,11 @@ end;
 
 
 procedure NewTestCase(ACase: string; ATestClassName: string);
+begin
+  NewTest(ACase, ATestClassName);
+end;
+
+procedure NewTest(ACase: string; ATestClassName: string);
 begin
 
   if (ATestClassName <> '') and
