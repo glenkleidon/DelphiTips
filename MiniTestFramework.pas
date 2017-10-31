@@ -2,7 +2,14 @@ unit MiniTestFramework;
 
 interface
 
-uses SysUtils, windows, Variants;
+{$IFDEF VER120} {$DEFINE BEFOREVARIANTS} {$ENDIF}
+{$IFDEF VER130} {$DEFINE BEFOREVARIANTS} {$ENDIF}
+
+uses SysUtils, windows
+   {$IFNDEF BEFOREVARIANTS}
+      , Variants
+   {$ENDIF}
+   ;
 
 Const
   PASS_FAIL: array[0..3] of string = ('PASS', 'SKIP', 'FAIL', 'ERR ');
@@ -52,7 +59,7 @@ var
 Procedure Title(AText: string);
 
 Procedure AddTestSet(ATestClass: string; AProcedure : TTestCaseProcedure;
-    ASkipped:boolean=False; AExpectedException: string = ''); deprecated; // wrong naming convention.
+    ASkipped:boolean=False; AExpectedException: string = ''); {$IFNDEF BEFOREVARIANTS}deprecated;{$ENDIF} // wrong naming convention.
 Procedure AddTestCase(ATestClass: string; AProcedure : TTestCaseProcedure;
     ASkipped:boolean=False; AExpectedException: string = '');
 Procedure PrepareSet(AProcedure: TTestCaseProcedure);
@@ -82,12 +89,17 @@ Procedure Print(AText: String; AColour: smallint = FOREGROUND_DEFAULT);
 Procedure PrintLn(AText: String; AColour: smallint = FOREGROUND_DEFAULT);
 
 implementation
+
 Const
   NIL_EXCEPTION_CLASSNAME = 'NilException';
   NO_EXCEPTION_EXPECTED = 'No Exceptions';
 
 Type
   TCheckTestType = (cttComparison, cttSkip, cttException);
+
+  {$IFDEF BEFOREVARIANTS}
+    TvarType = Integer;
+  {$ENDIF}
 
 var
   SameTestCounter :integer = 0;
@@ -347,15 +359,17 @@ begin
     varSmallint,
     varInteger,
     varVariant,
-    varShortInt,
-    varByte,
-    varWord,
-    varLongWord,
-    {$IFDEF UNICODE}
-     varUInt64,
+    varByte
+    {$IFNDEF BEFOREVARIANTS}
+      ,varInt64
+      ,varShortInt
+      ,varWord
+      ,varLongWord
     {$ENDIF}
-
-    varInt64    : Result := IntToStr(AValue);
+    {$IFDEF UNICODE}
+      ,varUInt64
+    {$ENDIF}
+               : Result := IntToStr(AValue);
 
     {$IFDEF UNICODE}
       varUString,
@@ -384,14 +398,23 @@ begin
     lExpectedType := VarType(AExpected);
     lResultType := VarType(AResult);
 
+    if (lExpectedType+lResultType=1) OR
+       (lExpectedType+lResultType=1) then
+    begin
+      result := true;
+      exit;
+    end;
+
     if (lExpectedType = lResultType) then
     begin
       Result :=  (AExpected=AResult);
       exit;
     end;
 
-    lResultIsInteger := lResultType in [varByte, varSmallint, varInteger, varShortInt
-                                         ,varWord,varLongWord,varInt64];
+
+    lResultIsInteger := lResultType in [varByte, varSmallint, varInteger
+      {$IFNDEF BEFOREVARIANTS} ,varShortInt,varWord,varLongWord,varInt64 {$ENDIF}
+                        ];
     if (lExpectedType = VarBoolean) and
        (lResultIsInteger) then
     begin
@@ -399,12 +422,19 @@ begin
       exit;
     end;
 
-    lExpectedIsInteger := lExpectedType in [varByte, varSmallint, varInteger, varShortInt
-                                             ,varWord,varLongWord,varInt64];
+    lExpectedIsInteger := lExpectedType in [varByte, varSmallint, varInteger
+      {$IFNDEF BEFOREVARIANTS} ,varShortInt,varWord,varLongWord,varInt64 {$ENDIF}
+                          ];
 
     if (lExpectedIsInteger and lResultIsInteger) then
     begin
-      Result := varAsType(AExpected,varInt64)=VarAsType(Aresult,varInt64) ;
+      Result :=
+       {$IFDEF BEFOREVARIANTS}
+          varAsType(AExpected, varInteger)=VarAsType(Aresult,varInteger) ;
+       {$ELSE}
+          varAsType(AExpected, varInt64)=VarAsType(Aresult,varInt64) ;
+       {$ENDIF}
+
       exit;
     end;
 
@@ -511,7 +541,8 @@ begin
             end else
             begin
               lResult := 2;
-              lMessage := e.Message;
+              lMessageColour := clMessage;
+              lMessage := #13#10'   Illegal Comparison Test Framework: ' + e.Message;
               inc(SetErrors);
             end;
           end;
@@ -556,15 +587,23 @@ end;
 Function CheckIsEqual(AExpected, AResult: TComparitorType;
   AMessage: string = '';ASkipped: boolean=false): boolean;
 begin
-  Result := check(true,AExpected, AResult, Amessage,
+  try
+    Result := check(true,AExpected, AResult, Amessage,
               TestTypeFromSkip(ASkipped));
+  except
+    on e:exception do CheckException(e);
+  end;
 end;
 
 Function CheckNotEqual(AResult1, AResult2: TComparitorType;
   AMessage: string; ASkipped: boolean): boolean;
 Begin
+  try
   Result := check(false,AResult1, AResult2, Amessage,
                    TestTypeFromSkip(ASkipped));
+  except
+    on e:exception do CheckException(e);
+  end;
 end;
 
 Function CheckIsTrue(AResult: boolean; AMessage: string;ASkipped: boolean): boolean;
@@ -574,7 +613,7 @@ end;
 
 Function CheckisFalse(AResult: boolean; AMessage: string; ASkipped: boolean): boolean;
 begin
-  Result := CheckIsEqual(False, AResult,AMessage,ASkipped);
+    Result := CheckIsEqual(False, AResult,AMessage,ASkipped);
 end;
 
 Procedure CheckException(AException: Exception);
@@ -640,8 +679,11 @@ begin
 end;
 
 initialization
-  {$IF CompilerVersion >= 20.0}
-    system.ReportMemoryLeaksOnShutdown := True;
-  {$IFEND}
+  {$IFDEF CompilerVersion}
+    {$IF CompilerVersion >= 20.0}
+      system.ReportMemoryLeaksOnShutdown := True;
+    {$IFEND}
+  {$ENDIF}
 
 end.
+
