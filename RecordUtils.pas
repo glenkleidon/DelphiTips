@@ -48,6 +48,7 @@ interface
 
    Type TRecordSerializer<T> = Record
      private
+       fhasValue : string;
        fisArray : string;
        fIndex: integer;
        function getCount: integer;
@@ -55,12 +56,17 @@ interface
        procedure setIsArray(const AValue: boolean);
        procedure setCount(const AValue: integer);
        function getElementReference(AIndex: integer): Pointer;
+       function getValue: T;
+       procedure setValue(const Value: T);
+    function getHasValue: boolean;
+    procedure setHasValue(const Value: boolean);
      public
        Value : T;
        Values: TArray<T>;
        Procedure Clear;
        Procedure Clone(ARecord: T; AIndex: integer =-1); overload;
        Procedure Clone(ARecord: TRecordSerializer<T>; AIndex: integer=-1); overload;
+       Function Add(ARecord : T): integer;
        Function Parse(AStrings:TStrings; AMode: TSerializerParseMode=spmUpdate;
                              AIndex: integer=-1; AFormat: TSerializerEncoding=seValuePairs): integer; overload;
        Function Parse(AText: String; AMode: TSerializerParseMode = spmUpdate;
@@ -79,6 +85,8 @@ interface
        Property isArray: boolean read getIsArray write setIsArray;
        Property Elements[AIndex : integer] : Pointer read getElementReference;
        Property Position : integer read fIndex write fIndex;
+       Property HasValue : boolean read getHasValue write setHasValue;
+       Property ZValue : T read getValue write setValue;
    end;
 
    function IndexedName(AId: string; AIndex: integer=-1): string;
@@ -692,6 +700,14 @@ begin
  end;
 end;
 
+function TRecordSerializer<T>.Add(ARecord: T): integer;
+var l :integer;
+begin
+   if (not hasValue) and (not isArray) then
+     self.Clone(ARecord)
+   else self.Clone(ARecord, Self.Count+1);
+end;
+
 function TRecordSerializer<T>.AsJSON: String;
 var i : Integer;
     lComma: string;
@@ -744,6 +760,7 @@ end;
 
 procedure TRecordSerializer<T>.Clone(ARecord: T; AIndex: integer=-1);
 begin
+  fhasValue := 'True';
   if AIndex=-1 then
     CloneRecord(TypeInfo(T),@ARecord, @Self.Value)
   else
@@ -774,9 +791,22 @@ begin
    Result := @Self.Values[AIndex]; // let the range checking throw exception.
 end;
 
+function TRecordSerializer<T>.getHasValue: boolean;
+begin
+  result := length(fhasValue)>0 ;
+end;
+
 function TRecordSerializer<T>.getIsArray: boolean;
 begin
   result := (Count>0) or (fIsArray='True');
+end;
+
+function TRecordSerializer<T>.getValue: T;
+var lCount: integer;
+begin
+  lCount  :=  self.Count;
+  if lCount=0 then self.Count := 1;
+  Result := self.Values[0];
 end;
 
 class operator TRecordSerializer<T>.Implicit(ARecord: T): TRecordSerializer<T>;
@@ -820,6 +850,11 @@ begin
   setlength(Self.Values,lValue);
 end;
 
+procedure TRecordSerializer<T>.setHasValue(const Value: boolean);
+begin
+   if Value then fhasValue := 'True' else fhasValue := '';
+end;
+
 procedure TRecordSerializer<T>.setIsArray(const AValue: boolean);
 begin
   if AValue then
@@ -837,6 +872,11 @@ begin
     fIsArray:='';
     fIndex := -1;
   end;
+end;
+
+procedure TRecordSerializer<T>.setValue(const Value: T);
+begin
+   self.Clone(Value,0);
 end;
 
 Function TRecordSerializer<T>.Parse(AStrings: TStrings; AMode: TSerializerParseMode=spmUpdate;
@@ -904,7 +944,10 @@ begin
   if ( (not lIsArray) and (Amode=spmUpdate) ) then
   begin
     if (ParseValuesToRecord(AStrings, TypeInfo(T), @Self.Value, AIndex, AFormat)>0) then
+    begin
        result := 1;
+       fhasValue := 'True';
+    end;
     exit;
   end;
 
@@ -924,13 +967,16 @@ begin
       else SetLength(Self.Values,bounds.High)
     end;
     if (ParseValuesToRecord(AStrings, TypeInfo(T), @Self.Values[bounds.High], AIndex, AFormat)>0) then
+    begin
        result := 1;
+       fhasValue := 'True';
+    end;
     exit;
   end;
-  
+
   // Potentially more than 1 record
   if AMode=spmAppend then SI := self.Count+lOffset else SI:=bounds.Low;
-  
+
   for I := bounds.Low to bounds.High do
   begin
     if (si>Count-1) then

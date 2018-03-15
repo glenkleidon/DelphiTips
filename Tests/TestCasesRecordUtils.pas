@@ -32,11 +32,16 @@ Procedure Parse_Array_Update_Exceptions_Detected_as_expected;
 Procedure AsValuePairs_Exports_Arrays_as_Expected;
 Procedure AsJSON_Exports_Arrays_as_Expected;
 Procedure Enums_as_Integer_works_as_Expected;
+Procedure SetOf_generates_array_of_types;
+Procedure Array_of_Type_parses_back_into_a_set;
+Procedure Add_Works_as_expected;
+
 
 Procedure TearDown;
 
 Type
   TCards = (Hart,Spade,Diamond,Club);
+  TSetOfSuits = Set of TCards;
 
   TTestRecord = Record
     number : integer;
@@ -525,6 +530,7 @@ begin
                'bool[1]=True'#13#10+
                'flNum[1]=300.01';
   lResult := lExpected;
+  checkisequal(lExpected, lResult);
 
   NewTestCase('Update Single Index using Index');
   lExpected := 'number=3'#13#10+
@@ -533,6 +539,7 @@ begin
                'flNum=44.2'#13#10;
 
   lResult.Parse(lExpected);
+  checkisequal(lExpected, lResult);
 
 end;
 
@@ -767,6 +774,51 @@ begin
   checkisEqual(lRecords.Values[1].Card,Club);
   checkIsEqual(lExpected,lRecords.AsJSON);
 end;
+
+Procedure SetOf_generates_array_of_types;
+begin
+  checkisTrue(false);
+
+end;
+
+Procedure Array_of_Type_parses_back_into_a_set;
+begin
+  checkisTrue(false);
+
+end;
+
+Procedure Add_Works_as_expected;
+var lValue : TTestRecord;
+    lSValue : TSerialisableRecord;
+    lExpected, lResult : string;
+    lDblValue: Double;
+    lDblValueStr: string;
+begin
+   lDblValue := 5.0;
+   lDblValueStr := FloatToStr(lDblValue);
+   lValue.number := 1;
+   lValue.text := 'TestValue TEXT is ""';
+   lValue.bool := true;
+   lValue.flNum := lDblValue;
+   lValue.card := hart;
+
+   NewTestCase('Add a Single Element');
+   lExpected := '{"number":1,'+
+                '"text":"TestValue TEXT is \"\"",'+
+                '"bool":true,'+
+                '"flNum":'+lDblValueStr+','+
+                '"card":"Hart"'+
+                '}';
+   lSValue.Add(lValue);
+   checkisEqual(lExpected, lSvalue.AsJSON);
+
+   NewTestCase('Add another Single Element');
+   lExpected := '[' + lExpected + ',' + lExpected + ']';
+   lSValue.Add(lValue);
+   checkisEqual(lExpected, lSvalue.AsJSON);
+
+end;
+
 
 
 
