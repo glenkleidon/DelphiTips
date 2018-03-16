@@ -61,7 +61,10 @@ interface
     function getHasValue: boolean;
     procedure setHasValue(const Value: boolean);
      public
-       Value : T;
+       Value : T;  // note: Maintaining a separate Value Adds work, but
+                   // this is required because the Property otherwise becomes
+                   // read only (because returned property values become a
+                   // reference, rather than a specifc value.
        Values: TArray<T>;
        Procedure Clear;
        Procedure Clone(ARecord: T; AIndex: integer =-1); overload;
@@ -99,7 +102,7 @@ interface
    Function GetValuePairHeader(ATypeInfo: Pointer; APValue: Pointer): string;
    Procedure CloneRecord(ATypeInfo: Pointer; APRecordToClone: Pointer; APClonedRecord : Pointer );
    Procedure ClearRecord(ATypeInfo: Pointer; APValue: Pointer);
-   Function AsJSONPair(AId: string; AValue: string;AValueQuoted:boolean=true):string;
+   Function AsJSONPair(AId: string; AValue: string;AValueQuoted:boolean=true; ANoEscape: boolean=false):string;
    Function RecordAsJSON(ATypeInfo: Pointer; APValue: Pointer; AIndex: integer = -1): string;
    Procedure ParseJSONtoRecord(AString: String; ATypeInfo: Pointer; APValue: Pointer);
    Function JSONToValuePairs(AJSON:string):String;
@@ -138,7 +141,33 @@ begin
 end;
 
 Function isJSONEncoding(var AString: string): boolean;
+var lFirst, lLast : Char;
+    l, pColon,pQuote1,pQuote2 :integer;
 begin
+   result := false;
+
+   l := length(AString);
+   if l=0 then exit;
+
+   // Check if key parts are here to make JSON
+   lFirst := AString[1];
+   lLast := AString[l];
+   pColon := pos(':',AString);
+   pQuote1 := pos('"', AString);
+   if pQuote1>0 then
+   begin
+     pQuote2 := posex('"', AString, pQUote1);
+   end else pQuote2 := 0;
+
+   // now strictly speaking, it does not have to be bound by a {} and [] and
+   // have named values, but its pointless otherwise for this component.
+   result :=
+      (pColon>0) and (pQuote1>0) and (pQuote2>0) And
+      (
+        (lfirst='{') and (lLast='}')
+         OR
+        (lFirst='[') and (lFirst=']')
+      );
 
 end;
 
@@ -254,7 +283,7 @@ begin
              end;
          '}':
              case lState of
-              jsInObject, 
+              jsInObject,
               jsInValue, jsEndValue, jsEndArray, jsEndObject:
                begin
                  EndInValue;
@@ -284,7 +313,7 @@ begin
                begin
                   EndInValue;
                   lStates.Pop;
-                  if not(lStates.peek=jsInArray) then JSONParseError(c);
+                  if (lStates.peek<>jsInArray) then JSONParseError(c);
                   lStates.Pop; // pop out of the current array
                   lIndexList.Pop;
                   lStates.push(jsEndArray);
@@ -294,14 +323,32 @@ begin
          '"':
              case lState of
               jsNone,
-              jsInArray,
-              jsInObject,
-              jsNextElement:
+              jsInObject:
                begin
                  Reset;
-                 if not(lStates.peek in [jsInObject, jsInArray]) then lStates.Pop;
+                 if not(lState=jsInObject) then lStates.Pop;
                  lStates.Push(jsInName);
                end;
+              jsNextElement:
+              begin
+                 lstates.Pop;
+                 case lStates.peek of
+                   jsInArray:
+                   begin
+                     lStates.Push(jsInQuotedValue);
+                   end;
+                   jsInObject:
+                   begin
+                     lStates.Push(jsInName);
+                   end ;
+                   else JSONPArseError(c);
+                 end;
+              end;
+              jsInArray:
+              begin
+                 Reset;
+                 lStates.Push(jsInQuotedValue);
+              end;
               jsInValue:
                 begin
                  lStates.Pop;
@@ -375,17 +422,20 @@ Function ParseValuesToRecord(AStrings: TStrings; ATypeInfo: Pointer; APValue: Po
     AFormat: TSerializerEncoding = seValuePairs): integer;
 var
   ltype: TRTTIType;
+  lset : TRttiSetType;
   lfield: TRttiField;
   lfields: TArray<TRttiField>;
   lContext: TRTTIContext;
   lPrefix : string;
   lSuffix : String;
+  lLength : integer;
   lTValue : TValue;
   lValue : string;
   lFieldName: string;
   lInt: Int64;
   lSingle: Single;
   lDouble: Double;
+  lInteger : Integer;
   p:integer;
 begin
   Result := 0;
@@ -403,12 +453,35 @@ begin
     begin
        lFieldName := lField.Name;
        if AFormat=seURLEncoding then lFieldname := HTTPEncode(lFieldname);
-       lValue := AStrings.values[lFieldName];
+       if lField.FieldType.TypeKind=tkSet then
+         lValue := AStrings.values[lFieldName+'[0]']
+       else
+         lValue := AStrings.values[lFieldName];
        if length(LValue)=0 then lValue := AStrings.values[lFieldName+lSuffix];
        if length(LValue)=0 then lValue := AStrings.values[lPrefix+lFieldName];
        if length(lValue)=0 then continue;
        if AFormat=seURLEncoding then lValue := httpDecode(lValue);
        case lField.FieldType.TypeKind of
+         tkset:
+         begin
+            // need to get the value from the base type.
+            lsuffix := '';
+            lprefix := '';
+            p := 0;
+            lSet := lField.FieldType.AsSet;
+            repeat
+              // safely add it values.
+              if getEnumValue(lSet.ElementType.Handle,lValue)>=0 then
+                 lprefix := lPrefix+lsuffix + lValue;
+              inc(p);
+              lValue := AStrings.values[lFieldName+format('[%u]',[p])];
+              lSuffix := ',';
+            until length(lValue)=0;
+            lInteger := stringtoSet(lField.FieldType.Handle,lPrefix);
+            lTValue.Make(lInteger,lField.FieldType.Handle,lTValue);
+            lField.setValue(APValue, lTValue);
+            inc(result);
+         end;
          tkEnumeration:
          begin
            if tryStrToInt64(lValue,lInt) then
@@ -490,8 +563,8 @@ var
   lfield: TRttiField;
   lfields: TArray<TRttiField>;
   lComma : string;
-  lValue : string;
-  lNoQuotes: Boolean;
+  lValue, lSetValue : string;
+  lNoQuotes, lNoEscape: Boolean;
   lBoolHandle: PTypeInfo;
 begin
   Result := '{';
@@ -506,12 +579,22 @@ begin
       // Add records here.
       continue;
     end;
+    lNoEscape := false;
     lValue := lField.getValue(APValue).ToString;
+    if lField.FieldType.TypeKind=tkSet then
+    begin
+      lSetValue := stringreplace(lValue,',','","',[rfReplaceAll]);
+      If (lValue<>lSetValue) Then
+      begin
+        lvalue := '["' + copy(lSetValue,2,length(lSetValue)-2)+ '"]';
+        lNoEscape := true;
+      end;
+    end;
     if length(lValue)=0 then continue;
     lNoQuotes :=
-       ((lField.FieldType.TypeKind in [tkInteger,tkFloat,tkInt64])
+       ((lField.FieldType.TypeKind in [tkInteger,tkFloat,tkInt64, tkSet])
          or (lField.FieldType.Handle=lBoolHandle));
-    lValue := lComma+AsJsonPair(lField.Name,lValue,not lNoQuotes);
+    lValue := lComma+AsJsonPair(lField.Name,lValue,not lNoQuotes, lNoEscape);
     Result := Result+(lValue);
     lComma := ',';
   end;
@@ -561,8 +644,8 @@ begin
 
 end;
 
-function AsJSONPair(AId: string; AValue: string;AValueQuoted:boolean=true):string;
-var lformat : string;
+function AsJSONPair(AId: string; AValue: string;AValueQuoted:boolean=true; ANoEscape: boolean=false):string;
+var lformat, lValue : string;
     function JSONEscape(Atext: string): string;
     begin
       result := StringReplace(StringReplace(atext,'\','\\',[rfReplaceAll])
@@ -573,9 +656,10 @@ begin
   if AValueQuoted then lformat := '"%s":"%s"' else
   begin
     lformat:='"%s":%s';
-    AValue := lowercase(AValue);
+    if not ANoEscape then AValue := lowercase(AValue);
   end;
-  Result := format(lformat,[JSONEscape(AId),JSONEscape(AValue)]);
+  if ANoEscape then lValue := AValue else lValue := JSONEscape(AValue);
+  Result := format(lformat,[JSONEscape(AId),lValue]);
 end;
 
 
@@ -701,11 +785,25 @@ begin
 end;
 
 function TRecordSerializer<T>.Add(ARecord: T): integer;
-var l :integer;
+var lIndex :integer;
 begin
    if (not hasValue) and (not isArray) then
      self.Clone(ARecord)
-   else self.Clone(ARecord, Self.Count+1);
+   else
+     begin
+       // do I need to copy the Value?
+       lIndex := length(Self.Values)-1;
+       if (lIndex=-1) then
+       begin
+         lIndex := 0;
+         if HasValue then
+         begin
+           lIndex := 1;
+           self.Clone(Self.Value,0);
+         end;
+       end;
+       self.Clone(ARecord, lIndex);
+     end;
 end;
 
 function TRecordSerializer<T>.AsJSON: String;
@@ -1004,6 +1102,8 @@ class operator TRecordSerializer<T>.Implicit(
 begin
    if isURLEncoding(AText) then
      Result.FromURLEncoded(AText)
+   else if isJSONEncoding(AText) then
+     result.FromJSON(AText)
    else
      Result.Parse(AText);
 end;
@@ -1091,22 +1191,20 @@ begin
     lNamedIndex := fList[i];
     lNameStr := lNamedIndex.Name;
     lCountStr := '';
-    if lNamedIndex.index>=0 then lCountStr := format('[%u]',[lNamedIndex.index]); 
+    if lNamedIndex.index>=0 then lCountStr := format('[%u]',[lNamedIndex.index]);
     if length(lNamedIndex.Name)>0 then
     begin
-      if True then
-
       Result := Result + format('%s%s%s',
               [lDot,lNameStr,lCountStr]);
     end
-    else 
+    else
     begin
       if i=0 then
       begin
         if l>0 then fList[1].index := lNamedIndex.index;
         continue;
       end;
-      if i=l then lNameStr := '%s';
+//      if (i=l) and lNameStr then lNameStr := '%s';
       Result := Result + format('%s%s',[lNameStr,lCountStr]);
     end;
     lDot := '.';

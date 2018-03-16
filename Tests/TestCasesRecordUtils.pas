@@ -51,7 +51,16 @@ Type
     card   : TCards;
   End;
 
+  TTestRecordSet = Record
+    number : integer;
+    text   : string;
+    bool   : boolean;
+    flNum  : single;
+    cards  : TSetOfSuits;
+  End;
+
   TSerialisableRecord = TRecordSerializer<TTestRecord>;
+  TSerialisableRecordSet = TRecordSerializer<TTestRecordSet>;
 
   TSerialisableRecords = Array of TSerialisableRecord;
 
@@ -421,16 +430,24 @@ end;
 Procedure Parse_Array_Update_Works_as_Expected;
 var lExpected: String;
     lResult : TSerialisableRecord;
+    lDblValue: Double;
+    lDblValueStr: String;
 begin
+  lDblValue := 5.663;
+  lDblValueStr := floatToStr(lDblValue);
+
   NewTestCase('2 Arrays, starting at 0 Parse Correctly');
   lExpected := 'number[0]=5'#13#10+
                'text[0]=TestValue TEXT'#13#10+
                'bool[0]=False'#13#10+
-               'flNum[0]=5.663'#13#10+
+               'flNum[0]='+lDblValueStr+#13#10+
                'number[1]=6'#13#10+
                'text[1]=TestValue TEXT 2'#13#10+
-               'bool[1]=True'#13#10+
-               'flNum[1]=300.01';
+               'bool[1]=True'#13#10;
+  lDblValue := 300.01;
+  lDblValueStr := floatToStr(lDblValue);
+  lExpected := lExpected +  'flNum[1]='+lDblValueStr;
+
   checkisEqual(2,lResult.Parse(lExpected,spmAppend),'Expected 2 Records to be added');
   checkisEqual(2,lResult.Count,'Expected Count to be 2');
 
@@ -519,16 +536,21 @@ end;
 Procedure Parse_Array_Exceptions_Detected_as_expected;
 var lExpected: String;
     lResult : TSerialisableRecord;
+    lDblValue: Double;
 begin
   NewTestCase('2 Arrays, starting at 0 Parse Correctly');
+  lDblValue := 5.663;
+
   lExpected := 'number[0]=5'#13#10+
                'text[0]=TestValue TEXT'#13#10+
                'bool[0]=False'#13#10+
-               'flNum[0]=5.663'#13#10+
+               'flNum[0]='+floatToStr(lDblValue)+#13#10+
                'number[1]=6'#13#10+
                'text[1]=TestValue TEXT 2'#13#10+
-               'bool[1]=True'#13#10+
-               'flNum[1]=300.01';
+               'bool[1]=True'#13#10;
+  lDblValue := 300.01;
+  lExpected := lExpected  + 'flNum[1]='+FloatToStr(lDblValue);
+
   lResult := lExpected;
   checkisequal(lExpected, lResult);
 
@@ -776,14 +798,62 @@ begin
 end;
 
 Procedure SetOf_generates_array_of_types;
+var lValue : TTestRecordSet;
+    lSValue : TSerialisableRecordSet;
+    lExpected, lResult : string;
+    lDblValue: Double;
+    lDblValueStr: string;
 begin
-  checkisTrue(false);
+   lDblValue := 5.0;
+   lDblValueStr := FloatToStr(lDblValue);
+   lValue.number := 1;
+   lValue.text := 'TestValue TEXT is ""';
+   lValue.bool := true;
+   lValue.flNum := lDblValue;
+   lValue.cards := [Hart,Spade];
+
+   NewTestCase('Add a Single Element');
+   lExpected := '{"number":1,'+
+                '"text":"TestValue TEXT is \"\"",'+
+                '"bool":true,'+
+                '"flNum":'+lDblValueStr+','+
+                '"cards":["Hart","Spade"]'+
+                '}';
+   lSValue.Add(lValue);
+   checkisEqual(lExpected, lSvalue.AsJSON);
 
 end;
 
 Procedure Array_of_Type_parses_back_into_a_set;
+var lValue : TTestRecordSet;
+    lSValue,
+    lSValue2 : TSerialisableRecordSet;
+    lExpected, lResult : string;
+    lDblValue: Double;
+    lDblValueStr: string;
 begin
-  checkisTrue(false);
+   lDblValue := 5.0;
+   lDblValueStr := FloatToStr(lDblValue);
+   lValue.number := 1;
+   lValue.text := 'TestValue TEXT is ""';
+   lValue.bool := true;
+   lValue.flNum := lDblValue;
+   //(Hart,Spade,Diamond,Club)
+  // lValue.cards := [Hart,Spade,Diamond];
+   lValue.cards := [Hart];
+
+   NewTestCase('Add a Single Element');
+   lExpected := '{"number":1,'+
+                '"text":"TestValue TEXT is \"\"",'+
+                '"bool":true,'+
+                '"flNum":'+lDblValueStr+','+
+                '"cards":["Hart"]'+
+                '}';
+   lSValue.Add(lValue);
+   checkisEqual(lExpected, lSvalue.AsJSON);
+
+   lSValue2 := lSvalue.AsJSON;
+   checkisEqual(lExpected, lSvalue2.asJson);
 
 end;
 
