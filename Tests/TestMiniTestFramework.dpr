@@ -16,9 +16,9 @@ begin
     Test_Skip_works_as_Expected;
 
     PrepareSet(PrepareCounters);
-    AddTestSet('Expected Exception Passes', Test_Expected_Exception_passes);
-    AddTestSet('Unexpected Exception Raises Error', Test_Unexpected_Exception_Raises_Error);
-    AddtestSet('Set level Skips and ignore skips works as expected', Test_Set_level_Skips_work_as_expected, SKIP);
+    AddTestCase('Expected Exception Passes', Test_Expected_Exception_passes);
+    AddTestCase('Unexpected Exception Raises Error', Test_Unexpected_Exception_Raises_Error);
+    AddtestCase('Set level Skips and ignore skips works as expected', Test_Set_level_Skips_work_as_expected, SKIP);
 
     FinaliseSet(Check_That_Test_Cases_Ran_Correctly);
     RunTestSets;

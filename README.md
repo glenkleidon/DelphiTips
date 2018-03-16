@@ -2,7 +2,7 @@
 Useful Delphi Units which provide full functionality in a single PAS file.
 
 ## DUnitm - Mini Test Framework
-The [Mini Test framework](https://github.com/glenkleidon/DelphiTips/wiki/Mini-Test-Framework) is a light-weight unit testing framework which simply requires that you
+The [Mini Test framework](https://github.com/glenkleidon/DelphiTips/wiki/DUnitm---Mini-Test-Framework) is a light-weight unit testing framework which simply requires that you
 include the single MiniTestFrameWork.pas in a console app, and start testing your code.
 Check out the [Blog here](https://glenkleidon.blogspot.com.au/2017/07/new-mini-test-framework-for-delphi.html)
 
@@ -20,8 +20,8 @@ Now Supports All versions of Delphi back to Delphi 7 (and probably 4).  This has
 |Version  |Version     |Version    |Version    |Version     |       |
 |---------|-----------:|:---------:|:---------:|:----------:|:------|
 |4 &#9744;|2005 &#9744;|XE  &#9745;|XE6 &#9744;|10.0 Seattle|&#9744;|
-|5 &#9744;|2006 &#9744;|XE2 &#9745;|XE7 &#9744;|10.1 Berlin |&#9745;|
-|6 &#9744;|2007 &#9745;|XE3 &#9744;|XE8 &#9744;|10.2 Tokyo  |&#9744;|
+|5 &#9745;|2006 &#9744;|XE2 &#9745;|XE7 &#9744;|10.1 Berlin |&#9745;|
+|6 &#9744;|2007 &#9745;|XE3 &#9744;|XE8 &#9744;|10.2 Tokyo  |&#9745;|
 |7 &#9745;|2009 &#9745;|XE4 &#9744;|           |            |       |
 |8 &#9744;|2010 &#9745;|XE5 &#9745;|           |            |       |
 
