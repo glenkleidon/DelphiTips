@@ -389,6 +389,13 @@ begin
                   else JSONParseError(c);
                   end;
                 end;
+              jsInArray :
+              begin
+                lState := jsEndValue;
+                EndInValue;
+                lIndexList.IncCounter;
+                lStates.Push(jsNextElement);
+              end;
               else JSONParseError(c);
              end;
          ':':
@@ -584,7 +591,7 @@ begin
     if lField.FieldType.TypeKind=tkSet then
     begin
       lSetValue := stringreplace(lValue,',','","',[rfReplaceAll]);
-      If (lValue<>lSetValue) Then
+      If (lValue<>'[]') Then
       begin
         lvalue := '["' + copy(lSetValue,2,length(lSetValue)-2)+ '"]';
         lNoEscape := true;

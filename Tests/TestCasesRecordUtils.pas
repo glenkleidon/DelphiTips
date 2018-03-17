@@ -840,20 +840,32 @@ begin
    lValue.flNum := lDblValue;
    //(Hart,Spade,Diamond,Club)
   // lValue.cards := [Hart,Spade,Diamond];
-   lValue.cards := [Hart];
+   lValue.cards := [Hart,Club];
 
-   NewTestCase('Add a Single Element');
+   NewTestCase('Add a Single Element as JSON');
    lExpected := '{"number":1,'+
                 '"text":"TestValue TEXT is \"\"",'+
                 '"bool":true,'+
                 '"flNum":'+lDblValueStr+','+
-                '"cards":["Hart"]'+
+                '"cards":["Hart","Club"]'+
                 '}';
    lSValue.Add(lValue);
    checkisEqual(lExpected, lSvalue.AsJSON);
-
    lSValue2 := lSvalue.AsJSON;
    checkisEqual(lExpected, lSvalue2.asJson);
+
+   NewTestCase('Add a Single Element as Value Pairs');
+   lExpected := 'number=1'+#13#10+
+                'text=TestValue TEXT is ""'+#13#10+
+                'bool=True'+#13#10+
+                'flNum='+lDblValueStr+#13#10+
+                'cards=[Hart,Club]'#13#10;
+   checkisEqual(lExpected, lSvalue.AsValuePairs);
+   lSValue2 := lSValue.AsValuePairs;
+   checkisEqual(lExpected, lSvalue2.asValuePairs);
+
+
+
 
 end;
 
@@ -888,9 +900,6 @@ begin
    checkisEqual(lExpected, lSvalue.AsJSON);
 
 end;
-
-
-
 
 Procedure TearDown;
 begin
