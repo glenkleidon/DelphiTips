@@ -30,19 +30,20 @@ If using versions of Delphi 2005 or 2006, You may have trouble with the
 do have trouble, simply remove the DPROJ file and get Delphi to rebuild from the
 DPR file.
 
-## Delphi Record Types Utils (RecordUtils.pas) - Generic Support for JSON, URL Encoding and Value pairs.  
+## Delphi Record Types Utils (RecordUtils.pas) - Support for JSON, URL Encoding and Value pairs in Generics Supporting versions of Delphi.  
 
 Pascal Records are extremely useful in general in Pascal.  Because they are automatically memory managed in Delphi, they are very easy to work with, work well with the Parallel Task Library and tend to be better for Function programming styles. However, they have limitations because they are not classes, they are more difficult to automatically populate from Streamed Data without using published properties.
 
-This project started as a way to manage REST Services in a way closest to the way it is done in JavaScript/NodeJS.  Simply declare the object and then use it with the response.
+This project started as a way to manage REST Services in a way closest to the way it is done in JavaScript/NodeJS.  Simply declare the object and then use it with the response. Record Utils makes this possible through Implict conversion to and from strings.
 
 ## What functionality does RecordUtils Provide?
    1. Safe shallow COPY (_*clone*_) any record to another record of the same type ensuring reference counting is preserved (and therefore memory is properly managed)
    2. Automatically CLEAR any declared Record.
-   3. Cast between TEXT (Value Pairs, URL Encoding, or JSON ) and Record.
+   3. Implicit Casting between TEXT (Value Pairs, URL Encoding, or JSON ) and Record.
    4. Assign all the properties to a record OR Record Array from a string
+   5. Represent a record as an object to allow it to be added to Object lists.
 
-Because you are using records, you do not need to manage the memory, so coding becomes much simpler and more readable.
+Because you are using records, you do not need to manage the memory, so coding becomes much simpler and more readable. To __do__ have to be aware of the differences in persistence however.
 
 ## Tasks
 _*RecordUtils.pas*_ uses RTTI to automatically serialise and deserialse records as Text.  This allows you to do things like:
@@ -50,6 +51,7 @@ _*RecordUtils.pas*_ uses RTTI to automatically serialise and deserialse records 
    2. Automatically generate a Web Post from a Record and apply a Web Response to vanilla Pascal record in 1 line of code.
    3. Create simple records in a Server Application and pass them to client application without using Client Data Sets or OLEVariants. (Great for DataSnap or Web Service Applications)
    4. One of the most useful benefits is to consume REST service and automatically populate the response into an array of Records with no code.
+   5. Use the Object wrapper to dynamically add new records to a TList or generic TLIST<T> without needing to declare them specifically.
 
  eg
 ```
@@ -61,9 +63,9 @@ TMyRecord=Record
   Status : TMyRecordStatus; // enum
 end;
 ```
-To Store this as an
+To Store this as an INI File, you can simple assign the record to a string and save it in the ini file.
 
-WIll be serialised as 
+The Record WIll be serialised as 
 ```
 id=1
 Name=Test1
@@ -119,8 +121,18 @@ TMyRecord[1].isNew=True
 TMyRecord[1].Status=mrsBusy
 ```
 
+### Workin
 
 ### Line Endings
 Internally the string structure is managed as a TStringlist, so the line ending symantics are a consequence of that architecture.   
 
 The \<CR\> (Carriage Return, ASCII-13) cannot be represented as a single line in the TStringlist (by default) and consequently are always converted to \<LF\> (Line Feed, ASCII-10).  So \<CRLF\> becomes \<LF\>, \<CR\> becomes \<LF\>, \<CRLF\>\<LF\> becomes \<LF\>\<LF\>.  At this stage, to preserve \<CR\>, you must pre-process the string representation using an alternate encoding scheme (eg HTML encoding )
+
+### Updated Support
+|Version  |Version     |Version    |Version    |Version     |       |
+|---------|-----------:|:---------:|:---------:|:----------:|:------|
+|4 NO|2005 NO|XE  &#9745;|XE6 &#9744;|10.0 Seattle|&#9744;|
+|5 NO|2006 NO|XE2 &#9745;|XE7 &#9744;|10.1 Berlin |&#9745;|
+|6 NO|2007 NO|XE3 &#9744;|XE8 &#9744;|10.2 Tokyo  |&#9745;|
+|7 NO|2009 NO|XE4 &#9744;|           |            |       |
+|8 NO|2010 &#9745;|XE5 &#9745;|           |            |       |
