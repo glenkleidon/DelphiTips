@@ -92,6 +92,24 @@ interface
        Property ZValue : T read getValue write setValue;
    end;
 
+   IRecordSerializerObject = Interface
+        Function PValue : Pointer;
+   end;
+
+   TRecordSerializerObject<T> = Class(TInterfacedObject, IRecordSerializerObject)
+        private
+            fValue : T;
+        protected
+            fReference: Pointer;
+            Function PValue: Pointer;
+        public
+            Constructor Create; virtual;
+            Constructor New;  Overload;   // Syntactic sugar only, just calls create;
+            Constructor New(const AReferencedRecord: T); Overload;
+   End;
+
+
+
    function IndexedName(AId: string; AIndex: integer=-1): string;
    function ParseStringAsIndex(AId: string; AStrings: TStrings; AIndex: integer=-1): string;
    function AsValuePair(AId: string; AValue: string; AIndex: integer=-1; ALineEnding: string=''; AFormat: TSerializerEncoding=seValuePairs):string;
@@ -111,10 +129,12 @@ interface
    Function isJSONEncoding(var AString: string): boolean;
 
 
+
+
 implementation
 
   uses TypInfo,StrUtils,
-     httpApp       // URL Encoding support... NOT UTF Safe!!
+     httpApp{, NetEncoding}       // URL Encoding support... NOT UTF Safe!!
      ;
 
 Function isURLEncoding(var AString: string): boolean;
@@ -822,7 +842,7 @@ begin
     Result := '[';
     for I := 0 to High(Self.Values) do
     begin
-      result := Result + lComma + 
+      result := Result + lComma +
                 RecordAsJSON(typeInfo(T),@Self.Values[i]);
       lComma := ',';
     end;
@@ -1153,7 +1173,7 @@ end;
 
 procedure TNamedCounterStack.IncCounter;
 begin
-  inc(fList[CurrentIndex].Index); 
+  inc(fList[CurrentIndex].Index);
 end;
 
 function TNamedCounterStack.Pop: TNamedCounter;
@@ -1191,7 +1211,7 @@ var lNamedIndex : TNamedCounter;
     lDot,lNameStr,lCountStr : string;
 begin
   result := '';
-  lDot := '';                              
+  lDot := '';
   l:=length(fList)-1;
   for i := 0 to l do
   begin
@@ -1220,7 +1240,32 @@ end;
 
 function TNamedCounterStack.getFormatString: String;
 begin
- //  
+ // TODO : Allow Output Format to be more generic
+end;
+
+
+
+{ TRecordSerializerObject<T> }
+
+constructor TRecordSerializerObject<T>.New;
+begin
+   Create;
+end;
+
+constructor TRecordSerializerObject<T>.Create;
+begin
+   self.fReference := @fValue;
+end;
+
+constructor TRecordSerializerObject<T>.New(const AReferencedRecord: T);
+begin
+   self.fReference := @AReferencedRecord;
+end;
+
+function TRecordSerializerObject<T>.PValue: Pointer;
+begin
+   if self.fReference=nil then self.fReference := @fValue;
+   result := fReference;
 end;
 
 end.

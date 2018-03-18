@@ -48,7 +48,10 @@ begin
 
     AddTestSet('SetOf generates Array of Types', SetOf_generates_array_of_types);
     AddTestSet('Array of Type parses into a Set',Array_of_Type_parses_back_into_a_set);
+
     AddTestSet('Elements can be added', Add_Works_as_expected);
+    AddTestSet('Object Works like Record',  Record_stores_a_persistent_object);
+
 
 
 

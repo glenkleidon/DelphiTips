@@ -36,6 +36,9 @@ Procedure SetOf_generates_array_of_types;
 Procedure Array_of_Type_parses_back_into_a_set;
 Procedure Add_Works_as_expected;
 
+//SerializerObject
+procedure Record_stores_a_persistent_object;
+
 
 Procedure TearDown;
 
@@ -60,9 +63,22 @@ Type
   End;
 
   TSerialisableRecord = TRecordSerializer<TTestRecord>;
+  PSerialisableRecord = ^TSerialisableRecord;
   TSerialisableRecordSet = TRecordSerializer<TTestRecordSet>;
 
   TSerialisableRecords = Array of TSerialisableRecord;
+
+  ITestRecordSerializer = interface
+    Function Serializer : PSerialisableRecord;
+  end;
+
+  TSerialisableRecordObject = class(TRecordSerializerObject<TSerialisableRecord>,ITestRecordSerializer)
+      public
+       Function Serializer : PSerialisableRecord;
+  end
+   ;
+
+
 
 
 implementation
@@ -901,9 +917,55 @@ begin
 
 end;
 
+procedure Record_stores_a_persistent_object;
+var lValue : TTestRecord;
+    lSValue : TSerialisableRecordObject;
+    lExpected, lResult : string;
+    lDblValue: Double;
+    lDblValueStr: string;
+begin
+   lDblValue := 5.0;
+   lDblValueStr := FloatToStr(lDblValue);
+   lValue.number := 1;
+   lValue.text := 'TestValue TEXT is ""';
+   lValue.bool := true;
+   lValue.flNum := lDblValue;
+   lValue.card := hart;
+
+   lSValue := TSerialisableRecordObject.Create;
+
+   NewTestCase('Add a Single Element');
+   lExpected := '{"number":1,'+
+                '"text":"TestValue TEXT is \"\"",'+
+                '"bool":true,'+
+                '"flNum":'+lDblValueStr+','+
+                '"card":"Hart"'+
+                '}';
+   lSValue.Serializer.Add(lValue);
+   checkisEqual(lExpected, lSvalue.Serializer.AsJSON);
+
+   NewTestCase('Add another Single Element');
+   lExpected := '[' + lExpected + ',' + lExpected + ']';
+
+   lSValue.Serializer.Add(lValue);
+   checkisEqual(lExpected, lSvalue.Serializer.AsJSON);
+
+end;
+
+
 Procedure TearDown;
 begin
   {Release anything you need to here}
+end;
+
+{ TSerialisableRecordAsObject }
+
+
+{ TSerialisableRecordObject }
+
+function TSerialisableRecordObject.Serializer: PSerialisableRecord;
+begin
+   result := PValue;
 end;
 
 end.
