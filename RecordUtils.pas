@@ -46,7 +46,7 @@ interface
           High : integer;
    end;
 
-   Type TRecordSerializer<T> = Record
+   Type TRecordSerializer<T:Record> = Record
      private
        fhasValue : string;
        fisArray : string;

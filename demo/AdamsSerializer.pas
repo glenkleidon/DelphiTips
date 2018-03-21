@@ -1,7 +1,7 @@
 unit AdamsSerializer;
 
 interface
-  uses RecordUtils, system.Generics.collections;
+  uses RecordUtils, Generics.collections;
 
 Type
 
@@ -76,7 +76,7 @@ Type
   end;
 
 implementation
-  uses windows;
+  uses winapi.windows;
 
 { TCustomerSetSerializerObject }
 
