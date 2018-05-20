@@ -6,11 +6,14 @@ The [Mini Test framework](https://github.com/glenkleidon/DelphiTips/wiki/DUnitm-
 include the single MiniTestFrameWork.pas in a console app, and start testing your code.
 Check out the [Blog here](https://glenkleidon.blogspot.com.au/2017/07/new-mini-test-framework-for-delphi.html)
 
-### Added Features: 
+### Added Features: Release 1 
   + Test Run support
   + Set level Skipping
   + Set level Expected Exceptions
   + Project Templates
+### Added Features: Release 2
+  + Refactoring to correct issues with naming conventions
+  + Deprecated functions using incorrect previous naming convention 
   
 See the updated wiki!
 
