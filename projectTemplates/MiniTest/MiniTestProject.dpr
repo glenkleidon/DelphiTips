@@ -10,15 +10,15 @@ uses
 begin
   try
 
-    NewSet('Example Pass Fails');
+    NewSet('Example Pass/Fail');
     PrepareSet(Setup);
-    AddTestCase('Passing Test Example',  Test_One_Passes);
-    AddTestCase('Failing Test Example',  Test_Two_Fails);
+    AddTestCase('Passing Test Example',  Case_One_Passes);
+    AddTestCase('Failing Test Example',  Case_Two_Fails);
     FinaliseSet(TearDown);
 
     NewSet('Example Exception and Skip');
-    AddTestCase('Expected Exception Example',Test_Three_Gets_Error);
-    AddTestCase('Skipping Test Example', Test_Four_skips, SKIP);
+    AddTestCase('Expected Exception Example',Case_Three_Gets_Error);
+    AddTestCase('Skipping Test Example', Case_Four_skips, SKIP);
     FinaliseSet(TearDown);
 
     Title('Test Cases For <Project> Units');

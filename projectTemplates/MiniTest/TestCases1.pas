@@ -8,13 +8,14 @@ interface
    (**)
   ;
 Procedure Setup;
-Procedure Test_One_Passes;
-Procedure Test_Two_Fails;
-Procedure Test_Three_Gets_Error;
-Procedure Test_Four_skips;
+Procedure Case_One_Passes;
+Procedure Case_Two_Fails;
+Procedure Case_Three_Gets_Error;
+Procedure Case_Four_skips;
 Procedure TearDown;
 
 implementation
+ uses sysutils;
 
 Procedure Setup;
 begin
@@ -26,34 +27,35 @@ begin
 end;
 
 
-Procedure Test_One_Passes;
+Procedure Case_One_Passes;
 begin
-  NewTest('Test 1 passes as expected');
+  NewTest('Case 1 passes as expected');
   checkisEqual('ABC','A'+'B'+'C');
 end;
 
-Procedure Test_Two_Fails;
+Procedure Case_Two_Fails;
 begin
-  NewTest('Test 2 is Expected to Fail');
+  NewTest('Case 2 is Expected to Fail');
   checkisEqual('ABC','D'+'E'+'F');
 end;
 
-Procedure Test_Three_Gets_Error;
+Procedure Case_Three_Gets_Error;
 var StringVar: variant;
-    X: Integer;
+    x : integer;
 begin
-  NewTest('Test 3 Gets Expected');
+  NewTest('Case 3 Gets Expected Exception');
   ExpectedException:='EVariantTypeCastError';
   StringVar:='ABC';
-  x := 1+StringVar;
+  x := 1 + StringVar; // force variant exception.
+  PrintLn('This line never prints' + inttostr(x));
 end;
 
-Procedure Test_Four_skips;
+Procedure Case_Four_skips;
 begin
-  NewTest('Test 4 Case 1 should Skip (Set Level skip)');
+  NewTest('Case 4 Test 1 should Skip (Set Level skip)');
   checkisEqual('ABC','A'+'B'+'C',''{,SKIP}); // skipped by set level
 
-  NewTest('Test 4 Case 2 should Pass (Using Dont Skip)');
+  NewTest('Case 4 Test 2 should Pass (Using Dont Skip)');
   checkisEqual('ABC','A'+'B'+'C','',DONTSKIP); // decide to run this one after all
 
 end;

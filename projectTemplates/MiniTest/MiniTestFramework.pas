@@ -16,6 +16,7 @@ Const
   DEFAULT_SET_FORMAT='Set>Cases:%-4d Tests:%-4d Passed:%-4d Failed:%-4d Skipped:%-4d Errors:%-4d';
   DEFAULT_CASE_FORMAT='  Results> Passed:%-5d Failed:%-5d Skipped:%-5d Errors:%-5d';
   DEFAULT_SET_NAME='SET';
+  FINAL_SET_NAME='__';
 
 
   PASS_FAIL: array[0..3] of string = ('PASS', 'SKIP', 'FAIL', 'ERR ');
@@ -311,7 +312,6 @@ begin
      ResultColour(CaseHasErrors)
   );
 
-  DoubleLine;
 end;
 
 Function SetIsEmpty: boolean;
@@ -339,13 +339,14 @@ begin
      ResultColour(SetHasErrors)
   );
 
-  DoubleLine;
+  SingleLine;
 end;
 
 
 Procedure TestSummary;
 begin
   NextTestCase('');
+  DoubleLine;
   Println(
     format(TotalOutputFormat,[
               TotalSets, TotalCases, TotalTests,
@@ -354,6 +355,7 @@ begin
     ]),
     ResultColour(RunHasErrors or FOREGROUND_INTENSITY)
   );
+  WriteLn('');
 end;
 
 
@@ -361,12 +363,8 @@ Procedure SetHeading(ASetName: string);
 var lHeading: string;
 begin
   if length(ASetName)=0 then exit;
-
   lHeading :='Test Set:'+ ASetName;
-  PrintLn('');
-  DoubleLine;
   Println(lHeading,clTitle);
-  SingleLine;
 end;
 
 /////////// END SCREEN MANAGEMENT \\\\\\\\\\\\\\\\\
@@ -397,8 +395,13 @@ begin
   except
     on e:exception do CheckException(e);
   end;
-  NextTestSet('');
+  // Last Case is done, Need to Update the Final Set Results.
+  CurrentSetName := FINAL_SET_NAME;
+  NextTestCase('');
+
+  // Destroy the Cases.
   setlength(MiniTestCases,0);
+  LastSetName := '';
   CurrentSetName := '';
 end;
 
@@ -407,6 +410,9 @@ Procedure NextTestSet(ASetName: string);
 begin
 
   SetResults;
+
+  if ASetName=FINAL_SET_NAME then ASetName:=''; // Finalising.
+
 
   if length(ASetName)>0 then
   begin

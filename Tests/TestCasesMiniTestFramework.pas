@@ -39,22 +39,22 @@ begin
   checkIsEqual(TotalPasses+2,TotalPassedTests); // the one above expected to pass
   if (TotalErroredTests=TotalErrors+1) then
   begin
-   Println('The Error in the run is planned so that "passes"', clMessage);
+   Println('   The Error in the run is planned so that "passes"', clMessage);
    TotalErroredTests := 0;
    Inc(TotalPassedTests);
   end else
   begin
-   Println('Wrong Number of Errors, only 1 expected!', FOREGROUND_YELLOW);
+   Println('   Wrong Number of Errors, only 1 expected!', FOREGROUND_YELLOW);
   end;
 
   if (TotalSkippedTests=TotalSkips+1) then
   begin
-   Println('The  Skip in the run is planned so that "passes"', clMessage);
+   Println('   The Skip in the run is planned so that "passes"', clMessage);
    TotalSkippedTests := 0;
    Inc(TotalPassedTests);
   end else
   begin
-   Println('Wrong Number of Skips, only 1 expected!', FOREGROUND_YELLOW);
+   Println('   Wrong Number of Skips, only 1 expected!', FOREGROUND_YELLOW);
   end;
 
 end;
@@ -115,13 +115,13 @@ begin
  // now adjust the counts manually, to "Pass" the expected failure
  if (TestingFails=1) then
  begin
-   Println('The failure above is expected, so that "passes"', clMessage);
+   Println('   The failure above is expected, so that "passes"', clMessage);
    CaseFailedTests := 0;
    Inc(CasePassedTests);
  end
  else
  begin
-   Println('Too many failures, only 1 expected!', FOREGROUND_YELLOW);
+   Println('   Too many failures, only 1 expected!', FOREGROUND_YELLOW);
  end;
 end;
 
@@ -155,13 +155,13 @@ begin
  UpdateCounters;
   if (TestingFails=1) then
  begin
-   Println('The failure above is expected, so that "passes"', clMessage);
+   Println('   The failure above is expected, so that "passes"', clMessage);
    CaseFailedTests := 0;
    Inc(CasePassedTests);
  end
  else
  begin
-   Println('Too many failures, only 1 expected!', FOREGROUND_YELLOW);
+   Println('   Too many failures, only 1 expected!', FOREGROUND_YELLOW);
  end;
 
 end;

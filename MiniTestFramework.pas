@@ -312,7 +312,6 @@ begin
      ResultColour(CaseHasErrors)
   );
 
-  DoubleLine;
 end;
 
 Function SetIsEmpty: boolean;
@@ -340,13 +339,14 @@ begin
      ResultColour(SetHasErrors)
   );
 
-  DoubleLine;
+  SingleLine;
 end;
 
 
 Procedure TestSummary;
 begin
   NextTestCase('');
+  DoubleLine;
   Println(
     format(TotalOutputFormat,[
               TotalSets, TotalCases, TotalTests,
@@ -355,6 +355,7 @@ begin
     ]),
     ResultColour(RunHasErrors or FOREGROUND_INTENSITY)
   );
+  WriteLn('');
 end;
 
 
@@ -362,12 +363,8 @@ Procedure SetHeading(ASetName: string);
 var lHeading: string;
 begin
   if length(ASetName)=0 then exit;
-
   lHeading :='Test Set:'+ ASetName;
-  PrintLn('');
-  DoubleLine;
   Println(lHeading,clTitle);
-  SingleLine;
 end;
 
 /////////// END SCREEN MANAGEMENT \\\\\\\\\\\\\\\\\
