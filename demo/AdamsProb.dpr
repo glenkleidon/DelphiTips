@@ -51,8 +51,8 @@ begin
 
     // Technique 2:
     cCustomerData := TCustomerSetSerializerObject.Create;
-    fCustomerData := cCustomerdata as ICustomerSetSerializer;
-    FICustomerData := cCustomerdata as IDataEntity;
+    FCustomerData := ICustomerSetSerializer(cCustomerdata);
+    FICustomerData := IDataEntity(cCustomerdata);
     fCustomerData.Serializer.Add(lCustomerSet);
     Writeln('From Serializer interface:',fCustomerData.Serializer.AsJSON);
     Writeln('From IasJSON interface:',fICustomerData.ASJson);
