@@ -1,7 +1,7 @@
 unit AdamsSerializer;
 
 interface
-  uses RecordUtils, system.Generics.collections;
+  uses RecordUtils, Generics.collections;
 
 Type
 

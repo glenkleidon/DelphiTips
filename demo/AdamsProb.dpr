@@ -1,13 +1,19 @@
 program AdamsProb;
 
 {$APPTYPE CONSOLE}
+  {$IFDEF VER210} {$DEFINE PREXE2} {$ENDIF}
+  {$IFDEF VER220} {$DEFINE PREXE2} {$ENDIF}
 
 {$R *.res}
 
 uses
+  {$IFDEF PREXE2}
+    {$MESSAGE FATAL 'Will not compile on this version of Delphi'}
+  {$ELSE}
   System.SysUtils,
   System.classes,
   System.Generics.Collections,
+  {$ENDIF}
   RecordUtils in '..\RecordUtils.pas',
   AdamsSerializer in 'AdamsSerializer.pas';
 
@@ -51,8 +57,13 @@ begin
 
     // Technique 2:
     cCustomerData := TCustomerSetSerializerObject.Create;
+  {$IFDEF VER230}
     FCustomerData := ICustomerSetSerializer(cCustomerdata);
     FICustomerData := IDataEntity(cCustomerdata);
+  {$ELSE}
+      fCustomerData := cCustomerdata as ICustomerSetSerializer;
+      FICustomerData := cCustomerdata as IDataEntity;
+  {$ENDIF}
     fCustomerData.Serializer.Add(lCustomerSet);
     Writeln('From Serializer interface:',fCustomerData.Serializer.AsJSON);
     Writeln('From IasJSON interface:',fICustomerData.ASJson);
