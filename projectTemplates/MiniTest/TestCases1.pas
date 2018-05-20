@@ -28,13 +28,13 @@ end;
 
 Procedure Test_One_Passes;
 begin
-  NewTestCase('Test 1 passes as expected');
+  NewTest('Test 1 passes as expected');
   checkisEqual('ABC','A'+'B'+'C');
 end;
 
 Procedure Test_Two_Fails;
 begin
-  NewTestCase('Test 2 is Expected to Fail');
+  NewTest('Test 2 is Expected to Fail');
   checkisEqual('ABC','D'+'E'+'F');
 end;
 
@@ -42,7 +42,7 @@ Procedure Test_Three_Gets_Error;
 var StringVar: variant;
     X: Integer;
 begin
-  NewTestCase('Test 3 Gets Expected');
+  NewTest('Test 3 Gets Expected');
   ExpectedException:='EVariantTypeCastError';
   StringVar:='ABC';
   x := 1+StringVar;
@@ -50,10 +50,10 @@ end;
 
 Procedure Test_Four_skips;
 begin
-  NewTestCase('Test 4 Case 1 should Skip (Set Level skip)');
+  NewTest('Test 4 Case 1 should Skip (Set Level skip)');
   checkisEqual('ABC','A'+'B'+'C',''{,SKIP}); // skipped by set level
 
-  NewTestCase('Test 4 Case 2 should Pass (Using Dont Skip)');
+  NewTest('Test 4 Case 2 should Pass (Using Dont Skip)');
   checkisEqual('ABC','A'+'B'+'C','',DONTSKIP); // decide to run this one after all
 
 end;

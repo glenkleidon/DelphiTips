@@ -28,30 +28,30 @@ uses sysutils;
 
 Procedure Check_That_Test_Cases_Ran_Correctly;
 begin
-  NewTestSet ('Check Test Cases Ran Correctly');
-  newTestCase('Has correct # of Tests (including Prep and Finalise)');
-  checkIsTrue(length(MiniTestCases)=5);
-  NewTestCase('Has correct # of Errored Tests');
-  checkIsTrue(TotalErroredTestCases=TotalErrors+1);
-  NewTestCase('Has correct # of Skipped Tests');
-  checkIsTrue(TotalSkippedTestCases=TotalSkips+1); // the one above expected to pass
-  NewTestCase('Has correct # of Passed Tests');
-  checkIsTrue(TotalPassedTestCases=TotalPasses+2); // the one above expected to pass
-  if (TotalErroredTestCases=TotalErrors+1) then
+  NewCase('Check Test Cases Ran Correctly');
+  NewTest('Has correct # of Tests (including Prep and Finalise)');
+  checkIsEqual(7,length(MiniTestCases));
+  NewTest('Has correct # of Errored Tests');
+  checkIsTrue(TotalErroredTests=TotalErrors+1);
+  NewTest('Has correct # of Skipped Tests');
+  checkIsTrue(TotalSkippedTests=TotalSkips+1); // the one above expected to pass
+  NewTest('Has correct # of Passed Tests');
+  checkIsEqual(TotalPasses+2,TotalPassedTests); // the one above expected to pass
+  if (TotalErroredTests=TotalErrors+1) then
   begin
    Println('The Error in the run is planned so that "passes"', clMessage);
-   TotalErroredTestCases := 0;
-   Inc(TotalPassedTestCases);
+   TotalErroredTests := 0;
+   Inc(TotalPassedTests);
   end else
   begin
    Println('Wrong Number of Errors, only 1 expected!', FOREGROUND_YELLOW);
   end;
 
-  if (TotalSkippedTestCases=TotalSkips+1) then
+  if (TotalSkippedTests=TotalSkips+1) then
   begin
    Println('The  Skip in the run is planned so that "passes"', clMessage);
-   TotalSkippedTestCases := 0;
-   Inc(TotalPassedTestCases);
+   TotalSkippedTests := 0;
+   Inc(TotalPassedTests);
   end else
   begin
    Println('Wrong Number of Skips, only 1 expected!', FOREGROUND_YELLOW);
@@ -61,23 +61,23 @@ end;
 
 procedure UpdateCounters;
 begin
-   TestingPasses := MiniTestFramework.SetPassedTestCases;
-   TestingFails  := MiniTestFramework.SetFailedTestCases;
-   TestingSkips  := MiniTestFramework.SetSkippedTestCases;
-   TestingErrors  := MiniTestFramework.SetErrors;
+   TestingPasses := MiniTestFramework.CasePassedTests;
+   TestingFails  := MiniTestFramework.CaseFailedTests;
+   TestingSkips  := MiniTestFramework.CaseSkippedTests;
+   TestingErrors  := MiniTestFramework.CaseErrors;
 end;
 
 procedure UpdateTotalCounters;
 begin
-   TotalPasses := MiniTestFramework.TotalPassedTestCases;
-   TotalFails  := MiniTestFramework.TotalFailedTestCases;
-   TotalSkips  := MiniTestFramework.TotalSkippedTestCases;
-   TotalErrors := MiniTestFramework.TotalErroredTestCases;
+   TotalPasses := MiniTestFramework.TotalPassedTests;
+   TotalFails  := MiniTestFramework.TotalFailedTests;
+   TotalSkips  := MiniTestFramework.TotalSkippedTests;
+   TotalErrors := MiniTestFramework.TotalErroredTests;
 end;
 
 Procedure PrepareCounters;
 begin
-  NewTestSet('');
+  NextTestCase('');
   UpdateTotalCounters;
 end;
 
@@ -95,29 +95,29 @@ end;
 
 procedure CheckIsTrue_works_as_expected;
 begin
- NewTestSet('Checking checkIsTrue against checkisFalse');
+ NewCase('Checking checkIsTrue against checkisFalse');
 
  UpdateCounters;
- newTestCase('Checking True is true');
+ newTest('Checking True is true');
  checkisTrue(true);
- newTestCase('Checking MiniTest Framework counted Set as PASS');
- checkIsFalse((TestingPasses+1)<>MiniTestFramework.SetPassedTestCases);
+ newTest('Checking MiniTest Framework counted Set as PASS');
+ checkIsFalse((TestingPasses+1)<>MiniTestFramework.CasePassedTests);
  checkIsFalse(TestingFails<>0);
 
  UpdateCounters;
- newTestCase('Checking True is false (should fail of course)');
+ newTest('Checking True is false (should fail of course)');
  checkIsTrue(false);
- newTestCase('Checking Fails increased by 1 ');
- checkIsFalse((TestingFails+1)<>MiniTestFramework.SetFailedTestCases);
- newTestCase('Checking Passes did not change ');
- checkisFalse(TestingPasses+1<>SetPassedTestCases);
+ newTest('Checking Fails increased by 1 ');
+ checkIsFalse((TestingFails+1)<>MiniTestFramework.CaseFailedTests);
+ newTest('Checking Passes did not change ');
+ checkisFalse(TestingPasses+1<>CasePassedTests);
  UpdateCounters;
  // now adjust the counts manually, to "Pass" the expected failure
  if (TestingFails=1) then
  begin
    Println('The failure above is expected, so that "passes"', clMessage);
-   SetFailedTestCases := 0;
-   Inc(SetPassedTestCases);
+   CaseFailedTests := 0;
+   Inc(CasePassedTests);
  end
  else
  begin
@@ -127,37 +127,37 @@ end;
 
 Procedure CheckIsEqual_works_as_Expected;
 begin
- NewTestSet('Checking CheckIsEqual');
+ NextTestCase('Checking CheckIsEqual');
 
  UpdateCounters;
- newTestCase('Checking "TESTTEXT" string');
+ newTest('Checking "TESTTEXT" string');
  checkisequal('TESTTEXT','TESTTEXT');
- checkIsTrue((TestingPasses+1)=MiniTestFramework.SetPassedTestCases);
+ checkIsTrue((TestingPasses+1)=MiniTestFramework.CasePassedTests);
 
  UpdateCounters;
- newTestCase('Checking "135" Integer ');
+ newTest('Checking "135" Integer ');
  checkisequal(135,130+5);
- newTestCase('Checking passes increased by 1');
- checkIsTrue((TestingPasses+1)=MiniTestFramework.SetPassedTestCases);
+ newTest('Checking passes increased by 1');
+ checkIsTrue((TestingPasses+1)=MiniTestFramework.CasePassedTests);
 
  UpdateCounters;
- newTestCase('Checking "A" Char ');
+ newTest('Checking "A" Char ');
  checkisequal('A',upcase('a'));
- newTestCase('Checking passes increased by 1');
- checkIsTrue((TestingPasses+1)=MiniTestFramework.SetPassedTestCases);
+ newTest('Checking passes increased by 1');
+ checkIsTrue((TestingPasses+1)=MiniTestFramework.CasePassedTests);
 
  UpdateCounters;
- newTestCase('Checking "A" Char <> "B" ');
+ newTest('Checking "A" Char <> "B" ');
  checkisequal('A',upcase('b'));
- newTestCase('Checking failed increased by 1');
- checkIsTrue((TestingFails+1)=MiniTestFramework.SetFailedTestCases);
+ newTest('Checking failed increased by 1');
+ checkIsTrue((TestingFails+1)=MiniTestFramework.CaseFailedTests);
 
  UpdateCounters;
   if (TestingFails=1) then
  begin
    Println('The failure above is expected, so that "passes"', clMessage);
-   SetFailedTestCases := 0;
-   Inc(SetPassedTestCases);
+   CaseFailedTests := 0;
+   Inc(CasePassedTests);
  end
  else
  begin
@@ -169,50 +169,50 @@ end;
 Procedure Test_Skip_works_as_expected;
 const expectedSkips = 4;
 begin
- NewTestSet('Checking Cases Skip as expeced');
+ NextTestCase('Checking Cases Skip as expected');
 
  UpdateCounters;
- newTestCase('Checking skip on IsTrue');
+ newTest('Checking skip on IsTrue');
  CheckisTrue(False,'',SKIPPED);
- newTestCase('Checking skip on IsFalse');
+ newTest('Checking skip on IsFalse');
  CheckisFalse(True,'',SKIPPED);
- newTestCase('Checking skip on IsEqual');
+ newTest('Checking skip on IsEqual');
  CheckIsEqual('A','A','',SKIPPED);
- newTestCase('Checking skip on NotEqual');
+ newTest('Checking skip on NotEqual');
  CheckNotEqual('A','B','',SKIPPED);
 
 
- newTestCase('Checking Passes Not changed');
- CheckIsEqual(SetPassedTestCases,TestingPasses);
+ newTest('Checking Passes Not changed');
+ CheckIsEqual(CasePassedTests,TestingPasses);
 
- newTestCase('Checking Fails Not changed');
- CheckIsEqual(SetFailedTestCases,TestingFails);
+ newTest('Checking Fails Not changed');
+ CheckIsEqual(CaseFailedTests,TestingFails);
 
- newTestCase(format('Checking Skipped Counter has increased by %d',[Expectedskips]));
- CheckIsEqual(TestingSkips+expectedSkips,SetSkippedTestCases);
+ newTest(format('Checking Skipped Counter has increased by %d',[Expectedskips]));
+ CheckIsEqual(TestingSkips+expectedSkips,CaseSkippedTests);
 
  UpdateCounters;
   if (TestingSkips=expectedSkips) then
  begin
    Println(sysutils.format('The %d skips above are expected, so that "passes"',[ExpectedSkips]), clMessage);
-   dec(SetSkippedTestCases,expectedSkips);
-   Inc(SetPassedTestCases,expectedSkips);
+   dec(CaseSkippedTests,expectedSkips);
+   Inc(CasePassedTests,expectedSkips);
  end
  else
  begin
    Println('Wrong number of skips!', FOREGROUND_YELLOW);
-   SetSkippedTestCases := SetSkippedTestCases - (expectedSkips-TestingSkips);
-   setFailedTestCases := setFailedTestCases + (expectedSkips-TestingSkips);
+   CaseSkippedTests := CaseSkippedTests - (expectedSkips-TestingSkips);
+   CaseFailedTests := CaseFailedTests + (expectedSkips-TestingSkips);
  end;
 
 end;
 
 Procedure Test_Set_level_Skips_work_as_expected;
 begin
-  NewTestCase('Test 4 should Skip (Set Level skip)');
+  NewTest('Test 4 should Skip (Set Level skip)');
   checkisEqual('ABC','A'+'B'+'C',''); // skipped by set level
 
-  NewTestCase('Test 4 should Pass (Using Dont Skip)');
+  NewTest('Test 4 should Pass (Using Dont Skip)');
   checkisEqual('ABC','A'+'B'+'C','',DONTSKIP); // decide to run this one after all
 
 end;

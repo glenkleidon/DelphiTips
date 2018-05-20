@@ -2,9 +2,22 @@ unit MiniTestFramework;
 
 interface
 
-uses SysUtils, windows, Variants;
+{$IFDEF VER120} {$DEFINE BEFOREVARIANTS} {$ENDIF}
+{$IFDEF VER130} {$DEFINE BEFOREVARIANTS} {$ENDIF}
+
+uses SysUtils, windows
+   {$IFNDEF BEFOREVARIANTS}
+      , Variants
+   {$ENDIF}
+   ;
 
 Const
+  DEFAULT_TOTALS_FORMAT='Run>Sets:%-3d Cases:%-3d Tests:%-4d Passed:%-4d Failed:%-3d Skipped:%-3d Errors:%-3d';
+  DEFAULT_SET_FORMAT='Set>Cases:%-4d Tests:%-4d Passed:%-4d Failed:%-4d Skipped:%-4d Errors:%-4d';
+  DEFAULT_CASE_FORMAT='  Results> Passed:%-5d Failed:%-5d Skipped:%-5d Errors:%-5d';
+  DEFAULT_SET_NAME='SET';
+
+
   PASS_FAIL: array[0..3] of string = ('PASS', 'SKIP', 'FAIL', 'ERR ');
   FOREGROUND_DEFAULT=7;
   SKIPPED = True;
@@ -16,7 +29,7 @@ Const
   FOREGROUND_PURPLE=5;
 
   clTitle = FOREGROUND_YELLOW;
-  clError = FOREGROUND_RED;
+  clError = FOREGROUND_RED or FOREGROUND_INTENSITY;
   clPass  = FOREGROUND_GREEN;
   clMessage=FOREGROUND_CYAN;
   clDefault=FOREGROUND_DEFAULT;
@@ -28,8 +41,9 @@ Type
   TComparitorType = Variant;
   TTestCaseProcedure = Procedure();
   TTestSet = Record
+    SetName: string;
     Execute: TTestCaseProcedure;
-    TestClass: string;
+    TestCaseName: string;
     Skip: Boolean;
     ExpectedException: string;
   end;
@@ -40,26 +54,38 @@ var
   SkippingSet,IgnoreSkip : boolean;
 
   ExpectedException, ExpectedSetException,
-  CurrentTestClass, CurrentTestCase: string;
-  TotalPassedTestCases : integer =0;
-  TotalFailedTestCases : integer =0;
-  TotalSkippedTestCases: integer =0;
-  TotalErroredTestCases: integer =0;
-  TotalSets            : integer =0;
+  LastSetName, CurrentSetName,
+  CurrentTestCaseName, CurrentTestCaseLabel: string;
+  TotalPassedTests : integer =0;
+  TotalFailedTests : integer =0;
+  TotalSkippedTests: integer =0;
+  TotalErroredTests: integer =0;
+  TotalCases       : integer =0;
+  TotalSets        : integer =0;
 
-  SetPassedTestCases, SetFailedTestCases, SetErrors, SetSkippedTestCases: integer;
+  CasePassedTests, CaseFailedTests, CaseErrors, CaseSkippedTests: integer;
+  SetCases, SetPassedTests, SetFailedTests, SetErrors, SetSkippedTests: integer;
+
+  TotalOutputFormat, SetOutputFormat, CaseOutputFormat : string;
+
 
 Procedure Title(AText: string);
 
-Procedure AddTestSet(ATestClass: string; AProcedure : TTestCaseProcedure;
+Procedure AddTestSet(ATestCaseName: string; AProcedure : TTestCaseProcedure;
+    ASkipped:boolean=False; AExpectedException: string = ''); {$IFNDEF BEFOREVARIANTS}deprecated;{$ENDIF} // wrong naming convention.
+Procedure AddTestCase(ATestCaseName: string; AProcedure : TTestCaseProcedure;
     ASkipped:boolean=False; AExpectedException: string = '');
 Procedure PrepareSet(AProcedure: TTestCaseProcedure);
 Procedure FinaliseSet(AProcedure: TTestCaseProcedure);
 Procedure FinalizeSet(AProcedure: TTestCaseProcedure);
 Procedure RunTestSets;
 
-Procedure NewTestCase(ACase: string; ATestClassName: string = '');
-Procedure NewTestSet(AClassName: string; ASkipped: boolean=false);
+Procedure NewTest(ACase: string; ATestCaseName: string = '');
+Procedure NewSet(ASetName: string);
+Procedure NewCase(ATestCaseName: string);
+Procedure NewTestCase(ACase: string; ATestCaseName: string = ''); {$IFNDEF BEFOREVARIANTS}deprecated;{$ENDIF} // wrong naming convention.
+Procedure NextTestSet(ASetName: string);
+Procedure NextTestCase(ACaseName: string; ASkipped: boolean=false);
 Function  CheckIsEqual(AExpected, AResult: TComparitorType;
   AMessage: string = ''; ASkipped: boolean=false): boolean;
 Function  CheckIsTrue(AResult: boolean; AMessage: string = ''; ASkipped: boolean=false): boolean;
@@ -72,19 +98,28 @@ Function  NotImplemented(AMessage: string=''):boolean;
 Function  DontSkip:Boolean;
 Function  TotalTests: integer;
 Procedure TestSummary;
-procedure ClassResults;
+procedure CaseResults;
 Function  ConsoleScreenWidth:integer;
 Procedure Print(AText: String; AColour: smallint = FOREGROUND_DEFAULT);
 Procedure PrintLn(AText: String; AColour: smallint = FOREGROUND_DEFAULT);
 
 implementation
 
+Const
+  NIL_EXCEPTION_CLASSNAME = 'NilException';
+  NO_EXCEPTION_EXPECTED = 'No Exceptions';
+
 Type
   TCheckTestType = (cttComparison, cttSkip, cttException);
 
+  {$IFDEF BEFOREVARIANTS}
+    TvarType = Integer;
+  {$ENDIF}
+
 var
   SameTestCounter :integer = 0;
-  LastTestCase: string;
+  LastTestCaseLabel: string;
+  SetCounter: integer = 0;
 
 
 
@@ -94,16 +129,23 @@ var
   Screen_width: Integer =-1;
   Console_Handle: THandle = 0;
 
+Function NextSetName: string;
+begin
+  inc(setCounter);
+  result := Format(DEFAULT_SET_NAME+' %u',[SetCounter]);
+end;
+
+
 Function  TotalTests: integer;
 begin
-  result := TotalPassedTestCases +
-            TotalFailedTestCases +
-            TotalSkippedTestCases +
-            TotalErroredTestCases +
-            SetPassedTestCases +
-            SetFailedTestCases +
-            SetSkippedTestCases +
-            SetErrors;
+  result := TotalPassedTests +
+            TotalFailedTests +
+            TotalSkippedTests +
+            TotalErroredTests +
+            CasePassedTests +
+            CaseFailedTests +
+            CaseSkippedTests +
+            CaseErrors;
 end;
 
 Function ConsoleHandle:THandle;
@@ -155,47 +197,42 @@ begin
   Print(AText+#13#10, AColour);
 end;
 
-Procedure AddTestSet(ATestClass: string; AProcedure : TTestCaseProcedure;
+Procedure AddTestSet(ATestCaseName: string; AProcedure : TTestCaseProcedure;
+  ASkipped: Boolean; AExpectedException: string);
+begin
+  AddTestCase(ATestCaseName, AProcedure, ASkipped, AExpectedException);
+end;
+
+Procedure AddTestCase(ATestCaseName: string; AProcedure : TTestCaseProcedure;
   ASkipped: Boolean; AExpectedException: string);
 var l:integer;
 begin
+   if length(CurrentSetName)=0 then CurrentSetName := NextSetName;
+
    l := length(MiniTestCases);
    SetLength(MiniTestCases,l+1);
+   MiniTestCases[l].SetName := CurrentSetName;
    MiniTestCases[l].Execute := AProcedure;
-   MiniTestCases[l].TestClass := ATestClass;
+   MiniTestCases[l].TestCaseName := ATestCaseName;
    MiniTestCases[l].Skip := ASkipped;
    MiniTestCases[l].ExpectedException := AExpectedException;
 end;
 
 Procedure PrepareSet(AProcedure: TTestCaseProcedure);
 begin
-  AddTestSet('',AProcedure);
+  AddTestCase('',AProcedure);
 end;
 
 Procedure FinaliseSet(AProcedure: TTestCaseProcedure);
 begin
-  AddTestSet('',AProcedure);
+  AddTestCase('',AProcedure);
+  CurrentSetName := '';
 end;
 
 Procedure FinalizeSet(AProcedure: TTestCaseProcedure);
 begin
   // Americaniz(s)ed form
   FinaliseSet(AProcedure);
-end;
-
-Procedure RunTestSets;
-var i,l: integer;
-begin
-  l := length(MiniTestCases);
-  for i := 0 to l-1 do
-  Try
-    if MiniTestCases[i].TestClass<>'' then
-      NewTestSet(MiniTestCases[i].TestClass,MiniTestCases[i].Skip);
-    ExpectException(MiniTestCases[i].ExpectedException,true);
-    MiniTestCases[i].Execute;
-  except
-    on e:exception do CheckException(e);
-  end;
 end;
 
 Procedure Title(AText: string);
@@ -212,21 +249,28 @@ begin
   DoubleLine;
 end;
 
+function CaseHasErrors: smallint;
+begin
+  Result := 0;
+  if CaseFailedTests+CaseErrors>0 then result := 2
+  else if CaseSkippedTests>0 then result := 1;
+end;
+
 function SetHasErrors: smallint;
 begin
   Result := 0;
-  if SetFailedTestCases+SetErrors>0 then result := 2
-  else if SetSkippedTestCases>0 then result := 1;
+  if SetFailedTests+SetErrors>0 then result := 2
+  else if SetSkippedTests>0 then result := 1;
 end;
 
 function RunHasErrors: smallint;
 var lSetResult : smallint;
 begin
   Result := 0;
-  if (TotalFailedTestCases+TotalErroredTestCases>0) then result := 2
-  else if TotalSkippedTestCases>0 then Result := 1;
+  if (TotalFailedTests+TotalErroredTests>0) then result := 2
+  else if TotalSkippedTests>0 then Result := 1;
   if result = 2  then exit;
-  lSetResult := SetHasErrors;
+  lSetResult := CaseHasErrors;
   if lSetResult>result then result := lSetResult;
 end;
 
@@ -243,20 +287,53 @@ begin
   result := result or lIntesity;
 end;
 
-procedure ClassResults;
+Function CaseIsEmpty: boolean;
+begin
+  Result := (CasePassedTests=0) and
+     (CaseFailedTests=0) and
+     (CaseSkippedTests=0) and
+     (CaseErrors=0);
+end;
+
+
+procedure CaseResults;
 begin
 
-  if (SetPassedTestCases=0) and
-     (SetFailedTestCases=0) and
-     (SetSkippedTestCases=0) and
-     (SetErrors=0)
-  then exit;
+  if CaseIsEmpty then exit;
 
   Println(
-     format(' Results> Passed:%-5d Failed:%-5d Skipped:%-5d Errors:%-5d',[
-              SetPassedTestCases,
-              SetFailedTestCases,
-              SetSkippedTestCases,
+     format(CaseOutputFormat, [
+              CasePassedTests,
+              CaseFailedTests,
+              CaseSkippedTests,
+              CaseErrors
+              ]),
+     ResultColour(CaseHasErrors)
+  );
+
+  DoubleLine;
+end;
+
+Function SetIsEmpty: boolean;
+begin
+  Result := (SetPassedTests=0) and
+     (SetFailedTests=0) and
+     (SetSkippedTests=0) and
+     (SetErrors=0);
+end;
+
+procedure SetResults;
+begin
+
+  if (SetIsEmpty) or (length(currentSetName)=0) then exit;
+
+  Println(
+     format(SetOutputFormat,[
+              SetCases,
+              SetPassedTests+SetFailedTests+SetSkippedTests+SetErrors,
+              SetPassedTests,
+              SetFailedTests,
+              SetSkippedTests,
               SetErrors
               ]),
      ResultColour(SetHasErrors)
@@ -265,55 +342,129 @@ begin
   DoubleLine;
 end;
 
+
 Procedure TestSummary;
 begin
-  NewTestSet('');
+  NextTestCase('');
   Println(
-    format('Total Sets:%-5d Tests:%-5d Passed:%-5d Failed:%-5d Skipped:%-5d Errors:%-5d',[
-              TotalSets-1, TotalTests,
-              TotalPassedTestCases,TotalFailedTestCases,
-              TotalSkippedTestCases, TotalErroredTestCases
+    format(TotalOutputFormat,[
+              TotalSets, TotalCases, TotalTests,
+              TotalPassedTests,TotalFailedTests,
+              TotalSkippedTests, TotalErroredTests
     ]),
     ResultColour(RunHasErrors or FOREGROUND_INTENSITY)
   );
 end;
+
+
+Procedure SetHeading(ASetName: string);
+var lHeading: string;
+begin
+  if length(ASetName)=0 then exit;
+
+  lHeading :='Test Set:'+ ASetName;
+  PrintLn('');
+  DoubleLine;
+  Println(lHeading,clTitle);
+  SingleLine;
+end;
+
 /////////// END SCREEN MANAGEMENT \\\\\\\\\\\\\\\\\
 
 
 /////////// TEST CASES  \\\\\\\\\\\\\\\\\
 
-Procedure NewTestSet(AClassName: string; ASkipped: boolean);
-var lHeading: string;
+
+Procedure RunTestSets;
+var i,l: integer;
 begin
-  ClassResults;
-  if AClassName<>'' then
+  l := length(MiniTestCases);
+  if l>0 then
   begin
-    lHeading :=' Test Set:'+ AClassName;
-    Println(lHeading,clTitle);
+    LastSetName := MiniTestCases[0].SetName;
+    NextTestSet(LastSetName);
+  end;
+  SetCases := 0;
+  for i := 0 to l-1 do
+  Try
+    if not assigned(MiniTestCases[i].Execute) then continue;
+    CurrentSetName := MiniTestCases[i].SetName;
+    if MiniTestCases[i].TestCaseName<>'' then
+      NextTestCase(MiniTestCases[i].TestCaseName,MiniTestCases[i].Skip);
+    ExpectException(MiniTestCases[i].ExpectedException,true);
+    MiniTestCases[i].Execute;
+    LastSetName := CurrentSetName;
+  except
+    on e:exception do CheckException(e);
+  end;
+  NextTestSet('');
+  setlength(MiniTestCases,0);
+  CurrentSetName := '';
+end;
+
+
+Procedure NextTestSet(ASetName: string);
+begin
+
+  SetResults;
+
+  if length(ASetName)>0 then
+  begin
+    SetHeading(ASetName);
+    inc(TotalSets);
   end;
 
-  inc(totalSets);
-  inc(TotalPassedTestCases, SetPassedTestCases);
-  Inc(TotalFailedTestCases, SetFailedTestCases);
-  inc(TotalSkippedTestCases, SetSkippedTestCases);
-  Inc(TotalErroredTestCases, SetErrors);
+  SetPassedTests:=0;
+  SetFailedTests:=0;
+  SetSkippedTests:=0;
+  SetErrors:=0;
+  SetCases:=0;
+
+end;
+
+Procedure NextTestCase(ACaseName: string; ASkipped: boolean);
+var lHeading: string;
+begin
+  CaseResults;
+
+  Inc(SetPassedTests, CasePassedTests);
+  Inc(SetFailedTests, CaseFailedTests);
+  inc(SetSkippedTests, CaseSkippedTests);
+  Inc(SetErrors, CaseErrors);
+
+  if LastSetName<>CurrentSetName then NextTestSet(CurrentSetName);
+
+
+  if ACaseName<>'' then
+  begin
+    lHeading :=' Test Case:'+ ACaseName;
+    Println(lHeading,clTitle);
+    inc(SetCases);
+    inc(TotalCases);
+  end;
+
+  inc(TotalPassedTests, CasePassedTests);
+  Inc(TotalFailedTests, CaseFailedTests);
+  inc(TotalSkippedTests, CaseSkippedTests);
+  Inc(TotalErroredTests, CaseErrors);
   SkippingSet := ASkipped;
   IgnoreSkip := false;
   ExpectedSetException := '';
-  SetPassedTestCases := 0;
-  SetFailedTestCases := 0;
-  SetSkippedTestCases := 0;
-  SetErrors := 0;
+  CasePassedTests := 0;
+  CaseFailedTests := 0;
+  CaseSkippedTests := 0;
+  CaseErrors := 0;
   SameTestCounter := 0;
-  LastTestCase := '';
-  CurrentTestCase:='';
-  CurrentTestClass:=AClassName;
+  LastTestCaseLabel := '';
+  CurrentTestCaseLabel:='';
+  CurrentTestCaseName:=ACaseName;
   ExpectedException := '';
 end;
 
 Procedure ExpectException(AExceptionClassName: string;AExpectForSet: boolean=false);
 begin
-  ExpectedException := '';
+  ExpectedException := AExceptionClassName;
+  if AExpectForSet then ExpectedSetException := ExpectedException;
 end;
 
 function ValueAsString(AValue: TComparitorType): string;
@@ -332,15 +483,17 @@ begin
     varSmallint,
     varInteger,
     varVariant,
-    varShortInt,
-    varByte,
-    varWord,
-    varLongWord,
-    {$IFDEF UNICODE}
-     varUInt64,
+    varByte
+    {$IFNDEF BEFOREVARIANTS}
+      ,varInt64
+      ,varShortInt
+      ,varWord
+      ,varLongWord
     {$ENDIF}
-
-    varInt64    : Result := IntToStr(AValue);
+    {$IFDEF UNICODE}
+      ,varUInt64
+    {$ENDIF}
+               : Result := IntToStr(AValue);
 
     {$IFDEF UNICODE}
       varUString,
@@ -369,14 +522,23 @@ begin
     lExpectedType := VarType(AExpected);
     lResultType := VarType(AResult);
 
+    if (lExpectedType+lResultType=1) OR
+       (lExpectedType+lResultType=1) then
+    begin
+      result := true;
+      exit;
+    end;
+
     if (lExpectedType = lResultType) then
     begin
       Result :=  (AExpected=AResult);
       exit;
     end;
 
-    lResultIsInteger := lResultType in [varByte, varSmallint, varInteger, varShortInt
-                                         ,varWord,varLongWord,varInt64];
+
+    lResultIsInteger := lResultType in [varByte, varSmallint, varInteger
+      {$IFNDEF BEFOREVARIANTS} ,varShortInt,varWord,varLongWord,varInt64 {$ENDIF}
+                        ];
     if (lExpectedType = VarBoolean) and
        (lResultIsInteger) then
     begin
@@ -384,12 +546,19 @@ begin
       exit;
     end;
 
-    lExpectedIsInteger := lExpectedType in [varByte, varSmallint, varInteger, varShortInt
-                                             ,varWord,varLongWord,varInt64];
+    lExpectedIsInteger := lExpectedType in [varByte, varSmallint, varInteger
+      {$IFNDEF BEFOREVARIANTS} ,varShortInt,varWord,varLongWord,varInt64 {$ENDIF}
+                          ];
 
     if (lExpectedIsInteger and lResultIsInteger) then
     begin
-      Result := varAsType(AExpected,varInt64)=VarAsType(Aresult,varInt64) ;
+      Result :=
+       {$IFDEF BEFOREVARIANTS}
+          varAsType(AExpected, varInteger)=VarAsType(Aresult,varInteger) ;
+       {$ELSE}
+          varAsType(AExpected, varInt64)=VarAsType(Aresult,varInt64) ;
+       {$ENDIF}
+
       exit;
     end;
 
@@ -440,48 +609,50 @@ begin
             if Amessage='' then lMessage:=' Test Skipped'
              else lMessage := ' '+AMessage;
             lMessageColour := clSkipped;
-            inc(SetSkippedTestCases);
+            inc(CaseSkippedTests);
             exit;
           end;
       cttException:
           begin
+             lMessageColour := clMessage;
+             if AMessage='' then lMessage:= ' Exception.'
+             else lMessage := ' '+AMessage;
              if isEqual then
              begin
                 lResult := 0;
-                inc(SetPassedTestCases);
+                inc(CasePassedTests);
              end else
              begin
                 lResult := 3;
-                inc(SetErrors);
+                inc(CaseErrors);
                 lMessageColour := clMessage;
                 lMessage := format('%s   Expected:<%s>%s   Actual  :<%s>',
                  [#13#10, ValueAsString(AExpected), #13#10, ValueAsString(AResult)])
              end;
-             if AMessage='' then lMessage:= ' Exception.'
-             else lMEssage := ' '+AMessage;
           end;
     else //case
       begin
         try
           lMessage := '';
           Outcome := CompareValues(AExpected,AResult);
+          lMessageColour := clPass;
           if IsEqual<>Outcome then
           begin
             lResult := 2;
-            inc(SetFailedTestCases);
+            lMessageColour := clError;
+            inc(CaseFailedTests);
             if AMessage = '' then
             begin
-              lMessageColour := clError;
               if isEqual then
                 lMessage := format('%s   Expected:<%s>%s   Actual  :<%s>',
                  [#13#10, ValueAsString(AExpected), #13#10, ValueAsString(AResult)])
               else
                 lMessage := format('%s   Expected outcomes to differ, but both returned %s%s',
                  [#13#10, ValueAsString(AExpected)]);
-            end;
+            end else lMessage:=#13#10'   ' + AMessage;
             exit;
           end;
-          inc(SetPassedTestCases);
+          inc(CasePassedTests);
         except
           on e: exception do
           begin
@@ -490,35 +661,36 @@ begin
               // At this level, it will only be exceptions
               // for Variant type comparisons
               lResult := 0;
-              inc(SetPassedTestCases);
+              inc(CasePassedTests);
             end else
             begin
               lResult := 2;
-              lMessage := e.Message;
-              inc(SetErrors);
+              lMessageColour := clMessage;
+              lMessage := #13#10'   Illegal Comparison Test Framework: ' + e.Message;
+              inc(CaseErrors);
             end;
           end;
         end;
       end; //case else
     end; //case
   finally
-    if LastTestCase=CurrentTestCase then inc(SameTestCounter) else SameTestCounter:=1;
-    LastTestCase := CurrentTestCase;
+    if LastTestCaseLabel=CurrentTestCaseLabel then inc(SameTestCounter) else SameTestCounter:=1;
+    LastTestCaseLabel := CurrentTestCaseLabel;
     if SameTestCounter=1 then lCounter := '' else lCounter := '-'+InttoStr(SameTestCounter);
-    if CurrentTestCase = '' then
+    if CurrentTestCaseLabel = '' then
     begin
-     CurrentTestCase:=copy('Test for '+CurrentTestClass,1,ConsoleScreenWidth-4);
+     CurrentTestCaseLabel:=copy('Test for '+CurrentTestCaseName,1,ConsoleScreenWidth-4);
      if lCounter='' then
      begin
       lCounter:='-1';
-      LastTestCase := CurrentTestCase;
+      LastTestCaseLabel := CurrentTestCaseLabel;
      end;
      ExpectedException := ExpectedSetException;
      IgnoreSkip := false;
     end;
 
     Print(format('  %s-',[PASS_FAIL[lResult]]),lMessageColour);
-    Print(format('%s%s', [CurrentTestCase,lCounter]));
+    Print(format('%s%s', [CurrentTestCaseLabel,lCounter]));
     Println(lMessage,lMessageColour);
     Result := (lResult=0);
   end;
@@ -539,15 +711,25 @@ end;
 Function CheckIsEqual(AExpected, AResult: TComparitorType;
   AMessage: string = '';ASkipped: boolean=false): boolean;
 begin
-  Result := check(true,AExpected, AResult, Amessage,
+  Result := false;
+  try
+    Result := check(true,AExpected, AResult, Amessage,
               TestTypeFromSkip(ASkipped));
+  except
+    on e:exception do CheckException(e);
+  end;
 end;
 
 Function CheckNotEqual(AResult1, AResult2: TComparitorType;
   AMessage: string; ASkipped: boolean): boolean;
 Begin
+  Result := false;
+  try
   Result := check(false,AResult1, AResult2, Amessage,
                    TestTypeFromSkip(ASkipped));
+  except
+    on e:exception do CheckException(e);
+  end;
 end;
 
 Function CheckIsTrue(AResult: boolean; AMessage: string;ASkipped: boolean): boolean;
@@ -557,19 +739,33 @@ end;
 
 Function CheckisFalse(AResult: boolean; AMessage: string; ASkipped: boolean): boolean;
 begin
-  Result := CheckIsEqual(False, AResult,AMessage,ASkipped);
+    Result := CheckIsEqual(False, AResult,AMessage,ASkipped);
 end;
 
 Procedure CheckException(AException: Exception);
 var lExpected: string;
+    lExceptionClassName: string;
+    lExceptionMessage: string;
 begin
    lExpected := ExpectedException;
-   if lExpected='' then lExpected := 'No Exceptions';
+   if (AException=nil) then
+   begin
+     lExceptionClassName:= NIL_EXCEPTION_CLASSNAME;
+     lExceptionMessage  := NO_EXCEPTION_EXPECTED;
+   end
+   else
+   begin
+    lExceptionClassName:=AException.className;
+    lExceptionMessage := AException.Message;
+   end;
+
+
+   if lExpected='' then lExpected := NO_EXCEPTION_EXPECTED;
    Check(
-     (AException.className=lExpected) or
-     (AException.Message = lExpected),
+     (lExceptionClassName=lExpected) or
+     (pos(lExpected,lExceptionMessage)>0),
       lExpected,
-      AException.ClassName+':'+AException.Message,
+      lExceptionClassName+':'+lExceptionMessage,
       '',
       cttException);
 end;
@@ -583,24 +779,44 @@ begin
 end;
 
 
-procedure NewTestCase(ACase: string; ATestClassName: string);
+Procedure NewSet(ASetName: string);
+begin
+  CurrentSetName := ASetName;
+end;
+
+Procedure NewCase(ATestCaseName: string);
+begin
+  newTest('',ATestCaseName);
+end;
+
+procedure NewTestCase(ACase: string; ATestCaseName: string);
+begin
+  NewTest(ACase, ATestCaseName);
+end;
+
+procedure NewTest(ACase: string; ATestCaseName: string);
 begin
 
-  if (ATestClassName <> '') and
+  if (ATestCaseName <> '') and
      (
        (ACase='') OR
-       (CurrentTestClass<>ATestClassName)
-     ) then NewTestSet(ATestClassName);
+       (CurrentTestCaseName<>ATestCaseName)
+     ) then NextTestCase(ATestCaseName);
 
    if ACase <> '' then
-    CurrentTestCase := ACase;
+    CurrentTestCaseLabel := ACase;
    ExpectedException := ExpectedSetException;
    IgnoreSkip := false;
 end;
 
 initialization
-  {$IF CompilerVersion >= 20.0}
-    system.ReportMemoryLeaksOnShutdown := True;
-  {$IFEND}
-
+  {$IFDEF CompilerVersion}
+    {$IF CompilerVersion >= 20.0}
+      system.ReportMemoryLeaksOnShutdown := True;
+    {$IFEND}
+  {$ENDIF}
+  TotalOutputFormat:=DEFAULT_TOTALS_FORMAT;
+  SetOutputFormat  := DEFAULT_SET_FORMAT;
+  CaseOutputFormat := DEFAULT_CASE_FORMAT;
 end.
+
