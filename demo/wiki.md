@@ -1,5 +1,6 @@
 
 ![](https://github.com/glenkleidon/DelphiTips/blob/master/projectTemplates/MiniTest/MiniTest.ico?raw=true)
+
 ## DUnitm - Mini Test Framework [MiniTestFrameWork.pas](https://raw.githubusercontent.com/glenkleidon/DelphiTips/master/MiniTestFramework.pas)
 
 How To videos on YouTube : [Using DUnitm - You Tube](https://www.youtube.com/playlist?list=PL42y13vA83auEzqLTzmkwnQuC6pyOxlQE)
@@ -90,7 +91,9 @@ The steps are:
 3. Display the summary by calling **_TestSummary_**
 
 ### Standard Test Runs 
-The recommended approach for using DUnitm is to create a console app, add MiniTestFramework.pas and a Test Unit to contain your test cases to the uses clause.  This keeps the test cases clean, closely related to the functions they test and more importantly, re-usable.
+The recommended approach for using DUnitm is to create a console app, add MiniTestFramework.pas and a Test Unit to contain your test cases to the uses clause.  This keeps the test cases clean, closely related to the functions they test and more importantly, re-usable.  The Delphi Tips repo contains a Project Template for all versions of delphi.  The template allows you to create a new Unit test framework from the _New_ Menu item in Delphi.
+
+![](https://github.com/glenkleidon/DelphiTips/blob/master/projectTemplates/NewUnitTest-D7.png?raw=true)
 
 The Name of the test unit should reflect the name of the unit you are trying to test. Eg when testing _"MyUnit.pas"_ your test case unit should be called something like _"Test_MyUnit.pas"_  You could also create separate units for specific parts of your test unit (say if there are multiple classes in the unit).
 
@@ -129,7 +132,7 @@ end;
 You could of course add a static function to the test unit called something like "RunTests" which makes your test case even more re-usable.
 
 The steps are:
-1. Give the Test Run a Title with the **_Title_** function  
+1. Give the Test Run a title with the **_Title_** function  
 2. Name the set with **_NewSet_**
 3. Perform any setup required for the run by calling **_PrepareSet_** passing in the Setup Procedure (or nothing)
 4. Add as many Test Cases as needed by calling **_AddTestCase_** passing in a description and a Test Procedure
@@ -139,7 +142,7 @@ The steps are:
 6. Display the Summary by calling **_TestSummary_**
 
 ### Test Cases
-Test cases typically follow the standard pattern of Describe, Arrange, Act, Assert.  Look at the procedure in the example below  
+Test cases typically follow the standard pattern of Describe, Arrange, Act, Assert.  Look at the procedure we want to test in the example below  
 
 **Example 1**
 ```
@@ -175,7 +178,9 @@ Here is the Test Case..
    CheckisFalse(Result=1000,'Using IsFalse');
    CheckisEqual(Expected,Result,'Using IsEqual',SKIPPED); // dont fail on this test
 
+   // Describe
    NewTest('Checking Failed Outcomes');
+   // Arrange
    Expected :=2;
    // Act
    Result := SomeFunctionThatReturns1;
@@ -245,9 +250,10 @@ Outputs the Summary for the Current RUN.
 (For Simple runs) adds a new test case to the run.  Not required for Test sets as the AddTestCase function adds the case name.
 + _ATestCaseName_: The name of the test case as it will appear in the output.
 
-#### Procedure NewTest(ACase: string; ATestClassName: string = '');
+#### Procedure NewTest(ACase: string; ATestCaseName: string = '');
 Instructs the Test run to add a new Test to the current Test Case;
-+ ACase: the Description for the the Test
++ _ACase_: the Description for the Test.
++ _ATestCaseName_: \[optional\] name of the test case.  (Typically only used internally)
 
 #### Procedure NewTestCase(ACase: string; ATestCaseName: string = '');
 **_Deprecated_** in Favour of NewTest. The naming of this function in earlier releases was incorrect as it suggested adding a new case to a set, rather than a new test to a case.
@@ -283,16 +289,17 @@ Assertion that Result 1 _DOES NOT EQUAL_ Result2
 + _AResult2_ : Any type of supported datatype to be compared with AResul1
 + _AMessage_ : Message to display if failed (default shows a comparison of tested values)
 + _ASkipped_ : boolean, True to skip this test (default=false);
+
+#### Procedure CheckException(AException: Exception);
+Checks an exception to confirm if it was expected or not.  Note in simply runs, this method can be used in conjunction with _try except on e:exception do_ construct. 
++ _AException_: A Exception object descendant which will be tested against the expected exception for this test.
  
  
 ### Private Methods
-#### Procedure CheckException(AException: Exception);
-Checks an exception to confirm if it was expected or not.  NOte in simply runs, this method can be used in conjunction with _try except on e:exception do_ construct. 
- +_AException_: A Exception object descendant which will be tested against the expected exception for this test.
 
 #### Function NotImplemented(AMessage: string=''):boolean;
 Checks if a Message is the Not implemented method
- +_AMessage_: \[optional\] A message to describe why the test is not implemented.
++ _AMessage_: \[optional\] A message to describe why the test is not implemented.
 
 #### Function DontSkip:Boolean;
 Instructs the run to _NOT_ skip the next test even if the case is entirely skipped.
@@ -308,7 +315,7 @@ Calculates the test Totals.
 
 #### Procedure NextTestSet(ASetName: string);
 Called by the Test Run to Roll the counters over to the next test Set
- +_ASetName_: The name of the current Set
++ _ASetName_: The name of the current Set
 
 
 ####Procedure NextTestCase(ACaseName: string; ASkipped: boolean=false);
@@ -325,5 +332,4 @@ Print functions to output text with the selected screen colour
  + _AText_: text to be output
  + _AColour_: Colour for the text (colour constants must be used)
 
- 
 
