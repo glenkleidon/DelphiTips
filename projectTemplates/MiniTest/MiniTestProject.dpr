@@ -18,7 +18,8 @@ begin
 
     NewSet('Example Exception and Skip');
     AddTestCase('Expected Exception Example',Case_Three_Gets_Error);
-    AddTestCase('Skipping Test Example', Case_Four_skips, SKIP);
+    AddTestCase('Skipping All Tests Example', Case_Four_skips, SKIP);
+    AddTestCase('Skip Case Entirely', Case_four_skips, skipCase);
     FinaliseSet(TearDown);
 
     Title('Test Cases For <Project> Units');
