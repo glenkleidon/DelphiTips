@@ -128,7 +128,7 @@ end;
 
 Procedure CheckIsEqual_works_as_Expected;
 begin
- NextTestCase('Checking CheckIsEqual');
+ NewCase('Checking CheckIsEqual');
 
  UpdateCounters;
  newTest('Checking "TESTTEXT" string');

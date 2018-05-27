@@ -332,4 +332,8 @@ Print functions to output text with the selected screen colour
  + _AText_: text to be output
  + _AColour_: Colour for the text (colour constants must be used)
 
-
+#### Procedure PrintLnCentred(AText: string; AChar: char;  AColour: smallint  FOREGROUND_DEFAULT);
+Print a line of text centred on the screen with the leading and trailing character of _AChar_
+ + _AText_: text to be output
+ + _AChar_: character to lead and trail the text eg - or = 
+ + _AColour_: Colour for the text (colour constants must be used)
