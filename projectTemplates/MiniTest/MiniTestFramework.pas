@@ -21,8 +21,7 @@ Const
 
   PASS_FAIL: array[0..3] of string = ('PASS', 'SKIP', 'FAIL', 'ERR ');
   FOREGROUND_DEFAULT=7;
-  SKIPPED = True;
-  SKIP = True; //alternate
+
 
   DEFAULT_SCREEN_WIDTH=80;
   FOREGROUND_CYAN=3;
@@ -40,19 +39,29 @@ Const
 
 Type
   TComparitorType = Variant;
+
   TTestCaseProcedure = Procedure();
+
+  TSkipType = (skipFalse, skipTrue, skipCase);
+
   TTestSet = Record
     SetName: string;
     Execute: TTestCaseProcedure;
     TestCaseName: string;
-    Skip: Boolean;
+    Skip: TSkipType;
     ExpectedException: string;
   end;
+
+const
+  SKIPPED = skipTrue;
+  SKIP = skipTrue; //alternate
+
+
 
 var
   MiniTestCases : Array of TTestSet;
 
-  SkippingSet,IgnoreSkip : boolean;
+  SkippingSet,  IgnoreSkip : boolean;
 
   ExpectedException, ExpectedSetException,
   LastSetName, CurrentSetName,
@@ -73,30 +82,31 @@ var
 Procedure Title(AText: string);
 
 Procedure AddTestSet(ATestCaseName: string; AProcedure : TTestCaseProcedure;
-    ASkipped:boolean=False; AExpectedException: string = ''); {$IFNDEF BEFOREVARIANTS}deprecated;{$ENDIF} // wrong naming convention.
+    ASkipped:TSkipType=skipFalse; AExpectedException: string = ''); {$IFNDEF BEFOREVARIANTS}deprecated;{$ENDIF} // wrong naming convention.
 Procedure AddTestCase(ATestCaseName: string; AProcedure : TTestCaseProcedure;
-    ASkipped:boolean=False; AExpectedException: string = '');
+    ASkipped:TSkipTYpe=skipFalse; AExpectedException: string = '');
 Procedure PrepareSet(AProcedure: TTestCaseProcedure);
 Procedure FinaliseSet(AProcedure: TTestCaseProcedure);
 Procedure FinalizeSet(AProcedure: TTestCaseProcedure);
 Procedure RunTestSets;
+Procedure SkipTestCases(ACaseId: Integer);
 
 Procedure NewTest(ACase: string; ATestCaseName: string = '');
 Procedure NewSet(ASetName: string);
 Procedure NewCase(ATestCaseName: string);
 Procedure NewTestCase(ACase: string; ATestCaseName: string = ''); {$IFNDEF BEFOREVARIANTS}deprecated;{$ENDIF} // wrong naming convention.
 Procedure NextTestSet(ASetName: string);
-Procedure NextTestCase(ACaseName: string; ASkipped: boolean=false);
+Procedure NextTestCase(ACaseName: string; ASkipped: TSkipType=skipFalse);
 Function  CheckIsEqual(AExpected, AResult: TComparitorType;
-  AMessage: string = ''; ASkipped: boolean=false): boolean;
-Function  CheckIsTrue(AResult: boolean; AMessage: string = ''; ASkipped: boolean=false): boolean;
-Function  CheckIsFalse(AResult: boolean; AMessage: string = ''; ASkipped: boolean=false): boolean;
+  AMessage: string = ''; ASkipped: TSkipType=skipFalse): boolean;
+Function  CheckIsTrue(AResult: boolean; AMessage: string = ''; ASkipped: TSkipType=skipFalse): boolean;
+Function  CheckIsFalse(AResult: boolean; AMessage: string = ''; ASkipped: TSkipType=skipFalse): boolean;
 Function  CheckNotEqual(AResult1, AResult2: TComparitorType;
-  AMessage: string = ''; ASkipped: boolean=false): boolean;
+  AMessage: string = ''; ASkipped: TSkipType=skipFalse): boolean;
 Procedure ExpectException(AExceptionClassName: string;AExpectForSet: boolean=false);
 Procedure CheckException(AException: Exception);
 Function  NotImplemented(AMessage: string=''):boolean;
-Function  DontSkip:Boolean;
+Function  DontSkip:TSkipType;
 Function  TotalTests: integer;
 Procedure TestSummary;
 procedure CaseResults;
@@ -121,7 +131,6 @@ var
   SameTestCounter :integer = 0;
   LastTestCaseLabel: string;
   SetCounter: integer = 0;
-
 
 
 ///////////  SCREEN MANAGEMENT \\\\\\\\\\\\\\\\\
@@ -199,13 +208,13 @@ begin
 end;
 
 Procedure AddTestSet(ATestCaseName: string; AProcedure : TTestCaseProcedure;
-  ASkipped: Boolean; AExpectedException: string);
+  ASkipped: TSkipType; AExpectedException: string);
 begin
   AddTestCase(ATestCaseName, AProcedure, ASkipped, AExpectedException);
 end;
 
 Procedure AddTestCase(ATestCaseName: string; AProcedure : TTestCaseProcedure;
-  ASkipped: Boolean; AExpectedException: string);
+  ASkipped: TSkipType; AExpectedException: string);
 var l:integer;
 begin
    if length(CurrentSetName)=0 then CurrentSetName := NextSetName;
@@ -372,6 +381,11 @@ end;
 
 /////////// TEST CASES  \\\\\\\\\\\\\\\\\
 
+Procedure SkipTestCases(ACaseId: Integer);
+begin
+  NewTest(MiniTestCases[ACaseId].TestCaseName);
+  CheckIsTrue(false,'Case Skipped',skip);
+end;
 
 Procedure RunTestSets;
 var i,l: integer;
@@ -386,6 +400,13 @@ begin
   for i := 0 to l-1 do
   Try
     if not assigned(MiniTestCases[i].Execute) then continue;
+
+    if MiniTestCases[i].Skip=skipCase then
+    begin
+     SkipTestCases(i);
+     continue;
+    end;
+
     CurrentSetName := MiniTestCases[i].SetName;
     if MiniTestCases[i].TestCaseName<>'' then
       NextTestCase(MiniTestCases[i].TestCaseName,MiniTestCases[i].Skip);
@@ -428,7 +449,7 @@ begin
 
 end;
 
-Procedure NextTestCase(ACaseName: string; ASkipped: boolean);
+Procedure NextTestCase(ACaseName: string; ASkipped: TSkipType);
 var lHeading: string;
 begin
   CaseResults;
@@ -453,7 +474,7 @@ begin
   Inc(TotalFailedTests, CaseFailedTests);
   inc(TotalSkippedTests, CaseSkippedTests);
   Inc(TotalErroredTests, CaseErrors);
-  SkippingSet := ASkipped;
+  SkippingSet := ASkipped<>skipFalse;
   IgnoreSkip := false;
   ExpectedSetException := '';
   CasePassedTests := 0;
@@ -702,20 +723,20 @@ begin
   end;
 end;
 
-function TestTypeFromSkip(ASkipped: Boolean): TCheckTestType;
+function TestTypeFromSkip(ASkipped: TSkipType): TCheckTestType;
 begin
-  if (Not IgnoreSkip) and (ASkipped or SkippingSet) then
+  if (Not IgnoreSkip) and ((ASkipped=skipTrue) or SkippingSet) then
      Result := cttSkip else Result := cttComparison;
 end;
 
-Function DontSkip:Boolean;
+Function DontSkip:TSkipType;
 begin
   IgnoreSkip := true;
-  result := false;
+  result := skipFalse;
 end;
 
 Function CheckIsEqual(AExpected, AResult: TComparitorType;
-  AMessage: string = '';ASkipped: boolean=false): boolean;
+  AMessage: string = '';ASkipped: TSkipType=skipFalse): boolean;
 begin
   Result := false;
   try
@@ -727,7 +748,7 @@ begin
 end;
 
 Function CheckNotEqual(AResult1, AResult2: TComparitorType;
-  AMessage: string; ASkipped: boolean): boolean;
+  AMessage: string; ASkipped: TSkipType): boolean;
 Begin
   Result := false;
   try
@@ -738,12 +759,12 @@ Begin
   end;
 end;
 
-Function CheckIsTrue(AResult: boolean; AMessage: string;ASkipped: boolean): boolean;
+Function CheckIsTrue(AResult: boolean; AMessage: string;ASkipped: TSkipType): boolean;
 begin
   Result := CheckIsEqual(True, AResult, AMessage,ASkipped);
 end;
 
-Function CheckisFalse(AResult: boolean; AMessage: string; ASkipped: boolean): boolean;
+Function CheckisFalse(AResult: boolean; AMessage: string; ASkipped: TSkipType): boolean;
 begin
     Result := CheckIsEqual(False, AResult,AMessage,ASkipped);
 end;
@@ -781,7 +802,7 @@ var lMessage: string;
 begin
   if AMessage='' then lMessage:='Not Implemented'
     else lMessage := AMessage;
-  Result := CheckisTrue(true,lMessage,Skipped);
+  Result := CheckisTrue(true,lMessage,skipTrue);
 end;
 
 

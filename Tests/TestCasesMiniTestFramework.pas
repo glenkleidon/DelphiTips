@@ -22,6 +22,7 @@ Procedure Test_Expected_Exception_passes;
 Procedure Test_Unexpected_Exception_Raises_Error;
 Procedure Test_Set_level_Skips_work_as_expected;
 Procedure Check_That_Test_Cases_Ran_Correctly;
+procedure Test_Case_Level_skip_works_as_expected;
 
 implementation
 uses sysutils;
@@ -30,11 +31,11 @@ Procedure Check_That_Test_Cases_Ran_Correctly;
 begin
   NewCase('Check Test Cases Ran Correctly');
   NewTest('Has correct # of Tests (including Prep and Finalise)');
-  checkIsEqual(7,length(MiniTestCases));
+  checkIsEqual(8,length(MiniTestCases));
   NewTest('Has correct # of Errored Tests');
   checkIsTrue(TotalErroredTests=TotalErrors+1);
   NewTest('Has correct # of Skipped Tests');
-  checkIsTrue(TotalSkippedTests=TotalSkips+1); // the one above expected to pass
+  checkIsTrue(TotalSkippedTests=TotalSkips+2); // the two above expected to skip
   NewTest('Has correct # of Passed Tests');
   checkIsEqual(TotalPasses+2,TotalPassedTests); // the one above expected to pass
   if (TotalErroredTests=TotalErrors+1) then
@@ -47,7 +48,7 @@ begin
    Println('   Wrong Number of Errors, only 1 expected!', FOREGROUND_YELLOW);
   end;
 
-  if (TotalSkippedTests=TotalSkips+1) then
+  if (TotalSkippedTests=TotalSkips+2) then
   begin
    Println('   The Skip in the run is planned so that "passes"', clMessage);
    TotalSkippedTests := 0;
@@ -214,6 +215,16 @@ begin
 
   NewTest('Test 4 should Pass (Using Dont Skip)');
   checkisEqual('ABC','A'+'B'+'C','',DONTSKIP); // decide to run this one after all
+
+end;
+
+procedure Test_Case_Level_skip_works_as_expected;
+begin
+ NewTest('TRUE Case that should not be run');
+ checkIsTrue(true);
+
+ NewTest('FALSE Case that should not be run');
+ checkIsTrue(false);
 
 end;
 

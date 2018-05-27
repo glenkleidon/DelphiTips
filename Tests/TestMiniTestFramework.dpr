@@ -22,6 +22,7 @@ begin
     AddTestCase('Expected Exception Passes', Test_Expected_Exception_passes);
     AddTestCase('Unexpected Exception Raises Error', Test_Unexpected_Exception_Raises_Error);
     AddtestCase('Set level Skips and ignore skips works as expected', Test_Set_level_Skips_work_as_expected, SKIP);
+    AddTestCase('Skip Case works as expected', Test_Case_Level_skip_works_as_expected, SKIPCASE);
     FinaliseSet(nil);
 
     NewSet('Check Framework Results');
