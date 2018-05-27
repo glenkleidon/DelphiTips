@@ -13,7 +13,10 @@ Check out the [Blog here](https://glenkleidon.blogspot.com.au/2017/07/new-mini-t
   + Project Templates
 ### Added Features: Release 2
   + Refactoring to correct issues with naming conventions
-  + Deprecated functions using incorrect previous naming convention 
+  + Deprecated functions using incorrect previous naming convention
+  + Case level skipping stops cases from actually being evaluated. **
+### Breaking changes Release 1 to 2
+The _Skip_ parameter type in AddTestCase and Assertions has been changed from _boolean_ to a custom Enum _TSkipType_.  This was required to support case level skipping.  Using the Frameworks _**SKIP**_ or _**SKIPPED**_ constants will continue to work as normal, however this is a breaking change for existing cases where the _Skip_ parameter has been implemented using a BOOLEAN expression.  You need to change to _skipTrue_ or _skipFalse_ in this case.
   
 See the updated wiki!
 

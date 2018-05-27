@@ -88,13 +88,19 @@ The steps are:
    1. Each Case should include a test or tests added using the **_NewTest_** function
    2. Each Test should have Assertions using **_CheckIsEqual_**, **_CheckIsTrue_**, **_CheckIsFalse_** or **_CheckNotEqual_**
    3. Tests may also use **_ExpectException_** in conjunction with **_CheckException_** (which needs to be caught manually)
+   4. The test outcome can be **_SKIPPED_** (using _SKIP_).  This means the actions will still be evaluated, but wont count toward the success or failure tally. (You need to use a standard test set to skip cases evaluation).
 3. Display the summary by calling **_TestSummary_**
 
-### Standard Test Runs 
+### Standard Test Projects
 The recommended approach for using DUnitm is to create a console app, add MiniTestFramework.pas and a Test Unit to contain your test cases to the uses clause.  This keeps the test cases clean, closely related to the functions they test and more importantly, re-usable.  The Delphi Tips repo contains a Project Template for all versions of delphi.  The template allows you to create a new Unit test framework from the _New_ Menu item in Delphi.
 
 ![](https://github.com/glenkleidon/DelphiTips/blob/master/projectTemplates/NewUnitTest-D7.png?raw=true)
 
+
+The advantages over using simple test runs are that exceptions do not have to be manually managed: the framework will trap the exception for you and peform the evaluation.  Also, in simple test runs, skipping does not actually prevent the actions from being evaluated.  Using SKIP at the test case level, will prevent any of the tests in the case from being run.
+
+
+### Standard Test Runs 
 The Name of the test unit should reflect the name of the unit you are trying to test. Eg when testing _"MyUnit.pas"_ your test case unit should be called something like _"Test_MyUnit.pas"_  You could also create separate units for specific parts of your test unit (say if there are multiple classes in the unit).
 
 Here is an example of a **_standard test run_**.  
@@ -129,17 +135,18 @@ begin
   ...
 end;
 ```
-You could of course add a static function to the test unit called something like "RunTests" which makes your test case even more re-usable.
+You could of course add a static function to the test unit called something like "AddTests" which makes your test case even more re-usable.
 
 The steps are:
 1. Give the Test Run a title with the **_Title_** function  
 2. Name the set with **_NewSet_**
 3. Perform any setup required for the run by calling **_PrepareSet_** passing in the Setup Procedure (or nothing)
 4. Add as many Test Cases as needed by calling **_AddTestCase_** passing in a description and a Test Procedure
-5. Tear Down the Run by calling **_FinaliseSet_** passing in the Teardown Procedure (if needed)
-6. Execute the Test Run by calling **_RunTestSets_**
-7. [Optionally] Create another set by repeating from steps 2
-6. Display the Summary by calling **_TestSummary_**
+5. Skipping a test case is supported.  You can skip the case entrirely using the _SKIPCASE_ option where no tests are run for that case.
+6. Tear Down the Run by calling **_FinaliseSet_** passing in the Teardown Procedure (if needed)
+7. Execute the Test Run by calling **_RunTestSets_**
+8. [Optionally] Create another set by repeating from steps 2
+9. Display the Summary by calling **_TestSummary_**
 
 ### Test Cases
 Test cases typically follow the standard pattern of Describe, Arrange, Act, Assert.  Look at the procedure we want to test in the example below  
@@ -220,14 +227,14 @@ Specifies a Title for a RUN
 + _ASetName_: the name of the set 
 Labels the Current Test Run. If this function is omitted in the preparation of a set, the default set name will be applied.
 
-#### Procedure AddTestCase(ATestClass: string; AProcedure : TTestCaseProcedure; ASkipped:boolean=False; AExpectedException: string = ''); 
+#### Procedure AddTestCase(ATestClass: string; AProcedure : TTestCaseProcedure; ASkipped:TSkipType=skipFalse; AExpectedException: string = ''); 
 Adds a Test Case (Procedure) to the current Test Set
 + _ATestClass_: a string name for the Test Case
 + _AProcedure_: the Procedure containing the Tests (Assertions)
-+ _ASkipped_: boolean, True if the case is to be skipped (default=false)
++ _ASkipped_: TSkipType, _skipCase_ if the case is to be skipped (default=_skipfalse_). Using _skipTrue_ will still evaluate the actions but will not contribute to the pass/fail tally
 + _AExpectedException_: a string containing the Exception Class Name or any part of the exception message 
 
-#### Procedure AddTestSet(ATestClass: string; AProcedure : TTestCaseProcedure; ASkipped:boolean=False; AExpectedException: string = '');
+#### Procedure AddTestSet(ATestClass: string; AProcedure : TTestCaseProcedure; ASkipped:TSkipType=skipFalse; AExpectedException: string = '');
 **_Deprecated_** in Favour of AddTestCase.  The naming of this method was incorrect as it suggested adding a Set to a Run rather than a Case to a Set.
 
 #### Procedure PrepareSet(AProcedure: TTestCaseProcedure);
@@ -262,33 +269,33 @@ Instructs the Test run to add a new Test to the current Test Case;
 Instructs the RUN that the Exception Class name is expected. 
 
 ### Assertions
-#### Function CheckIsEqual(AExpected, AResult: TComparitorType;  AMessage: string = ''; ASkipped: boolean=false): boolean; 
+#### Function CheckIsEqual(AExpected, AResult: TComparitorType;  AMessage: string = ''; ASkipped:TSkipType=skipFalse): boolean; 
 Assertion that the Expected result matches the Actual Result.
 + _AExpected_ : The expected outcome for the test
 + _AResult_ : The Actual outcome of the test peformed
 + _AMessage_ : Message to display if failed (default shows a comparison of tested values)
-+ _ASkipped_ : boolean, True to skip this test (default=false);
++ _ASkipped_ : TSkipType, skipTrue to skip this test (default=skipFalse);
 
-#### Function  CheckIsTrue(AResult: boolean; AMessage: string = ''; ASkipped: boolean=false): boolean;
+#### Function  CheckIsTrue(AResult: boolean; AMessage: string = ''; ASkipped:TSkipType=skipFalse): boolean;
 Assertion that the condition in AResult _IS TRUE_
 + _AResult_ : Any type of Boolean result
 + _AMessage_ : Message to display if failed (default shows a comparison of tested values)
-+ _ASkipped_ : boolean, True to skip this test (default=false);
++ _ASkipped_ : TSkipType, skipTrue to skip this test (default=skipFalse);
 
-#### Function  CheckIsFalse(AResult: boolean; AMessage: string = ''; ASkipped: boolean=false): boolean; 
+#### Function  CheckIsFalse(AResult: boolean; AMessage: string = ''; ASkipped:TSkipType=skipFalse): boolean; 
 Assertion that the condition in AResult _IS FALSE_
 + _AResult1_ : Any type of supported datatype to be compared with AResul2
 + _AResult2_ : Any type of supported datatype to be compared with AResul1
 + _AMessage_ : Message to display if failed (default shows a comparison of tested values)
-+ _ASkipped_ : boolean, True to skip this test (default=false);
++ _ASkipped_ : TSkipType, skipTrue to skip this test (default=skipFalse);
  
-#### Function  CheckNotEqual(AResult1, AResult2: TComparitorType;  AMessage: string = ''; ASkipped: boolean=false): boolean;
+#### Function  CheckNotEqual(AResult1, AResult2: TComparitorType;  AMessage: string = ''; ASkipped:TSkipType=skipFalse): boolean;
 
 Assertion that Result 1 _DOES NOT EQUAL_ Result2
 + _AResult1_ : Any type of supported datatype to be compared with AResul2
 + _AResult2_ : Any type of supported datatype to be compared with AResul1
 + _AMessage_ : Message to display if failed (default shows a comparison of tested values)
-+ _ASkipped_ : boolean, True to skip this test (default=false);
++ _ASkipped_ : TSkipType, skipTrue to skip this test (default=skipFalse);
 
 #### Procedure CheckException(AException: Exception);
 Checks an exception to confirm if it was expected or not.  Note in simply runs, this method can be used in conjunction with _try except on e:exception do_ construct. 
@@ -301,7 +308,7 @@ Checks an exception to confirm if it was expected or not.  Note in simply runs, 
 Checks if a Message is the Not implemented method
 + _AMessage_: \[optional\] A message to describe why the test is not implemented.
 
-#### Function DontSkip:Boolean;
+#### Function DontSkip:TSkipType;
 Instructs the run to _NOT_ skip the next test even if the case is entirely skipped.
 
 #### Function TotalTests: integer;
@@ -318,7 +325,7 @@ Called by the Test Run to Roll the counters over to the next test Set
 + _ASetName_: The name of the current Set
 
 
-####Procedure NextTestCase(ACaseName: string; ASkipped: boolean=false);
+#### Procedure NextTestCase(ACaseName: string; ASkipped:TSkipType=skipFalse);
 Called by the test Run to roll the counters over to the next test Case
  + _ACaseName_: The name of the current case
  + _ASkipped_ : boolean, True to skip this test (default=false);
