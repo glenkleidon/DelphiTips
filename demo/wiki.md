@@ -183,7 +183,7 @@ Here is the Test Case..
    // Assertions
    CheckisTrue(Expected=Result,'Using Is True');
    CheckisFalse(Result=1000,'Using IsFalse');
-   CheckisEqual(Expected,Result,'Using IsEqual',SKIPPED); // dont fail on this test
+   CheckisEqual(Expected,Result,'Using IsEqual',SKIPPED); // dont count this as a pass or fail
 
    // Describe
    NewTest('Checking Failed Outcomes');
