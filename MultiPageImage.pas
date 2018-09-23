@@ -4,8 +4,8 @@ interface
 
 uses
 
-{$IF CompilerVersion >= 29.0}
-{$DEFINE HAS_HELPER_PROTECTION}
+{$IF CompilerVersion >= 23.0}
+{$DEFINE UPDATED_CLIPBOARD}
 {$IFEND}
 {$IF DEFINED(CLR)}
   System.Drawing, System.Drawing.Imaging, System.Reflection,
@@ -16,12 +16,12 @@ uses
 {$IFEND}
   Windows, SysUtils, Classes, Graphics, ExtCtrls
 {$IF NOT DEFINED(CLR)}
-    {$IF CompilerVersion < 21.0}
-    //Delphi 2009 did not support WinCodec
+{$IF CompilerVersion < 21.0}
+  // Delphi 2009 did not support WinCodec
     , Wincodec_PRE_D2010
-    {$ELSE}
+{$ELSE}
     , Wincodec
-    {$IFEND}
+{$IFEND}
 {$IFEND}
     ;
 
@@ -53,9 +53,27 @@ type
     Property SupportsMultipage: Boolean read GetSupportsMultipage
       write SetSupportsMultipage;
   End;
-  {$IF CompilerVersion < 21.0}
-  TWICImageFormat = (wifBmp, wifPng, wifJpeg, wifGif, wifTiff, wifWMPhoto, wifOther);
-  {$IFEND}
+{$IF CompilerVersion < 21.0}
+
+  TWICImageFormat = (wifBmp, wifPng, wifJpeg, wifGif, wifTiff, wifWMPhoto,
+    wifOther);
+{$IFEND}
+
+// --- MOST OF THIS WORK IS COPYRIGHT OF Embarcadero
+{*******************************************************}
+{                                                       }
+{            Delphi Visual Component Library            }
+{                                                       }
+{ Copyright(c) 1995-2011 Embarcadero Technologies, Inc. }
+{                                                       }
+{*******************************************************}
+// Users of Delphi 2010 and later already have permission
+// to use this code as it essentially duplicated from the
+// GRAPHICS unit of those versions of DELPHI.
+// Restrictions in Delphi 10.0 and later prevent the helper
+// methods from accessing the private members of the TWICImage
+// class and therefore requires that the code be duplicated.
+
 
   TMPWICImage = class(TGraphic)
   private
@@ -97,7 +115,7 @@ type
     procedure LoadFromStream(Stream: TStream; APageNo: Integer); overload;
     procedure SaveToStream(Stream: TStream); override;
     procedure LoadFromClipboardFormat(AFormat: Word;
-{$IFNDEF HAS_HELPER_PROTECTION}
+{$IFNDEF UPDATED_CLIPBOARD}
       AData: Cardinal;
 {$ELSE}
       AData: THandle;
@@ -117,20 +135,20 @@ type
     class property ImagingFactory: IWICImagingFactory read GetImagingFactory;
   end;
 
-  {$IF CompilerVersion < 21.0}
-  resourceString
-    SChangeWicSize = 'Cannot change the size of a WIC Image';
-  {$IFEND}
+{$IF CompilerVersion < 21.0}
 
+resourceString
+  SChangeWicSize = 'Cannot change the size of a WIC Image';
+{$IFEND}
 
 implementation
 
 uses
   Types, Consts, ActiveX
-  {$IF CompilerVersion < 21.0}
+{$IF CompilerVersion < 21.0}
     , PropertyBagInterfaces
-  {$IFEND}
-  ;
+{$IFEND}
+    ;
 
 procedure InvalidOperation(Str: PResStringRec);
 begin
@@ -387,7 +405,7 @@ begin
 end;
 
 procedure TMPWICImage.LoadFromClipboardFormat(AFormat: Word;
-{$IFNDEF HAS_HELPER_PROTECTION}
+{$IFNDEF UPDATED_CLIPBOARD}
   AData: Cardinal;
 {$ELSE}
   AData: THandle;
@@ -573,12 +591,13 @@ begin
   WicCheck(self.ImagingFactory.CreateDecoderFromStream(LStream, guid_null,
     WICDecodeMetadataCacheOnDemand, BitmapDecoder));
   BitmapDecoder.GetFrameCount(lPageCount);
-  Result := integer(lPageCount);
+  Result := Integer(lPageCount);
   LStream := nil;
 end;
 
 function TMPWICImage.GetPageCount: Integer;
-var lCount : LongWord;
+var
+  lCount: LongWord;
 begin
   Result := -1;
   if self.FData <> nil then

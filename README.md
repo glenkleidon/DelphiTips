@@ -1,6 +1,11 @@
 # DelphiTips
 Useful Delphi Units which provide full functionality in a single PAS file.
 
+There are currently 3 units available:
+  + DUnitm - A test framework
+  + MultiPageImage - Support for Multipage Tif in Standard Delphi TImage.
+  + Record Utils - JSON, XML, Value-Pair Type serializer/deserializer for Record types
+
 ## DUnitm - Mini Test Framework
 The [Mini Test framework](https://github.com/glenkleidon/DelphiTips/wiki/DUnitm---Mini-Test-Framework) is a light-weight unit testing framework which simply requires that you
 include the single MiniTestFrameWork.pas in a console app, and start testing your code.
@@ -35,6 +40,30 @@ If using versions of Delphi 2005 or 2006, You may have trouble with the
 2007 DPROJ file in the Test Unit and the Project Template folders.  If you 
 do have trouble, simply remove the DPROJ file and get Delphi to rebuild from the
 DPR file.
+
+## MulitPageImage
+This unit [MultiPageImage.pas](https://github.com/glenkleidon/DelphiTips/wiki/MultiPageImage---Helper-Methods-to-Add-Multi-Page-support-to-TImage-Component) supports multipage TIF in the standard VCL TImage by simply adding the unit to the project.  This is in the same way as you add JPEG, GIF and PNG support.  The Unit has helper methods for TImage and TPicture which provides TIF multi page support including:
+  + PageCount (read only)
+  + PageNumber (read or set)
+  + LoadFromFile(Filename, PageNo)
+  + LoadFromStream(Stream, PageNo)
+
+NOTE: This is MOSTLY not new work: it simply moves a copy of the TWICImage class (from VCL.Graphics) to its own unit and adds the few lines of code required to support multiple pages, and implements the helpers for TImage and TPicture to use the feature.
+
+WARNING! SaveToFile still only has single file support as of September 2018.
+
+
+### Supported Versions
+Graphics.WICMultipage supports all versions of Delphi back to Delphi 2010.  Delphi 2009 also works, but there are a number of minor issues and is dependent on a copy of Delphi 2010 Wincodec unit with some modification. So 2009 is not recommended.  This unit has has been tested on:
+
+|Version  |Version     |Version    |Version    |Version     |       |
+|---------|-----------:|:---------:|:---------:|:----------:|:------|
+|4 &#9744;|2005 &#9744;|XE  &#9745;|XE6 &#9744;|10.0 Seattle|&#9744;|
+|5 &#9744;|2006 &#9744;|XE2 &#9745;|XE7 &#9744;|10.1 Berlin |&#9745;|
+|6 &#9744;|2007 &#9746;|XE3 &#9744;|XE8 &#9744;|10.2 Tokyo  |&#9745;|
+|7 &#9744;|2009 &#9745;|XE4 &#9744;|Delpi 2010 &#9745;          |            |       |
+|8 &#9744;|2010 &#9745;|XE5 &#9745;|           |            |       |
+
 
 ## Record Utils - Utils for cloning, clearing, serialising/Deserialising Pascal Record Types
 
