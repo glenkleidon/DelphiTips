@@ -16,7 +16,12 @@ uses
 {$IFEND}
   Windows, SysUtils, Classes, Graphics, ExtCtrls
 {$IF NOT DEFINED(CLR)}
+    {$IF CompilerVersion < 21.0}
+    //Delphi 2009 did not support WinCodec
+    , Wincodec_PRE_D2010
+    {$ELSE}
     , Wincodec
+    {$IFEND}
 {$IFEND}
     ;
 
@@ -48,6 +53,9 @@ type
     Property SupportsMultipage: Boolean read GetSupportsMultipage
       write SetSupportsMultipage;
   End;
+  {$IF CompilerVersion < 21.0}
+  TWICImageFormat = (wifBmp, wifPng, wifJpeg, wifGif, wifTiff, wifWMPhoto, wifOther);
+  {$IFEND}
 
   TMPWICImage = class(TGraphic)
   private
@@ -93,7 +101,7 @@ type
       AData: Cardinal;
 {$ELSE}
       AData: THandle;
-{$IFEND}
+{$ENDIF}
       APalette: HPALETTE); override;
     property Handle: IWICBitmap read GetHandle write SetHandle;
     property ImageFormat: TWICImageFormat read FImageFormat
@@ -109,10 +117,20 @@ type
     class property ImagingFactory: IWICImagingFactory read GetImagingFactory;
   end;
 
+  {$IF CompilerVersion < 21.0}
+  resourceString
+    SChangeWicSize = 'Cannot change the size of a WIC Image';
+  {$IFEND}
+
+
 implementation
 
 uses
-  Types, Consts, ActiveX;
+  Types, Consts, ActiveX
+  {$IF CompilerVersion < 21.0}
+    , PropertyBagInterfaces
+  {$IFEND}
+  ;
 
 procedure InvalidOperation(Str: PResStringRec);
 begin
@@ -373,7 +391,7 @@ procedure TMPWICImage.LoadFromClipboardFormat(AFormat: Word;
   AData: Cardinal;
 {$ELSE}
   AData: THandle;
-{$IFEND}
+{$ENDIF}
   APalette: HPALETTE);
 begin
   FWicBitmap := nil;
@@ -547,7 +565,7 @@ function TMPWICImage.GetPageCount(Stream: TStream): Integer;
 var
   LStream: TStreamAdapter;
   BitmapDecoder: IWICBitmapDecoder;
-  lPageCount: Cardinal;
+  lPageCount: LongWord;
 
 begin
   LStream := TStreamAdapter.Create(Stream);
@@ -555,18 +573,20 @@ begin
   WicCheck(self.ImagingFactory.CreateDecoderFromStream(LStream, guid_null,
     WICDecodeMetadataCacheOnDemand, BitmapDecoder));
   BitmapDecoder.GetFrameCount(lPageCount);
-  Result := lPageCount;
+  Result := integer(lPageCount);
   LStream := nil;
 end;
 
 function TMPWICImage.GetPageCount: Integer;
+var lCount : LongWord;
 begin
   Result := -1;
   if self.FData <> nil then
   begin
     self.FData.Position := 0;
-    Result := self.GetPageCount(self.FData);
+    lCount := self.GetPageCount(self.FData);
   end;
+  Result := lCount;
 end;
 
 procedure TMPWICImage.SetPageNo(const PageNo: Integer);
@@ -620,10 +640,11 @@ end;
 procedure TPictureHelper.LoadFromMultiPageStream(Stream: TStream;
   PageNo: Integer; FileType: String = 'tif');
 begin
-
+  {$IF CompilerVersion >= 21.0}
   if not pos('tif', lowercase(FileType)) < 1 then
-    self.LoadFromStream(Stream)
+     self.LoadFromStream(Stream)
   else
+  {$IFEND}
   begin
     SupportsMultipage := True;
     TMPWICImage(self.Graphic).LoadFromStream(Stream, PageNo - 1);
