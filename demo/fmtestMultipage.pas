@@ -4,7 +4,13 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, ExtCtrls, ExtDlgs, Spin;
+  Dialogs, StdCtrls, ExtCtrls, ExtDlgs, Spin,
+  // support for standard images -- these are not required for multimage
+  // but show that all formats are still supported.
+  jpeg, gifimg, pngimage,
+  // Now add multipage image support
+  MultiPageImage
+  ;
 
 type
   TForm1 = class(TForm)
@@ -31,8 +37,6 @@ var
   startDir: string;
 
 implementation
-
-uses Graphic.WICMultipage;
 
 {$R *.dfm}
 

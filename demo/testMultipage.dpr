@@ -4,7 +4,7 @@ uses
   Forms,
   activex,
   fmtestMultipage in 'fmtestMultipage.pas' {Form1},
-  Graphic.WicMultipage in '..\Graphic.WicMultipage.pas';
+  MultipageImage in '..\MultiPageImage.pas';
 
 {$R *.res}
 
