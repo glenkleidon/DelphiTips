@@ -17,8 +17,10 @@ type
     procedure Button1Click(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure SpinEdit1Change(Sender: TObject);
+    procedure UpdateLabel;
   private
     fCurrentFile: String;
+    fLoading: boolean;
     { Private declarations }
   public
     { Public declarations }
@@ -30,7 +32,7 @@ var
 
 implementation
 
-uses Graphic.multipage;
+uses Graphic.WICMultipage;
 
 {$R *.dfm}
 
@@ -40,12 +42,16 @@ begin
   if not OpenPictureDialog1.execute then
     exit;
   fCurrentFile := OpenPictureDialog1.Filename;
-  self.Image1.Picture.LoadFromMultiPageFile(OpenPictureDialog1.Filename, 0);
-  self.SpinEdit1.Tag := -1;
-  self.SpinEdit1.MaxValue := self.Image1.Picture.PageCount + 1;
-  self.SpinEdit1.MinValue := 1;
-  self.SpinEdit1.Value := 1;
-  self.SpinEdit1.Tag := 0;
+  fLoading := true;
+  try
+    self.Image1.Picture.LoadFromMultiPageFile(OpenPictureDialog1.Filename, 1);
+    self.SpinEdit1.MaxValue := self.Image1.Picture.PageCount;
+    self.SpinEdit1.MinValue := 1;
+    self.SpinEdit1.Value := 1;
+  finally
+    fLoading := false;
+  end;
+  updateLabel;
 end;
 
 procedure TForm1.FormCreate(Sender: TObject);
@@ -55,10 +61,28 @@ end;
 
 procedure TForm1.SpinEdit1Change(Sender: TObject);
 begin
-  if (self.SpinEdit1.Tag >= 0) and (assigned(self.Image1.Picture)) then
-    self.Image1.PageNumber := self.SpinEdit1.Value - 1;
+  if self.SpinEdit1.Value>self.SpinEdit1.MaxValue then
+  begin
+    self.SpinEdit1.Value := Self.SpinEdit1.MaxValue;
+    exit;
+  end;
+  if self.SpinEdit1.Value<self.SpinEdit1.MinValue then
+  begin
+    self.SpinEdit1.Value := Self.SpinEdit1.MinValue;
+    exit;
+  end;
+
+  if (not fLoading) and (assigned(self.Image1.Picture)) then
+    self.Image1.PageNumber := self.SpinEdit1.Value;
+
+  updateLabel;
+end;
+
+procedure TForm1.UpdateLabel;
+begin
   self.Label1.Caption := format('Page %u of %u',
-    [self.SpinEdit1.Value, self.Image1.PageCount]);
+    [self.Image1.PageNumber, self.Image1.PageCount]);
+
 end;
 
 end.

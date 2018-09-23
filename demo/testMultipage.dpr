@@ -4,7 +4,8 @@ uses
   Forms,
   activex,
   fmtestMultipage in 'fmtestMultipage.pas' {Form1},
-  Graphic.Multipage in '..\Graphic.Multipage.pas';
+  Graphics in 'C:\Program Files (x86)\Embarcadero\RAD Studio\8.0\source\vcl\Graphics.pas',
+  Graphic.WicMultipage in '..\Graphic.WicMultipage.pas';
 
 {$R *.res}
 
