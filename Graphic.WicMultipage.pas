@@ -4,6 +4,9 @@ interface
 
 uses
 
+{$IF CompilerVersion >= 29.0}
+{$DEFINE HAS_HELPER_PROTECTION}
+{$IFEND}
 {$IF DEFINED(CLR)}
   System.Drawing, System.Drawing.Imaging, System.Reflection,
   System.Globalization,
@@ -85,11 +88,13 @@ type
     procedure LoadFromStream(Stream: TStream); overload; override;
     procedure LoadFromStream(Stream: TStream; APageNo: Integer); overload;
     procedure SaveToStream(Stream: TStream); override;
-    procedure LoadFromClipboardFormat(AFormat: Word; AData: Cardinal;
+    procedure LoadFromClipboardFormat(AFormat: Word;
+{$IFNDEF HAS_HELPER_PROTECTION}
+      AData: Cardinal;
+{$ELSE}
+      AData: THandle;
+{$IFEND}
       APalette: HPALETTE); override;
-    procedure SaveToClipboardFormat(var AFormat: Word; var AData: Cardinal;
-      var APalette: HPALETTE); override;
-
     property Handle: IWICBitmap read GetHandle write SetHandle;
     property ImageFormat: TWICImageFormat read FImageFormat
       write SetImageFormat;
@@ -283,19 +288,19 @@ var
   BitmapDecoder: IWICBitmapDecoder;
   LBitmapFrame: IWICBitmapFrameDecode;
   LGUID: TGUID;
-  doChange: boolean;
+  doChange: Boolean;
 begin
   if (Stream = nil) then
   begin
     if self.FData = nil then
       WicCheck(1);
-    doChange := true;
+    doChange := True;
   end
   else
   begin
     self.FData.Clear;
     self.FData.CopyFrom(Stream, Stream.Size - Stream.Position);
-    doChange := false;
+    doChange := False;
   end;
   self.FData.Position := 0;
 
@@ -315,7 +320,8 @@ begin
   else
     FFormatChanged := False;
   self.FPageNo := APageNo;
-  if self.FPageNo>self.PageCount then self.FPageNo := self.PageCount;
+  if self.FPageNo > self.PageCount then
+    self.FPageNo := self.PageCount;
 
 end;
 
@@ -362,7 +368,12 @@ begin
   Stream.CopyFrom(FData, FData.Size);
 end;
 
-procedure TMPWICImage.LoadFromClipboardFormat(AFormat: Word; AData: Cardinal;
+procedure TMPWICImage.LoadFromClipboardFormat(AFormat: Word;
+{$IFNDEF HAS_HELPER_PROTECTION}
+  AData: Cardinal;
+{$ELSE}
+  AData: THandle;
+{$IFEND}
   APalette: HPALETTE);
 begin
   FWicBitmap := nil;
@@ -404,14 +415,7 @@ end;
 procedure TMPWICImage.LoadFromStream(Stream: TStream);
 begin
   Inherited LoadFromStream(Stream);
-//  LoadFromStream(Stream, 0);
-end;
-
-procedure TMPWICImage.SaveToClipboardFormat(var AFormat: Word;
-  var AData: Cardinal; var APalette: HPALETTE);
-begin
-  RequireBitmap;
-  FBitmap.SaveToClipboardFormat(AFormat, AData, APalette);
+  // LoadFromStream(Stream, 0);
 end;
 
 procedure TMPWICImage.SetEncoderContainerFormat(const Value: TGUID);
@@ -579,8 +583,8 @@ end;
 
 function TPictureHelper.GetPageCount: Integer;
 begin
-  if self.FGraphic.InheritsFrom(TMPWICImage) then
-    Result := TMPWICImage(self.FGraphic).PageCount
+  if self.Graphic is TMPWICImage then
+    Result := TMPWICImage(self.Graphic).PageCount
   else
     Result := 1;
 end;
@@ -630,7 +634,7 @@ end;
 procedure TPictureHelper.SetPageNo(const PageNo: Integer);
 begin
   if Assigned(self.Graphic) and (self.Graphic is TMPWICImage) then
-    TMPWICImage(self.Graphic).SetPageNo(PageNo-1);
+    TMPWICImage(self.Graphic).SetPageNo(PageNo - 1);
 end;
 
 procedure TPictureHelper.SetSupportsMultipage(const Value: Boolean);
@@ -676,7 +680,7 @@ begin
     exit;
 
   self.Picture.SetPageNo(Value);
-//  self.Repaint;
+  // self.Repaint;
 end;
 
 end.
