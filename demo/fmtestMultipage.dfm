@@ -33,7 +33,6 @@ object Form1: TForm1
     Align = alBottom
     BevelOuter = bvNone
     TabOrder = 0
-    ExplicitTop = 488
     object Label1: TLabel
       Left = 150
       Top = 9
@@ -64,9 +63,9 @@ object Form1: TForm1
     object Button2: TButton
       Left = 224
       Top = 6
-      Width = 75
+      Width = 113
       Height = 25
-      Caption = 'Button2'
+      Caption = 'Extract Page To File'
       TabOrder = 2
       OnClick = Button2Click
     end

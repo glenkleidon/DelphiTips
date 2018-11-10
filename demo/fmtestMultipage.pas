@@ -70,7 +70,7 @@ begin
     lSinglePage.Canvas.Draw(0, 0, Image1.Picture.Graphic);
     lSinglePage.Picture.SaveToFile(ChangeFileExt(OpenPictureDialog1.Filename,
       IntTostr(Image1.PageNumber) + '.' +
-      ExtractFileExtn(OpenPictureDialog1.Filename)));
+      ExtractFileExt(OpenPictureDialog1.Filename)));
   finally
     freeandnil(lSinglePage);
   end;
