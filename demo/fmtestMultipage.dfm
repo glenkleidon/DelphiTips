@@ -2,7 +2,7 @@ object Form1: TForm1
   Left = 192
   Top = 124
   Caption = 'Form1'
-  ClientHeight = 525
+  ClientHeight = 566
   ClientWidth = 963
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -18,7 +18,7 @@ object Form1: TForm1
     Left = 0
     Top = 0
     Width = 963
-    Height = 488
+    Height = 529
     Align = alClient
     ExplicitLeft = 24
     ExplicitTop = 16
@@ -27,7 +27,7 @@ object Form1: TForm1
   end
   object Panel1: TPanel
     Left = 0
-    Top = 488
+    Top = 529
     Width = 963
     Height = 37
     Align = alBottom
@@ -59,6 +59,15 @@ object Form1: TForm1
       TabOrder = 1
       Value = 0
       OnChange = SpinEdit1Change
+    end
+    object Button2: TButton
+      Left = 224
+      Top = 6
+      Width = 113
+      Height = 25
+      Caption = 'Extract Page To File'
+      TabOrder = 2
+      OnClick = Button2Click
     end
   end
   object OpenPictureDialog1: TOpenPictureDialog
