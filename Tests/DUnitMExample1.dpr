@@ -15,7 +15,7 @@ uses
   var Expected, Result : integer;
   begin
    // Set up a new Case and reset case level counters. (Not needed for a Standard run)
-   NewTestSet('Example Test Set');
+   NewTest('Example Test Set');
 
    // Describe
    NewTestCase('Checking Good Outcomes');
