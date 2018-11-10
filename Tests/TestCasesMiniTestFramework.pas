@@ -23,6 +23,10 @@ Procedure Test_Unexpected_Exception_Raises_Error;
 Procedure Test_Set_level_Skips_work_as_expected;
 Procedure Check_That_Test_Cases_Ran_Correctly;
 procedure Test_Case_Level_skip_works_as_expected;
+Procedure Test_Find_Differences_Substituted_works_as_expected ;
+Procedure Test_Find_Differences_Omitted_Acutal_works_as_expected;
+
+Procedure Test_Difference_compare_easier_to_read;
 
 implementation
 uses sysutils;
@@ -227,5 +231,122 @@ begin
  checkIsTrue(false);
 
 end;
+
+Procedure Test_Find_Differences_Substituted_works_as_expected ;
+var lDifferences: TDifferences;
+begin
+  (**)
+  NewTest('Text that is Empty, Length of result should be 0');
+  lDifferences := FindDifferences('','');
+  checkIsEqual(0,length(lDifferences));
+  NewTest('Text that is the same, Length of result should be 1');
+
+  lDifferences := FindDifferences('ABC','ABC');
+  checkIsEqual(1,length(lDifferences));
+  NewTest('Text that is the same, Should be dtNONE');
+  checkIsTrue(lDifferences[0].TypeOfDifference=dtNone);
+
+  (**)
+  lDifferences := FindDifferences('ABC','ABD');
+  NewTest('ABC<->ABD, Length of result should be 1');
+  checkIsEqual(1,length(lDifferences));
+  NewTest('ABC<->ABD, Should be dtSubstitution');
+  checkIsTrue(lDifferences[0].TypeOfDifference=dtSubstitution);
+  NewTest('ABC<->ABD, Should have Start=3');
+  checkIsEqual(3,lDifferences[0].StartPos);
+
+  (**)
+  lDifferences := FindDifferences('ABCD','ABXD');
+  NewTest('ABCD<->ABXD, Should be dtSubstitution');
+  checkIsTrue(lDifferences[0].TypeOfDifference=dtSubstitution);
+  NewTest('ABCD<->ABXD, Should have Start=3');
+  checkIsEqual(3,lDifferences[0].StartPos);
+  NewTest('ABCD<->ABXD, Should have Size=1');
+  checkIsEqual(1,lDifferences[0].size);
+  (**)
+  lDifferences := FindDifferences('ABCDEF','ABXDEF');
+  NewTest('ABCDEF<->ABXDEF, Should be dtSubstitution');
+  checkIsTrue(lDifferences[0].TypeOfDifference=dtSubstitution);
+  NewTest('ABCDEF<->ABXDEF, Should have Start=3');
+  checkIsEqual(3,lDifferences[0].StartPos);
+  NewTest('ABCDEF<->ABXDEF, Should have Size=1');
+  checkIsEqual(1,lDifferences[0].Size);
+ (**)
+
+  lDifferences := FindDifferences('ABCDEF','ABXXEF');
+  NewTest('ABCDEF<->ABXXEF, Should be dtSubstitution');
+  checkIsTrue(lDifferences[0].TypeOfDifference=dtSubstitution);
+  NewTest('ABCDEF<->ABXXEF, Should have Start=3');
+  checkIsEqual(3,lDifferences[0].StartPos);
+  NewTest('ABCDEF<->ABXXEF, Should have Size=2');
+  checkIsEqual(2,lDifferences[0].Size);
+ (**)
+
+end;
+
+
+Procedure Test_Find_Differences_Omitted_Acutal_works_as_expected;
+var lDifferences: TDifferences;
+begin
+  (**)
+  lDifferences := FindDifferences('ABC','AB');
+  NewTest('ABC<->AB, Length of result should be 1');
+  checkIsEqual(1,length(lDifferences));
+  NewTest('ABC<->AB, Should be dtCompareTooShort');
+  checkIsTrue(lDifferences[0].TypeOfDifference=dtCompareTooShort);
+  NewTest('ABC<->AB, Should have Start=3');
+  checkIsEqual(3,lDifferences[0].StartPos);
+  (**)
+  lDifferences := FindDifferences('ABCD','ABD');
+  NewTest('ABCD<->ABD, Should be dtActualHasOmission');
+  checkIsTrue(lDifferences[0].TypeOfDifference=dtCompareHasOmission);
+  NewTest('ABCD<->ABD, Should have Start=3');
+  checkIsEqual(3,lDifferences[0].StartPos);
+  NewTest('ABCD<->ABD, Should have Size=1');
+  checkIsEqual(1,lDifferences[0].Size);
+  (**)
+  lDifferences := FindDifferences('ABCDEF','ABDEF');
+  NewTest('ABCDEF<->ABDEF, Should be dtCompareHasOmission');
+  checkIsTrue(lDifferences[0].TypeOfDifference=dtCompareHasOmission);
+  NewTest('ABCDEF<->ABDEF, Should have Start=3');
+  checkIsEqual(3,lDifferences[0].StartPos);
+  NewTest('ABCDEF<->ABDEF, Should have Size=1');
+  checkIsEqual(1,lDifferences[0].Size);
+  (**)
+  lDifferences := FindDifferences('ABCDEF','ADEF');
+  NewTest('ABCDEF<->ABDEF, Should be dtCompareHasOmission');
+  checkIsTrue(lDifferences[0].TypeOfDifference=dtCompareHasOmission);
+  NewTest('ABCDEF<->ADEF, Should have Start=2');
+  checkIsEqual(2,lDifferences[0].StartPos);
+  NewTest('ABCDEF<->ADEF, Should have Size=2');
+  checkIsEqual(2,lDifferences[0].Size);
+  (**)
+
+end;
+
+Procedure Test_Difference_compare_easier_to_read;
+begin
+  NewTest('Compare Short String');
+  CheckIsEqual('ABC', 'DEF');
+
+
+  NewTest('Compare Lines without breaks String');
+  CheckIsEqual('The quick brown fox jumps over the lazy dog', 'The quick brown fix jumps over the lazy dog');
+
+  NewTest('Compare Lines with multiple differences String');
+  CheckIsEqual('The quick brown fox jumps over the lazy dog', 'The quick brown fix jumps over the lasy dog');
+
+
+  NewTest('Compare MultiLines Results');
+  CheckIsEqual(
+    'The quick brown fox jumps over the lazy dog and'#13#10+
+    ' there are multiple lines to deal with'#13#10#13#10+
+    'But still works OK',
+    'The quick brown fix jumps over the lazy dog and'#13#10+
+    ' there are multople lines to dwal with'#13#10#13#10+
+    'But still works alright'
+    )
+end;
+
 
 end.

@@ -10,13 +10,14 @@ uses
 begin
   try
     Title('Testing the Framework...With the framework!!');
+    (** )
 
     CheckIsTrue_works_as_expected;
     CheckIsEqual_works_as_Expected;
     Test_Skip_works_as_Expected;
 
     TestSummary;
-
+    (** )
     NewSet('Check Framework Set Functions');
     PrepareSet(PrepareCounters);
     AddTestCase('Expected Exception Passes', Test_Expected_Exception_passes);
@@ -28,16 +29,23 @@ begin
     NewSet('Check Framework Results');
     PrepareSet(Nil);
     FinaliseSet(Check_That_Test_Cases_Ran_Correctly);
-
     RunTestSets;
-
+    TestSummary;
+    (**)
+    NewSet('Compare Result Display Improvements');
+    PrepareSet(nIl);
+      AddTestCase('Check Find Substitutions', Test_Find_Differences_Substituted_works_as_expected,skipCase);
+      AddTestCase('Check Find Omissions Actual', Test_Find_Differences_Omitted_Acutal_works_as_expected);
+      AddTestCase('Compare Outputs results in easy to read format', Test_Difference_compare_easier_to_read, skipcase);
+    FinaliseSet(Nil);
+    RunTestSets;
     TestSummary;
 
     if sameText(Paramstr(1),'/p') then ReadLn;
 
     ExitCode := TotalErrors+TotalFailedTests;
 
-
+    (**)
   except
     on E: Exception do
       Writeln(E.ClassName, ': ', E.Message);
