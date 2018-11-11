@@ -10,14 +10,14 @@ uses
 begin
   try
     Title('Testing the Framework...With the framework!!');
-    (**)
+    (** )
 
     CheckIsTrue_works_as_expected;
     CheckIsEqual_works_as_Expected;
     Test_Skip_works_as_Expected;
 
     TestSummary;
-    (**)
+    (** )
     NewSet('Check Framework Set Functions');
     PrepareSet(PrepareCounters);
     AddTestCase('Expected Exception Passes', Test_Expected_Exception_passes);
@@ -36,13 +36,15 @@ begin
     TestSummary;
     (**)
     NewSet('Compare Result Display Improvements');
-    PrepareSet(nIl);
+    PrepareSet(Nil);
     AddTestCase('Check Find Substitutions',
-      Test_Find_Differences_Substituted_works_as_expected);
+      Test_Find_Differences_Substituted_works_as_expected, skipcase);
     AddTestCase('Check Find Omissions',
-      Test_Find_Differences_Omitted_Acutal_works_as_expected);
+      Test_Find_Differences_Omitted_Acutal_works_as_expected, skipcase);
     AddTestCase('Check Find Additions',
-      Test_Find_Differences_Additions_Acutal_works_as_expected);
+      Test_Find_Differences_Additions_Acutal_works_as_expected, skipcase);
+    AddTestCase('Multiple Differences Located',
+      Test_Find_multiple_Differences);
     AddTestCase('Compare Outputs results in easy to read format',
       Test_Difference_compare_easier_to_read, SKIPCASE);
     FinaliseSet(Nil);

@@ -26,6 +26,8 @@ procedure Test_Case_Level_skip_works_as_expected;
 Procedure Test_Find_Differences_Substituted_works_as_expected ;
 Procedure Test_Find_Differences_Omitted_Acutal_works_as_expected;
 Procedure Test_Find_Differences_Additions_Acutal_works_as_expected;
+Procedure Test_Find_multiple_Differences;
+
 
 
 Procedure Test_Difference_compare_easier_to_read;
@@ -373,6 +375,31 @@ begin
   checkIsEqual(4,lDifferences[0].StartPos);
   NewTest('ABCDEF<->ABCXXDEF, Should have Size=1');
   checkIsEqual(2,lDifferences[0].Size);
+  (**)
+
+end;
+
+Procedure Test_Find_multiple_Differences;
+var lDifferences: TDifferences;
+begin
+  (**)
+  lDifferences := FindDifferences('ABC_ONE_TWO_Three','ABCD_ONE_2_Three');
+  NewTest('ABC_ONE_TWO_Three<->ABCD_ONE_2_Three, Length of result should be 2');
+  checkIsEqual(2,length(lDifferences));
+
+  NewTest('ABC_ONE_TWO_Three<->ABCD_ONE_2_Three, [0] Should be dtCompareHasAddition');
+  checkIsTrue(lDifferences[0].TypeOfDifference=dtCompareHasAddition);
+  NewTest('ABC_ONE_TWO_Three<->ABCD_ONE_2_Three, [0]  Should have Start=4');
+  checkIsEqual(4,lDifferences[0].StartPos);
+  NewTest('ABC_ONE_TWO_Three<->ABCD_ONE_2_Three, [0]  Should have Size=1');
+  checkIsEqual(1,lDifferences[0].Size);
+
+  NewTest('ABC_ONE_TWO_Three<->ABCD_ONE_2_Three, [1]  Should be dtCompareHasAddition');
+  checkIsTrue(lDifferences[1].TypeOfDifference=dtCompareHasAddition);
+  NewTest('ABC_ONE_TWO_Three<->ABCD_ONE_2_Three, [1]  Should have Start=9');
+  checkIsEqual(4,lDifferences[1].StartPos);
+  NewTest('ABC_ONE_TWO_Three<->ABCD_ONE_2_Three, [1]  Should have Size=1');
+  checkIsEqual(1,lDifferences[1].Size);
   (**)
 
 end;

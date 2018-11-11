@@ -773,9 +773,9 @@ end;
 function FindDifferences(AText, ACompareTo: string): TDifferences;
 var
   Cp, Tp, p, lStartPos, Tl, Cl: Integer;
-  allDone: boolean;
+  DoNext: boolean;
   lNextSameCompareTo, lNextSameText: TDifference;
-  RestOfCompareTo, RestOfText: string;
+  lText, lCompareTo, RestOfCompareTo, RestOfText: string;
 
   Function IsWordEnd(AChar: char): boolean;
   begin
@@ -916,35 +916,43 @@ begin
   SetLength(Result, 0);
   Tl := length(AText);
   Cl := length(ACompareTo);
+  p := 0;
   if (Tl = 0) and (Cl = 0) then
     exit;
-  Cp := 1;
-  Tp := 1;
+  SetLength(Result, 1);
 
-  allDone := false;
+  // Find the First Difference
+  Result[p] := FindNextDifference(AText, ACompareTo);
+  Tp := Result[p].StartPos;
+  Cp := Tp;
+
+  // ok find where the differences end.
+  DoNext := false;
   repeat
-    p := length(Result);
-    SetLength(Result, p + 1);
-    SetLength(Result, 1);
-    Result[p] := FindNextDifference(copy(AText, Tp, MAXINT),
-      copy(ACompareTo, Cp, MAXINT));
-    if Result[p].TypeOfDifference = dtNone then // no more differences;
-      exit;
-    lStartPos := Tp + Result[p].StartPos - 1;
-    RestOfText := copy(AText, lStartPos, MAXINT);
-    RestOfCompareTo := copy(ACompareTo, Cp - Tp + lStartPos, MAXINT);
+    if DoNext then
+    begin
+      p := length(Result);
+      SetLength(Result, p + 1);
+      SetLength(Result, 1);
+      Result[p].StartPos := Tp;
+      Result[p].TypeOfDifference := dtDifferent;
+    end;
+
+    // Find the end of the Difference.
+    RestOfText := copy(AText, Tp, MAXINT);
+    RestOfCompareTo := copy(ACompareTo, Cp, MAXINT);
     case Result[p].TypeOfDifference of
       dtNone:
-        allDone := true;
-      dtCompareTooLong:
-      begin
-        Result[p].Size := (Cl-Cp) - (Tl-Tp);
         exit;
-      end;
+      dtCompareTooLong:
+        begin
+          Result[p].Size := (Cl - Cp) - (Tl - Tp);
+          exit;
+        end;
       dtCompareTooShort:
-      begin
-        Exit;
-      end;
+        begin
+          exit;
+        end;
       dtDifferent:
         begin
           lNextSameText := FindNextSame(RestOfText, RestOfCompareTo);
@@ -954,7 +962,8 @@ begin
           if (lNextSameCompareTo.StartPos + lNextSameText.StartPos) = 0 then
           begin
             /// Is this a substitution of End Characters?
-            if (Tl=Cl) then Result[p].TypeOfDifference := dtSubstitution;
+            if (Tl = Cl) then
+              Result[p].TypeOfDifference := dtSubstitution;
             exit;
           end;
           /// Is this a substitution of some characters somewhere in the middle
@@ -964,58 +973,66 @@ begin
             if (lNextSameCompareTo.Size = lNextSameText.Size) and
               (lNextSameCompareTo.StartPos = lNextSameText.StartPos) then
             begin
-              Result[p].Size := lNextSameCompareTo.StartPos-1;
-              Cp := Cp - Tp + lStartPos + lNextSameText.StartPos+lNextSameText.Size-1;
-              Tp := lStartPos + lStartPos + lNextSameText.StartPos+lNextSameText.Size-1;
+              Result[p].Size := lNextSameCompareTo.StartPos - 1;
+              Cp := Cp + lNextSameText.StartPos + lNextSameText.Size - 1;
+              Tp := lStartPos + lStartPos + lNextSameText.StartPos +
+                lNextSameText.Size - 1;
               Result[p].TypeOfDifference := dtSubstitution;
-            end else
-            // has ommission or addition
-            // If the compareto is lower than the Text, then its an Omission
-            if lNextSameCompareTo.StartPos<lNextSameText.StartPos then
-            begin
-              Result[p].Size := lNextSameText.StartPos-1;
-              Cp := Cp - Tp + lStartPos + lNextSameText.StartPos + lNextSameText.Size-1;
-              Tp := lStartPos + lNextSameText.StartPos+ lNextSameText.Size-1;
-              Result[p].TypeOfDifference := dtCompareHasOmission;
             end
             else
+              // has ommission or addition
+              // If the compareto is lower than the Text, then its an Omission
+              if lNextSameCompareTo.StartPos < lNextSameText.StartPos then
+              begin
+                Result[p].Size := lNextSameText.StartPos - 1;
+                Cp := Cp + lNextSameCompareTo.StartPos +
+                  lNextSameCompareTo.Size - 1;
+                Tp := Tp + lNextSameText.StartPos + lNextSameText.Size - 1;
+                Result[p].TypeOfDifference := dtCompareHasOmission;
+                //bring substituion back into here....
+              end
+              else
+              begin
+                /// Must Be Addition in the Compare Text?
+                Result[p].Size := lNextSameCompareTo.StartPos - 1;
+                Cp := Cp + lNextSameCompareTo.StartPos +
+                  lNextSameCompareTo.Size - 1;
+                Tp := Tp + lNextSameText.StartPos + lNextSameText.Size - 1;
+                Result[p].TypeOfDifference := dtCompareHasAddition;
+              end;
+          end
+          else
+            /// Is this an Addition in the Compare Text?
+            if (lNextSameText.TypeOfDifference = dtDifferent) and
+              (lNextSameCompareTo.TypeOfDifference = dtNone) then
             begin
-              /// Must Be Addition in the Compare Text?
-              Result[p].Size := lNextSameCompareTo.StartPos-1;
-              Cp := Cp - Tp + lStartPos + lNextSameCompareTo.StartPos + lNextSameCompareTo.Size-1;
-              Tp := lStartPos + lNextSameCompareTo.StartPos+ lNextSameCompareTo.Size-1;
-              Result[p].TypeOfDifference := dtCompareHasAddition;
-            end;
-          end;
-          /// Is this an Addition in the Compare Text?
-          if (lNextSameText.TypeOfDifference = dtDifferent) and
-            (lNextSameCompareTo.TypeOfDifference = dtNone) then
-          begin
 
-          end;
-          /// Is this an Omission in the end of Compare Text?
-          ///   different to the end of Compare
-          if (lNextSameText.TypeOfDifference = dtNone) and
-            (lNextSameCompareTo.TypeOfDifference = dtDifferent) then
-          begin
-             Result[p].TypeOfDifference := dtCompareHasOmission;
-             Result[p].Size := lNextSameText.Size;
-             exit;
-          end;
-          // different to the end of Compare
-          if (lNextSameText.TypeOfDifference = dtNone) and
-            (lNextSameCompareTo.TypeOfDifference = dtDifferent) then
-          begin
-             Result[p].TypeOfDifference := dtCompareHasOmission;
-             Result[p].Size := lNextSameCompareTo.Size;
-             // different to the end of Compare
-             exit;
-          end;
+            end
+            else
+              /// Is this an Omission in the end of Compare Text?
+              /// different to the end of Compare
+              if (lNextSameText.TypeOfDifference = dtNone) and
+                (lNextSameCompareTo.TypeOfDifference = dtDifferent) then
+              begin
+                Result[p].TypeOfDifference := dtCompareHasOmission;
+                Result[p].Size := lNextSameText.Size;
+                exit;
+              end
+              else
+                // different to the end of Compare
+                if (lNextSameText.TypeOfDifference = dtNone) and
+                  (lNextSameCompareTo.TypeOfDifference = dtDifferent) then
+                begin
+                  Result[p].TypeOfDifference := dtCompareHasOmission;
+                  Result[p].Size := lNextSameCompareTo.Size;
+                  // different to the end of Compare
+                  exit;
+                end;
 
         end;
     end;
-    allDone := (Cp > Cl) or (Tp > Tl);
-  until allDone;
+    DoNext:= (Cl>=Cp) or (Tl>=Tp);
+  until not DoNext;
 
 end;
 
