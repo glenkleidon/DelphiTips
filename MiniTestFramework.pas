@@ -938,7 +938,8 @@ begin
         allDone := true;
       dtCompareTooLong:
       begin
-        Exit;
+        Result[p].Size := (Cl-Cp) - (Tl-Tp);
+        exit;
       end;
       dtCompareTooShort:
       begin
@@ -967,7 +968,7 @@ begin
               Cp := Cp - Tp + lStartPos + lNextSameText.StartPos+lNextSameText.Size-1;
               Tp := lStartPos + lStartPos + lNextSameText.StartPos+lNextSameText.Size-1;
               Result[p].TypeOfDifference := dtSubstitution;
-            end;
+            end else
             // has ommission or addition
             // If the compareto is lower than the Text, then its an Omission
             if lNextSameCompareTo.StartPos<lNextSameText.StartPos then
@@ -976,6 +977,14 @@ begin
               Cp := Cp - Tp + lStartPos + lNextSameText.StartPos + lNextSameText.Size-1;
               Tp := lStartPos + lNextSameText.StartPos+ lNextSameText.Size-1;
               Result[p].TypeOfDifference := dtCompareHasOmission;
+            end
+            else
+            begin
+              /// Must Be Addition in the Compare Text?
+              Result[p].Size := lNextSameCompareTo.StartPos-1;
+              Cp := Cp - Tp + lStartPos + lNextSameCompareTo.StartPos + lNextSameCompareTo.Size-1;
+              Tp := lStartPos + lNextSameCompareTo.StartPos+ lNextSameCompareTo.Size-1;
+              Result[p].TypeOfDifference := dtCompareHasAddition;
             end;
           end;
           /// Is this an Addition in the Compare Text?

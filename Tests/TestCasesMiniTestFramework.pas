@@ -25,6 +25,8 @@ Procedure Check_That_Test_Cases_Ran_Correctly;
 procedure Test_Case_Level_skip_works_as_expected;
 Procedure Test_Find_Differences_Substituted_works_as_expected ;
 Procedure Test_Find_Differences_Omitted_Acutal_works_as_expected;
+Procedure Test_Find_Differences_Additions_Acutal_works_as_expected;
+
 
 Procedure Test_Difference_compare_easier_to_read;
 
@@ -297,6 +299,16 @@ begin
   NewTest('ABC<->AB, Should have Start=3');
   checkIsEqual(3,lDifferences[0].StartPos);
   (**)
+  lDifferences := FindDifferences('ABC','BC');
+  NewTest('ABC<->BC, Length of result should be 1');
+  checkIsEqual(1,length(lDifferences));
+  NewTest('ABC<->BC, Should be dtCompareHasOmission');
+  checkIsTrue(lDifferences[0].TypeOfDifference=dtCompareHasOmission);
+  NewTest('ABC<->BC, Should have Start=1');
+  checkIsEqual(1,lDifferences[0].StartPos);
+  NewTest('ABCD<->ABD, Should have Size=1');
+  checkIsEqual(1,lDifferences[0].Size);
+  (**)
   lDifferences := FindDifferences('ABCD','ABD');
   NewTest('ABCD<->ABD, Should be dtActualHasOmission');
   checkIsTrue(lDifferences[0].TypeOfDifference=dtCompareHasOmission);
@@ -319,6 +331,47 @@ begin
   NewTest('ABCDEF<->ADEF, Should have Start=2');
   checkIsEqual(2,lDifferences[0].StartPos);
   NewTest('ABCDEF<->ADEF, Should have Size=2');
+  checkIsEqual(2,lDifferences[0].Size);
+  (**)
+
+end;
+
+Procedure Test_Find_Differences_Additions_Acutal_works_as_expected;
+var lDifferences: TDifferences;
+begin
+  (**)
+  lDifferences := FindDifferences('ABC','ABCD');
+  NewTest('ABC<->ABCD, Length of result should be 1');
+  checkIsEqual(1,length(lDifferences));
+  NewTest('ABC<->ABCD, Should be dtCompareTooLong');
+  checkIsTrue(lDifferences[0].TypeOfDifference=dtCompareTooLong);
+  NewTest('ABC<->ABCD, Should have Start=4');
+  checkIsEqual(4,lDifferences[0].StartPos);
+  (**)
+  lDifferences := FindDifferences('ABCDEF','ABCDEFGH');
+  NewTest('ABCDEF<->ABCDEFG, Should be dtCompareTooLong');
+  checkIsTrue(lDifferences[0].TypeOfDifference=dtCompareTooLong);
+  NewTest('ABCDEF<->ABCDEFG, Should have Start=7');
+  checkIsEqual(7,lDifferences[0].StartPos);
+  NewTest('ABCDEF<->ABCDEFG, Should have Size=1');
+  checkIsEqual(2,lDifferences[0].Size);
+  (**)
+  lDifferences := FindDifferences('ABC','ZABC');
+  NewTest('ABC<->ZABC, Length of result should be 1');
+  checkIsEqual(1,length(lDifferences));
+  NewTest('ABC<->ZABC, Should be dtCompareHasAddition');
+  checkIsTrue(lDifferences[0].TypeOfDifference=dtCompareHasAddition);
+  NewTest('ABC<->ZABC, Should have Start=1');
+  checkIsEqual(1,lDifferences[0].StartPos);
+  NewTest('ABCD<->ZABD, Should have Size=1');
+  checkIsEqual(1,lDifferences[0].Size);
+  (**)
+  lDifferences := FindDifferences('ABCDEF','ABCXXDEF');
+  NewTest('ABCDEF<->ABCXXDEF, Should be dtCompareHasAddition');
+  checkIsTrue(lDifferences[0].TypeOfDifference=dtCompareHasAddition);
+  NewTest('ABCDEF<->ABCXXDEF, Should have Start=4');
+  checkIsEqual(4,lDifferences[0].StartPos);
+  NewTest('ABCDEF<->ABCXXDEF, Should have Size=1');
   checkIsEqual(2,lDifferences[0].Size);
   (**)
 
