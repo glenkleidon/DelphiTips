@@ -56,6 +56,8 @@ Type
     TypeOfDifference: TDifferenceType;
     StartPos: Integer;
     Size: Integer;
+    TextSize: Integer;
+    CompareToSize: Integer;
     LastWordDelimiterInText: Integer;
     LastWordDelimiterInCompareTo: Integer;
   end;
@@ -787,6 +789,8 @@ var
     ADifference.TypeOfDifference := dtNone;
     ADifference.StartPos := 0;
     ADifference.Size := 0;
+    ADifference.TextSize := 0;
+    ADifference.CompareToSize := 0;
     ADifference.LastWordDelimiterInText := 0;
     ADifference.LastWordDelimiterInCompareTo := 0;
   end;
@@ -937,24 +941,28 @@ begin
       Result[p].StartPos := Tp;
       Result[p].TypeOfDifference := dtDifferent;
     end;
-
-    // Find the end of the Difference.
-    RestOfText := copy(AText, Tp, MAXINT);
-    RestOfCompareTo := copy(ACompareTo, Cp, MAXINT);
+    // What kind of difference?
     case Result[p].TypeOfDifference of
       dtNone:
         exit;
       dtCompareTooLong:
         begin
           Result[p].Size := (Cl - Cp) - (Tl - Tp);
+          Result[p].TextSize := 0;
           exit;
         end;
       dtCompareTooShort:
         begin
+          Result[p].TextSize := (Tl - Tp) - (Cl - Cp);
+          Result[p].Size := 0;
           exit;
         end;
       dtDifferent:
         begin
+          // Find the end of the Difference.
+          RestOfText := copy(AText, Tp, MAXINT);
+          RestOfCompareTo := copy(ACompareTo, Cp, MAXINT);
+
           lNextSameText := FindNextSame(RestOfText, RestOfCompareTo);
           lNextSameCompareTo := FindNextSame(RestOfCompareTo, RestOfText);
 
@@ -963,15 +971,18 @@ begin
           begin
             /// Is this a substitution of End Characters?
             if (Tl = Cl) then
+            begin
               Result[p].TypeOfDifference := dtSubstitution;
+              Result[p].Size := Tl - Result[p].StartPos;
+              Result[p].TextSize := Result[p].Size;
+            end;
             exit;
           end;
           /// Is this a substitution of some characters somewhere in the middle
           if (lNextSameText.TypeOfDifference = dtNone) and
             (lNextSameCompareTo.TypeOfDifference = dtNone) then
           begin
-            if (lNextSameCompareTo.Size = lNextSameText.Size) and
-              (lNextSameCompareTo.StartPos = lNextSameText.StartPos) then
+            if (lNextSameCompareTo.StartPos = lNextSameText.StartPos) then
             begin
               Result[p].Size := lNextSameCompareTo.StartPos - 1;
               Cp := Cp + lNextSameText.StartPos + lNextSameText.Size - 1;
@@ -989,7 +1000,7 @@ begin
                   lNextSameCompareTo.Size - 1;
                 Tp := Tp + lNextSameText.StartPos + lNextSameText.Size - 1;
                 Result[p].TypeOfDifference := dtCompareHasOmission;
-                //bring substituion back into here....
+                // bring substituion back into here....
               end
               else
               begin
@@ -1031,7 +1042,7 @@ begin
 
         end;
     end;
-    DoNext:= (Cl>=Cp) or (Tl>=Tp);
+    DoNext := (Cl >= Cp) or (Tl >= Tp);
   until not DoNext;
 
 end;
