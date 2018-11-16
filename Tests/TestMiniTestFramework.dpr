@@ -40,7 +40,7 @@ begin
     AddTestCase('Check Find Substitutions',
       Test_Find_Differences_Substituted_works_as_expected);
     AddTestCase('Check Find Omissions',
-      Test_Find_Differences_Omitted_Acutal_works_as_expected, skipcase);
+      Test_Find_Differences_Omitted_Acutal_works_as_expected);
     AddTestCase('Check Find Additions',
       Test_Find_Differences_Additions_Acutal_works_as_expected, skipcase);
     AddTestCase('Multiple Differences Located',

@@ -269,21 +269,36 @@ begin
   checkisEqual(1,lDifferences[0].size);
   checkisEqual(1,lDifferences[0].TextSize);
   checkisEqual(1,lDifferences[0].CompareToSize);
+  (**)
+  lDifferences := FindDifferences('ABC','ABDEFGH');
+  NewTest('ABC<->ABD, (Diff to end) Length of result should be 1');
+  checkIsEqual(1,length(lDifferences));
+  NewTest('ABC<->ABD, Should be dtSubstitution');
+  checkIsTrue(lDifferences[0].TypeOfDifference=dtSubstitution);
+  NewTest('ABC<->ABD, Should have Start=3');
+  checkIsEqual(3,lDifferences[0].TextStart);
+  NewTest('ABC<->ABD Check Sizes 5,1,5');
+  checkisEqual(5,lDifferences[0].size);
+  checkisEqual(1,lDifferences[0].TextSize);
+  checkisEqual(5,lDifferences[0].CompareToSize);
 
   (**)
   lDifferences := FindDifferences('ABCD','ABXD');
+  NewTest('ABCD<->ABXD, (Substitution) Length of result should be 1');
+  checkIsEqual(1,length(lDifferences));
   NewTest('ABCD<->ABXD, Should be dtSubstitution');
   checkIsTrue(lDifferences[0].TypeOfDifference=dtSubstitution);
   NewTest('ABCD<->ABXD, Should have Start=3');
   checkIsEqual(3,lDifferences[0].TextStart);
-  NewTest('ABCD<->ABXD, Should have Size=1');
-  checkIsEqual(1,lDifferences[0].size);
   NewTest('ABCD<->ABXD Check Sizes 1,1,1');
   checkisEqual(1,lDifferences[0].size);
   checkisEqual(1,lDifferences[0].TextSize);
   checkisEqual(1,lDifferences[0].CompareToSize);
+
   (**)
   lDifferences := FindDifferences('ABCDEF','ABXDEF');
+  NewTest('ABCDEF<->ABXDEF, (Substitution) Length of result should be 1');
+  checkIsEqual(1,length(lDifferences));
   NewTest('ABCDEF<->ABXDEF, Should be dtSubstitution');
   checkIsTrue(lDifferences[0].TypeOfDifference=dtSubstitution);
   NewTest('ABCDEF<->ABXDEF, Should have Start=3');
@@ -319,6 +334,11 @@ begin
   checkIsTrue(lDifferences[0].TypeOfDifference=dtCompareTooShort);
   NewTest('ABC<->AB, Should have Start=3');
   checkIsEqual(3,lDifferences[0].TextStart);
+  checkIsEqual(3,lDifferences[0].CompareStart);
+  NewTest('ABC<->AB, Should have Sizes=1,0,1');
+  checkisEqual(1,lDifferences[0].size);
+  checkisEqual(0,lDifferences[0].TextSize);
+  checkisEqual(1,lDifferences[0].CompareToSize);
   (**)
   lDifferences := FindDifferences('ABC','BC');
   NewTest('ABC<->BC, Length of result should be 1');
@@ -327,32 +347,49 @@ begin
   checkIsTrue(lDifferences[0].TypeOfDifference=dtCompareHasOmission);
   NewTest('ABC<->BC, Should have Start=1');
   checkIsEqual(1,lDifferences[0].TextStart);
-  NewTest('ABCD<->ABD, Should have Size=1');
-  checkIsEqual(1,lDifferences[0].Size);
+  checkIsEqual(1,lDifferences[0].CompareStart);
+  NewTest('ABCD<->BC, Should have Sizes=1,0,1');
+  checkisEqual(1,lDifferences[0].size);
+  checkisEqual(1,lDifferences[0].TextSize);
+  checkisEqual(0,lDifferences[0].CompareToSize);
   (**)
   lDifferences := FindDifferences('ABCD','ABD');
-  NewTest('ABCD<->ABD, Should be dtActualHasOmission');
+  NewTest('ABCD<->ABD, Should be dtCompareHasOmission');
   checkIsTrue(lDifferences[0].TypeOfDifference=dtCompareHasOmission);
+  NewTest('ABCD<->ABD, Length of result should be 1');
+  checkIsEqual(1,length(lDifferences));
   NewTest('ABCD<->ABD, Should have Start=3');
   checkIsEqual(3,lDifferences[0].TextStart);
-  NewTest('ABCD<->ABD, Should have Size=1');
-  checkIsEqual(1,lDifferences[0].Size);
+  NewTest('ABCD<->ABD, Should have Size=1,1,0');
+  checkisEqual(1,lDifferences[0].size);
+  checkisEqual(1,lDifferences[0].TextSize);
+  checkisEqual(0,lDifferences[0].CompareToSize);
   (**)
   lDifferences := FindDifferences('ABCDEF','ABDEF');
+  NewTest('ABCDEF<->ABDEF, Length of result should be 1');
+  checkIsEqual(1,length(lDifferences));
   NewTest('ABCDEF<->ABDEF, Should be dtCompareHasOmission');
   checkIsTrue(lDifferences[0].TypeOfDifference=dtCompareHasOmission);
   NewTest('ABCDEF<->ABDEF, Should have Start=3');
   checkIsEqual(3,lDifferences[0].TextStart);
-  NewTest('ABCDEF<->ABDEF, Should have Size=1');
-  checkIsEqual(1,lDifferences[0].Size);
+  checkIsEqual(3,lDifferences[0].CompareStart);
+  NewTest('ABCDEF<->ABDEF, Should have Size=1,1,0');
+  checkisEqual(1,lDifferences[0].size);
+  checkisEqual(1,lDifferences[0].TextSize);
+  checkisEqual(0,lDifferences[0].CompareToSize);
   (**)
   lDifferences := FindDifferences('ABCDEF','ADEF');
+  checkIsEqual(1,length(lDifferences));
+  NewTest('ABCDEF<->ABDEF, Should be dtCompareHasOmission');
   NewTest('ABCDEF<->ABDEF, Should be dtCompareHasOmission');
   checkIsTrue(lDifferences[0].TypeOfDifference=dtCompareHasOmission);
   NewTest('ABCDEF<->ADEF, Should have Start=2');
   checkIsEqual(2,lDifferences[0].TextStart);
-  NewTest('ABCDEF<->ADEF, Should have Size=2');
-  checkIsEqual(2,lDifferences[0].Size);
+  checkIsEqual(2,lDifferences[0].CompareStart);
+  NewTest('ABCDEF<->ADEF, Should have Size=2,2,0');
+  checkisEqual(2,lDifferences[0].size);
+  checkisEqual(2,lDifferences[0].TextSize);
+  checkisEqual(0,lDifferences[0].CompareToSize);
   (**)
 
 end;

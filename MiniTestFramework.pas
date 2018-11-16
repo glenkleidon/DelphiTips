@@ -776,8 +776,8 @@ end;
 function FindDifferences(AText, ACompareTo: string): TDifferences;
 
 const
-  DIFF_MATRIX: array [1 .. 6, 1 .. 3] of Integer = ((1, 1, 4), (3, 1, 2),
-    (2, 1, 3), (1, 2, 6), (2, 1, 5), (3, 1, 5));
+  DIFF_MATRIX: array [1 .. 6, 1 .. 3] of Integer = ((1, 1, 1), (3, 1, 2),
+    (2, 1, 3), (1, 2, 6), (2, 1, 5), (3, 1, 1));
 
 var
   Cp, Tp, p, lStartPos, Tl, Cl: Integer;
@@ -907,7 +907,7 @@ var
   Function FindNextSame(AFirstText, ASecondText: String): TDifference;
   var
     jj, ii: Integer;
-    Fl, Sl, FPos, lMatchLength, lBestMatch: Integer;
+    Fl, Sl, FPos, lMatchLength, lBestMatch,srchLen: Integer;
     lDiffType: TDifferenceType;
 
     Procedure SetBest;
@@ -926,15 +926,18 @@ var
     Sl := length(ASecondText);
     if Sl = 0 then
       exit;
+    srchLen := Fl;
+    if Sl>SrchLen then SrchLen := Sl;
+
     FPos := 0;
     lBestMatch := 0;
     repeat
       inc(FPos);
       lMatchLength := 0;
       lDiffType := dtDifferent;
-      for jj := 1 to Sl do
+      for jj := 1 to SrchLen do
       begin
-        if jj > Fl then
+        if jj > sl then
           break;
         // First string is shorter than the second
         if ASecondText[jj] = AFirstText[FPos + lMatchLength] then
@@ -995,9 +998,10 @@ begin
       p := length(Result);
       SetLength(Result, p + 1);
       SetLength(Result, 1);
-      Result[p].TextStart := Tp;
       Result[p].TypeOfDifference := dtDifferent;
     end;
+    Result[p].TextStart := Tp;
+    Result[p].CompareStart := Cp;
     // What kind of difference?
     case Result[p].TypeOfDifference of
       dtNone:
@@ -1007,8 +1011,6 @@ begin
           Result[p].TextSize := 0;
           Result[p].CompareToSize := (Cl - Cp) - (Tl - Tp);
           Result[p].Size := Result[p].CompareToSize;
-          Result[p].CompareStart := Tl + 1;
-          Result[p].TextStart := Tl + 1;
           exit;
         end;
       dtCompareTooShort:
@@ -1016,28 +1018,25 @@ begin
           Result[p].TextSize := 0;
           Result[p].CompareToSize := (Tl - Tp) - (Cl - Cp);
           Result[p].Size := Result[p].CompareToSize;
-          Result[p].CompareStart := Tl + 1;
-          Result[p].TextStart := Tl + 1;
           exit;
         end;
       dtDifferent:
         begin
-          // Find the end of the Difference.
+          // Find the Size of the Difference.
           RestOfText := copy(AText, Tp, MAXINT);
           RestOfCompareTo := copy(ACompareTo, Cp, MAXINT);
 
           lNextSameText := FindNextSame(RestOfText, RestOfCompareTo);
           lNextSameCompareTo := FindNextSame(RestOfCompareTo, RestOfText);
 
-          Result[p].TextSize := lNextSameText.Size;
-          Result[p].CompareToSize := lNextSameCompareTo.Size;
-          Result[p].CompareStart := Cp + lNextSameCompareTo.TextStart;
-          Result[p].TextStart := Tp + lNextSameText.TextStart;
+          Result[p].TextSize := lNextSameText.TextStart-1;
+          Result[p].CompareToSize := lNextSameCompareTo.TextStart-1;
 
           case DiffType(lNextSameText, lNextSameCompareTo) of
             1: // Substitution
               begin
                 Result[p].Size := Result[p].TextSize;
+                Result[p].TypeOfDifference := dtSubstitution;
               end;
             2: // Substitution with Addition
               begin
@@ -1048,10 +1047,12 @@ begin
               end;
             4: // Different to end
               begin
-                if Result[p].TextSize>Result[p].CompareToSize then
-                  Result[p].Size := Tl-Tp
-                else
-                  Result[p].Size := Cl-Cp;
+                Result[p].TextSize := Tl+1-Tp;
+                Result[p].CompareToSize := Cl+1-Cp;
+                Result[p].Size := Result[p].TextSize;
+                if Result[p].TextSize<Result[p].CompareToSize then
+                  Result[p].Size := Result[p].CompareToSize;
+                Result[p].TypeOfDifference := dtSubstitution;
               end;
             5: // Addition to end
               begin
@@ -1062,10 +1063,9 @@ begin
               end;
             6: // Omission
               begin
-                if Result[p].TextSize>Result[p].CompareToSize then
-                  Result[p].Size := Result[p].TextSize
-                else
-                  Result[p].Size := Result[p].CompareToSize;
+                Result[p].Size := Result[p].TextSize;
+                Result[p].TypeOfDifference := dtCompareHasOmission;
+
               end;
           else
             begin
@@ -1076,12 +1076,11 @@ begin
                   Result[p].Size := Result[p].CompareToSize;
             end;
           end;
-          Tp := Result[p].TextStart + Result[p].TextSize;
-          Cp := Result[p].CompareStart + Result[p].CompareToSize;
-
+          Tp := Tp + Result[p].TextSize+1;
+          Cp := Cp + Result[p].CompareToSize+1;
         end;
     end;
-    DoNext := (Cl >= Cp) or (Tl >= Tp);
+    DoNext := (Cl >= Cp) and (Tl >= Tp);
   until not DoNext;
 
 end;
