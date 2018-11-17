@@ -777,7 +777,7 @@ function FindDifferences(AText, ACompareTo: string): TDifferences;
 
 const
   DIFF_MATRIX: array [1 .. 6, 1 .. 3] of Integer = ((1, 1, 1), (3, 1, 2),
-    (2, 1, 3), (1, 2, 6), (2, 1, 5), (3, 1, 1));
+    (2, 1, 3), (1, 2, 6), (2, 1, 1), (3, 1, 1));
 
 var
   Cp, Tp, p, lStartPos, Tl, Cl: Integer;
@@ -1054,8 +1054,9 @@ begin
                   Result[p].Size := Result[p].CompareToSize;
                 Result[p].TypeOfDifference := dtSubstitution;
               end;
-            5: // Addition to end
+            5: // Addition
               begin
+                Result[p].TypeOfDifference := dtCompareHasAddition;
                 if Result[p].TextSize>Result[p].CompareToSize then
                   Result[p].Size := Result[p].TextSize
                 else

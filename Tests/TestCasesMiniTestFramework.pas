@@ -405,14 +405,22 @@ begin
   checkIsTrue(lDifferences[0].TypeOfDifference=dtCompareTooLong);
   NewTest('ABC<->ABCD, Should have Start=4');
   checkIsEqual(4,lDifferences[0].TextStart);
+  checkIsEqual(4,lDifferences[0].CompareStart);
+  NewTest('ABC<->ABCD, Should have Size=1,0,1');
+  checkIsEqual(1,lDifferences[0].Size);
+  checkIsEqual(0,lDifferences[0].TextSize);
+  checkIsEqual(1,lDifferences[0].CompareToSize);
   (**)
   lDifferences := FindDifferences('ABCDEF','ABCDEFGH');
-  NewTest('ABCDEF<->ABCDEFG, Should be dtCompareTooLong');
+  NewTest('ABCDEF<->ABCDEFGH, Should be dtCompareTooLong');
   checkIsTrue(lDifferences[0].TypeOfDifference=dtCompareTooLong);
-  NewTest('ABCDEF<->ABCDEFG, Should have Start=7');
+  NewTest('ABCDEF<->ABCDEFGH, Should have Start=7');
   checkIsEqual(7,lDifferences[0].TextStart);
-  NewTest('ABCDEF<->ABCDEFG, Should have Size=1');
+  checkIsEqual(7,lDifferences[0].CompareStart);
+  NewTest('ABCDEF<->ABCDEFGH, Should have Size=1,0,1');
   checkIsEqual(2,lDifferences[0].Size);
+  checkIsEqual(0,lDifferences[0].TextSize);
+  checkIsEqual(2,lDifferences[0].CompareToSize);
   (**)
   lDifferences := FindDifferences('ABC','ZABC');
   NewTest('ABC<->ZABC, Length of result should be 1');
@@ -421,16 +429,20 @@ begin
   checkIsTrue(lDifferences[0].TypeOfDifference=dtCompareHasAddition);
   NewTest('ABC<->ZABC, Should have Start=1');
   checkIsEqual(1,lDifferences[0].TextStart);
-  NewTest('ABCD<->ZABD, Should have Size=1');
+  NewTest('ABCD<->ZABD, Should have Size=1,0,1');
   checkIsEqual(1,lDifferences[0].Size);
+  checkIsEqual(0,lDifferences[0].TextSize);
+  checkIsEqual(1,lDifferences[0].CompareToSize);
   (**)
   lDifferences := FindDifferences('ABCDEF','ABCXXDEF');
   NewTest('ABCDEF<->ABCXXDEF, Should be dtCompareHasAddition');
   checkIsTrue(lDifferences[0].TypeOfDifference=dtCompareHasAddition);
   NewTest('ABCDEF<->ABCXXDEF, Should have Start=4');
   checkIsEqual(4,lDifferences[0].TextStart);
-  NewTest('ABCDEF<->ABCXXDEF, Should have Size=1');
+  NewTest('ABCDEF<->ABCXXDEF, Should have Size=2,0,2');
   checkIsEqual(2,lDifferences[0].Size);
+  checkIsEqual(0,lDifferences[0].TextSize);
+  checkIsEqual(2,lDifferences[0].CompareToSize);
   (**)
 
 end;
