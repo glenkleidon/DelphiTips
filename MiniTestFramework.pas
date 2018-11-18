@@ -794,6 +794,7 @@ const
 
 var
   Cp, Tp, p, lStartPos, Tl, Cl: Integer;
+  lLastTp : Integer; // Used in framework error detection
   DoNext: boolean;
   lNextSameCompareTo, lNextSameText: TDifference;
   lText, lCompareTo, RestOfCompareTo, RestOfText: string;
@@ -1003,6 +1004,7 @@ begin
   if (Tl = 0) and (Cl = 0) then
     exit;
   SetLength(Result, 1);
+  lLastTp := -1;
 
   // Find the First Difference
   Result[p] := FindNextDifference(AText, ACompareTo);
@@ -1014,6 +1016,14 @@ begin
   // ok find where the differences end.
   DoNext := false;
   repeat
+    // extra check to detect error in framework and prevent an infinite loop
+    // situation
+    if Tp=lLastTp then
+    begin
+       Println('Framework error: Unhandled difference Scenario detected');
+       break;
+    end;
+    lLastTp := Tp;
     // What kind of difference?
     case Result[p].TypeOfDifference of
       dtNone:
@@ -1083,6 +1093,7 @@ begin
           else
             begin
               /// HMMM seems to be something wrong here.
+              Println('Framework ERROR: Undetected Comparison type detected!!', clError);
               if Result[p].TextSize > Result[p].CompareToSize then
                 Result[p].Size := Result[p].TextSize
               else
@@ -1124,7 +1135,7 @@ var
 
   Function SplitText(AText: String; ASize: Integer): string;
   var
-    lt, pp,qq, ls: Integer;
+    lt, pp, qq, ls: Integer;
     lLine: string;
   begin
     Result := '';
@@ -1136,12 +1147,13 @@ var
         Result := Result + #13#10;
       lLine := copy(AText, pp, ASize);
       ls := length(lLine);
-      qq := pos(#13,lLine);
-      if qq>0 then
+      qq := pos(#13, lLine);
+      if qq > 0 then
       begin
-        lLine := copy(lLine,1,qq-1);
+        lLine := copy(lLine, 1, qq - 1);
         ls := qq;
-        if lLine[qq+1]=#10 then ls := ls+1;
+        if AText[qq + 1] = #10 then
+          ls := ls + 1;
       end;
       Result := Result + lLine;
       pp := pp + ls;
@@ -1153,9 +1165,9 @@ var
   var
     lText: TStringlist;
     lCharsRemainingInColumn: Integer;
-    pp,ii, LineLength: Integer;
+    pp, ii, LineLength: Integer;
     LineNum, LineMax: Integer;
-    lFirstLine : string;
+    lFirstLine: string;
   begin
     lText := TStringlist.create;
     try
@@ -1166,11 +1178,13 @@ var
         lCharsRemainingInColumn := lColumnWidth - (APos Mod lColumnWidth);
 
       // First line
-      pp := pos(#13,AText);
-      if (pp>0) and (pp<lCharsRemainingInColumn) then lCharsRemainingInColumn := pp;
+      pp := pos(#13, AText);
+      if (pp > 0) and (pp < lCharsRemainingInColumn) then
+        lCharsRemainingInColumn := pp;
       lFirstLine := copy(AText, 1, lCharsRemainingInColumn);
-      lText.text := SplitText(copy(AText,lCharsRemainingInColumn,MAXINT), lColumnWidth);
-      lText.Insert(0,lFirstLine);
+      lText.Text := SplitText(copy(AText, lCharsRemainingInColumn, MAXINT),
+        lColumnWidth);
+      lText.Insert(0, lFirstLine);
       LineMax := lText.Count - 1;
 
       // Now Add each new line to the column
@@ -1183,7 +1197,8 @@ var
         AColumn[LineNum].Colour := AColour;
         AColumn[LineNum].EOL := ii < LineMax;
         if AColumn[LineNum].EOL then
-          AColumn[LineNum].Text := AddTrailingSpace(lText[ii], lCharsRemainingInColumn)
+          AColumn[LineNum].Text := AddTrailingSpace(lText[ii],
+            lCharsRemainingInColumn)
         else
           AColumn[LineNum].Text := lText[ii];
         APos := APos + length(AColumn[LineNum].Text);
@@ -1289,13 +1304,20 @@ begin
   end
   else
   begin
-    lFormatStr := Format('%%.%us|%%.%us', [lColumnWidth, lColumnWidth]);
-    PrintLn(Format(lFormatStr, [AddTrailingSpace(EXPECTED_FORMAT_MESSAGE,
+    PrintLn(Format('   %s|%s', [AddTrailingSpace(EXPECTED_FORMAT_MESSAGE,
       lColumnWidth), AddTrailingSpace(ACTUAL_FORMAT_MESSAGE, lColumnWidth)]
       ), clError);
   end;
   while (lLeftPos < lLeftFields - 1) or (lRightPos < lRightFields - 1) do
   begin
+    // Space at the beginning.
+    if not lSingleRow then
+    begin
+      if (lLeftPos = 1) then
+        Print('  ', clError)
+      else
+        Print('  |', clError);
+    end;
     // output left Text
     if (lLeftPos < lLeftFields) then
     begin
@@ -1315,6 +1337,10 @@ begin
     end
     else
     begin
+      // The last line needs some extra space.
+      if (lLeftPos = lLeftFields - 1) then
+        Print(stringofchar(' ', lColumnWidth - length(lLeftColumn[lLeftPos]
+          .Text)), clError);
       Print('|', clError);
     end;
 
@@ -1327,7 +1353,10 @@ begin
     end
     else
       Print(stringofchar(' ', lColumnWidth), clDifferent);
-    PrintLn('', clError);
+    if lSingleRow then
+      PrintLn('', clError)
+    else
+      PrintLn('|', clError);
   end;
 end;
 

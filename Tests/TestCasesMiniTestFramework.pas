@@ -480,7 +480,7 @@ end;
 
 Procedure Test_Difference_compare_easier_to_read;
 begin
-  (** )
+  (**)
   NewTest('Compare Short String');
   CheckIsEqual('ABC', 'DEF');
 
