@@ -1117,20 +1117,80 @@ var
     lColumnWidth, lLeftFields, lRightFields, lDifferenceMax, lLeftPos,
     lRightPos: Integer;
 
-  Procedure AddTextToColumn(Var AColumn: TConsoleTextArray; AText: string;
-    AColour: Integer);
-  var
-    pp: Integer;
-  begin
-    pp := length(AColumn);
-    SetLength(AColumn, pp + 1);
-    AColumn[pp].Text := AText;
-    AColumn[pp].Colour := AColour;
-  end;
-
   Function AddTrailingSpace(AText: String; ASize: Integer): string;
   begin
     Result := AText + stringofchar(' ', ASize - length(AText));
+  end;
+
+  Function SplitText(AText: String; ASize: Integer): string;
+  var
+    lt, pp,qq, ls: Integer;
+    lLine: string;
+  begin
+    Result := '';
+    pp := 1;
+    lt := length(AText);
+    while (pp <= lt) do
+    begin
+      if pp <> 1 then
+        Result := Result + #13#10;
+      lLine := copy(AText, pp, ASize);
+      ls := length(lLine);
+      qq := pos(#13,lLine);
+      if qq>0 then
+      begin
+        lLine := copy(lLine,1,qq-1);
+        ls := qq;
+        if lLine[qq+1]=#10 then ls := ls+1;
+      end;
+      Result := Result + lLine;
+      pp := pp + ls;
+    end;
+  end;
+
+  Procedure AddTextToColumn(Var AColumn: TConsoleTextArray; AText: string;
+    AColour: Integer; var APos: Integer);
+  var
+    lText: TStringlist;
+    lCharsRemainingInColumn: Integer;
+    pp,ii, LineLength: Integer;
+    LineNum, LineMax: Integer;
+    lFirstLine : string;
+  begin
+    lText := TStringlist.create;
+    try
+      // we need to split the text up into rows that will fit into the column
+      if APos = 0 then
+        lCharsRemainingInColumn := lColumnWidth
+      else
+        lCharsRemainingInColumn := lColumnWidth - (APos Mod lColumnWidth);
+
+      // First line
+      pp := pos(#13,AText);
+      if (pp>0) and (pp<lCharsRemainingInColumn) then lCharsRemainingInColumn := pp;
+      lFirstLine := copy(AText, 1, lCharsRemainingInColumn);
+      lText.text := SplitText(copy(AText,lCharsRemainingInColumn,MAXINT), lColumnWidth);
+      lText.Insert(0,lFirstLine);
+      LineMax := lText.Count - 1;
+
+      // Now Add each new line to the column
+      for ii := 0 to LineMax do
+      begin
+        LineNum := length(AColumn);
+        LineLength := length(lText[ii]);
+        lCharsRemainingInColumn := lColumnWidth - (APos Mod lColumnWidth);
+        SetLength(AColumn, LineNum + 1);
+        AColumn[LineNum].Colour := AColour;
+        AColumn[LineNum].EOL := ii < LineMax;
+        if AColumn[LineNum].EOL then
+          AColumn[LineNum].Text := AddTrailingSpace(lText[ii], lCharsRemainingInColumn)
+        else
+          AColumn[LineNum].Text := lText[ii];
+        APos := APos + length(AColumn[LineNum].Text);
+      end;
+    finally
+      freeandnil(lText);
+    end;
   end;
 
 begin
@@ -1194,21 +1254,24 @@ begin
   begin
     // Left Column Text
     AddTextToColumn(lLeftColumn, copy(lExpected, lExpectedPos,
-      lDifferences[i].TextStart - lExpectedPos), clError);
+      lDifferences[i].TextStart - lExpectedPos), clError, lLeftPos);
     AddTextToColumn(lLeftColumn, AddTrailingSpace(copy(lExpected,
       lDifferences[i].TextStart, lDifferences[i].TextSize),
-      lDifferences[i].Size), clDifferent);
+      lDifferences[i].Size), clDifferent, lLeftPos);
     lExpectedPos := lDifferences[i].TextStart + lDifferences[i].TextSize;
     // Right Column text
     AddTextToColumn(lRightColumn, copy(lActual, lActualPos,
-      lDifferences[i].CompareStart - lActualPos), clError);
+      lDifferences[i].CompareStart - lActualPos), clError, lRightPos);
     AddTextToColumn(lRightColumn,
       AddTrailingSpace(copy(lActual, lDifferences[i].CompareStart,
-      lDifferences[i].CompareToSize), lDifferences[i].Size), clDifferent);
+      lDifferences[i].CompareToSize), lDifferences[i].Size), clDifferent,
+      lRightPos);
     lActualPos := lDifferences[i].CompareStart + lDifferences[i].CompareToSize;
   end;
-  AddTextToColumn(lLeftColumn, copy(lExpected, lExpectedPos, MAXINT), clError);
-  AddTextToColumn(lRightColumn, copy(lActual, lActualPos, MAXINT), clError);
+  AddTextToColumn(lLeftColumn, copy(lExpected, lExpectedPos, MAXINT), clError,
+    lLeftPos);
+  AddTextToColumn(lRightColumn, copy(lActual, lActualPos, MAXINT), clError,
+    lRightPos);
 
   // Now output the columns
   lLeftPos := -1;
@@ -1227,115 +1290,173 @@ begin
   else
   begin
     lFormatStr := Format('%%.%us|%%.%us', [lColumnWidth, lColumnWidth]);
-    Print(Format(lFormatStr, [AddTrailingSpace(EXPECTED_FORMAT_MESSAGE,
-      lColumnWidth), AddTrailingSpace(ACTUAL_FORMAT_MESSAGE, lColumnWidth)]),
-      clError); end; while (lLeftPos < lLeftFields - 1) or (lRightPos <
-      lRightFields - 1) do begin
+    PrintLn(Format(lFormatStr, [AddTrailingSpace(EXPECTED_FORMAT_MESSAGE,
+      lColumnWidth), AddTrailingSpace(ACTUAL_FORMAT_MESSAGE, lColumnWidth)]
+      ), clError);
+  end;
+  while (lLeftPos < lLeftFields - 1) or (lRightPos < lRightFields - 1) do
+  begin
     // output left Text
-    if (lLeftPos < lLeftFields) then begin repeat inc(lLeftPos);
-    Print(lLeftColumn[lLeftPos].Text, lLeftColumn[lLeftPos].Colour)
+    if (lLeftPos < lLeftFields) then
+    begin
+      repeat
+        inc(lLeftPos);
+        Print(lLeftColumn[lLeftPos].Text, lLeftColumn[lLeftPos].Colour)
       until lLeftColumn[lLeftPos].EOL;
-    end else Print(stringofchar(' ', lColumnWidth), clDifferent);
+    end
+    else
+      Print(stringofchar(' ', lColumnWidth), clDifferent);
 
     // Column Separator;
-    if lSingleRow then begin PrintLn('', clError);
-    Print(ACTUAL_FORMAT_MESSAGE, clError); end else begin Print('|',
-      clError); end;
-
-    if (lRightPos < lRightFields) then begin repeat inc(lRightPos);
-    Print(lRightColumn[lRightPos].Text, lRightColumn[lRightPos].Colour)
-      until lRightColumn[lRightPos].EOL;
-    end else Print(stringofchar(' ', lColumnWidth), clDifferent); end;
-    PrintLn('', clError);
-
+    if lSingleRow then
+    begin
+      PrintLn('', clError);
+      Print(ACTUAL_FORMAT_MESSAGE, clError);
+    end
+    else
+    begin
+      Print('|', clError);
     end;
 
-    function TestTypeFromSkip(ASkipped: TSkipType): TCheckTestType;
-    begin if (Not IgnoreSkip) and ((ASkipped = skipTrue) or SkippingSet)
-    then Result := cttSkip else Result := cttComparison; end;
+    if (lRightPos < lRightFields) then
+    begin
+      repeat
+        inc(lRightPos);
+        Print(lRightColumn[lRightPos].Text, lRightColumn[lRightPos].Colour)
+      until lRightColumn[lRightPos].EOL;
+    end
+    else
+      Print(stringofchar(' ', lColumnWidth), clDifferent);
+    PrintLn('', clError);
+  end;
+end;
 
-    Function DontSkip: TSkipType; begin IgnoreSkip := true;
-    Result := skipFalse; end;
+function TestTypeFromSkip(ASkipped: TSkipType): TCheckTestType;
+begin
+  if (Not IgnoreSkip) and ((ASkipped = skipTrue) or SkippingSet) then
+    Result := cttSkip
+  else
+    Result := cttComparison;
+end;
 
-    Function CheckIsEqual(AExpected, AResult: TComparitorType;
-    AMessage:
-      string = '';
-    ASkipped:
-      TSkipType = skipFalse): boolean; begin Result := false;
-    try Result := Check(true, AExpected, AResult, AMessage,
+Function DontSkip: TSkipType;
+begin
+  IgnoreSkip := true;
+  Result := skipFalse;
+end;
+
+Function CheckIsEqual(AExpected, AResult: TComparitorType;
+  AMessage: string = ''; ASkipped: TSkipType = skipFalse): boolean;
+begin
+  Result := false;
+  try
+    Result := Check(true, AExpected, AResult, AMessage,
       TestTypeFromSkip(ASkipped));
-    except on e: Exception do CheckException(e); end; end;
+  except
+    on e: Exception do
+      CheckException(e);
+  end;
+end;
 
-    Function CheckNotEqual(AResult1, AResult2: TComparitorType;
-    AMessage:
-      string;
-    ASkipped:
-      TSkipType): boolean; Begin Result := false;
-    try Result := Check(false, AResult1, AResult2, AMessage,
+Function CheckNotEqual(AResult1, AResult2: TComparitorType; AMessage: string;
+  ASkipped: TSkipType): boolean;
+Begin
+  Result := false;
+  try
+    Result := Check(false, AResult1, AResult2, AMessage,
       TestTypeFromSkip(ASkipped));
-    except on e: Exception do CheckException(e); end; end;
+  except
+    on e: Exception do
+      CheckException(e);
+  end;
+end;
 
-    Function CheckIsTrue(AResult: boolean;
-    AMessage:
-      string;
-    ASkipped:
-      TSkipType): boolean; begin Result := CheckIsEqual(true, AResult, AMessage,
-      ASkipped); end;
+Function CheckIsTrue(AResult: boolean; AMessage: string;
+  ASkipped: TSkipType): boolean;
+begin
+  Result := CheckIsEqual(true, AResult, AMessage, ASkipped);
+end;
 
-    Function CheckIsFalse(AResult: boolean;
-    AMessage:
-      string;
-    ASkipped:
-      TSkipType): boolean; begin Result := CheckIsEqual(false, AResult,
-      AMessage, ASkipped); end;
+Function CheckIsFalse(AResult: boolean; AMessage: string;
+  ASkipped: TSkipType): boolean;
+begin
+  Result := CheckIsEqual(false, AResult, AMessage, ASkipped);
+end;
 
-    Procedure CheckException(AException: Exception); var lExpected: string;
-    lExceptionClassName: string; lExceptionMessage: string;
-    begin lExpected := ExpectedException;
-    if (AException = nil) then begin lExceptionClassName :=
-      NIL_EXCEPTION_CLASSNAME; lExceptionMessage := NO_EXCEPTION_EXPECTED;
-    end else begin lExceptionClassName := AException.ClassName;
-    lExceptionMessage := AException.Message; end;
+Procedure CheckException(AException: Exception);
+var
+  lExpected: string;
+  lExceptionClassName: string;
+  lExceptionMessage: string;
+begin
+  lExpected := ExpectedException;
+  if (AException = nil) then
+  begin
+    lExceptionClassName := NIL_EXCEPTION_CLASSNAME;
+    lExceptionMessage := NO_EXCEPTION_EXPECTED;
+  end
+  else
+  begin
+    lExceptionClassName := AException.ClassName;
+    lExceptionMessage := AException.Message;
+  end;
 
-    if lExpected = '' then lExpected := NO_EXCEPTION_EXPECTED;
-    Check((lExceptionClassName = lExpected) or
-      (pos(lExpected, lExceptionMessage) > 0), lExpected,
-      lExceptionClassName + ':' + lExceptionMessage, '', cttException); end;
+  if lExpected = '' then
+    lExpected := NO_EXCEPTION_EXPECTED;
+  Check((lExceptionClassName = lExpected) or (pos(lExpected, lExceptionMessage)
+    > 0), lExpected, lExceptionClassName + ':' + lExceptionMessage, '',
+    cttException);
+end;
 
-    Function NotImplemented(AMessage: string = ''): boolean;
-    var lMessage: string; begin if AMessage = '' then lMessage :=
-      'Not Implemented' else lMessage := AMessage;
-    Result := CheckIsTrue(true, lMessage, skipTrue); end;
+Function NotImplemented(AMessage: string = ''): boolean;
+var
+  lMessage: string;
+begin
+  if AMessage = '' then
+    lMessage := 'Not Implemented'
+  else
+    lMessage := AMessage;
+  Result := CheckIsTrue(true, lMessage, skipTrue);
+end;
 
-    Procedure NewSet(ASetName: string); begin CurrentSetName := ASetName;
-    CreatingSets := true; end;
+Procedure NewSet(ASetName: string);
+begin
+  CurrentSetName := ASetName;
+  CreatingSets := true;
+end;
 
-    Procedure NewCase(ATestCaseName: string);
-    begin NewTest('', ATestCaseName); end;
+Procedure NewCase(ATestCaseName: string);
+begin
+  NewTest('', ATestCaseName);
+end;
 
-    procedure NewTestCase(ACase: string;
-    ATestCaseName:
-      string); begin NewTest(ACase, ATestCaseName); end;
+procedure NewTestCase(ACase: string; ATestCaseName: string);
+begin
+  NewTest(ACase, ATestCaseName);
+end;
 
-    procedure NewTest(ACase: string;
-    ATestCaseName:
-      string); begin
+procedure NewTest(ACase: string; ATestCaseName: string);
+begin
 
-      if (ATestCaseName <> '') and ((ACase = '') OR
-      (CurrentTestCaseName <> ATestCaseName)) then NextTestCase(ATestCaseName);
+  if (ATestCaseName <> '') and
+    ((ACase = '') OR (CurrentTestCaseName <> ATestCaseName)) then
+    NextTestCase(ATestCaseName);
 
-    if (ACase <> '') then CurrentTestCaseLabel := ACase;
-    ExpectedException := ExpectedSetException; IgnoreSkip := false; end;
+  if (ACase <> '') then
+    CurrentTestCaseLabel := ACase;
+  ExpectedException := ExpectedSetException;
+  IgnoreSkip := false;
+end;
 
-    initialization
+initialization
 
 {$IFDEF CompilerVersion}
 {$IF CompilerVersion >= 20.0}
-      system.ReportMemoryLeaksOnShutdown := true;
+  system.ReportMemoryLeaksOnShutdown := true;
 {$IFEND}
 {$ENDIF}
-    TotalOutputFormat := DEFAULT_TOTALS_FORMAT;
-    SetOutputFormat := DEFAULT_SET_FORMAT;
-    CaseOutputFormat := DEFAULT_CASE_FORMAT;
+TotalOutputFormat := DEFAULT_TOTALS_FORMAT;
+SetOutputFormat := DEFAULT_SET_FORMAT;
+CaseOutputFormat := DEFAULT_CASE_FORMAT;
 
-    end.
+end.

@@ -480,14 +480,15 @@ end;
 
 Procedure Test_Difference_compare_easier_to_read;
 begin
+  (** )
   NewTest('Compare Short String');
   CheckIsEqual('ABC', 'DEF');
 
   NewTest('Compare Lines without breaks String');
   CheckIsEqual('The quick brown fox jumps over the lazy dog', 'The quick brown fix jumps over the lazy dog');
 
-  NewTest('Compare Lines without breaks String and multiple differenses');
-  CheckIsEqual('The quick brown fox jumps over the lazy dog', 'The quick brown fix jumps over the lzay dog');
+  NewTest('Compare Lines without breaks String and multiple differences');
+  CheckIsEqual('The quick brown fox jumps over the lazy dog', 'The quoKC brown fix jumps iver the lzay dog');
 
   NewTest('Compare Lines with omission ');
   CheckIsEqual('The quick brown fox jumps over the lazy dog', 'The brown fox jumps over the lazy dog');
@@ -495,19 +496,24 @@ begin
   NewTest('Compare Lines with Addition ');
   CheckIsEqual('The quick brown fox jumps over the lazy dog', 'The quick brown fox jumps jumps over the lazy dog');
 
-  (** )
+  NewTest('Compare Lines with omission at the front ');
+  CheckIsEqual('The quick brown fox jumps over the lazy dog', 'brown fox jumps over the lazy dog');
+
+  NewTest('Compare Lines with omission at the end ');
+  CheckIsEqual('The quick brown fox jumps over the lazy dog', 'The quick brown fox jumps over the');
 
   NewTest('Compare Lines with multiple differences String');
   CheckIsEqual('The quick brown fox jumps over the lazy dog', 'The quick brown fix jumps over the lasy dog');
+  (**)
 
   NewTest('Compare MultiLines Results');
   CheckIsEqual(
     'The quick brown fox jumps over the lazy dog and'#13#10+
     ' there are multiple lines to deal with'#13#10#13#10+
-    'But still works OK',
+    '<1 Empty Line Above> But still works OK',
     'The quick brown fix jumps over the lazy dog and'#13#10+
     ' there are multople lines to dwal with'#13#10#13#10+
-    'But still works alright'
+    '<1 Empty Line Above> But still works alright'
     );
   (**)
 
