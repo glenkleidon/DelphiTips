@@ -459,15 +459,21 @@ begin
   checkIsTrue(lDifferences[0].TypeOfDifference=dtCompareHasAddition);
   NewTest('ABC_ONE_TWO_Three<->ABCD_ONE_2_Three, [0]  Should have Start=4');
   checkIsEqual(4,lDifferences[0].TextStart);
-  NewTest('ABC_ONE_TWO_Three<->ABCD_ONE_2_Three, [0]  Should have Size=1');
+  checkIsEqual(4,lDifferences[0].CompareStart);
+  NewTest('ABC_ONE_TWO_Three<->ABCD_ONE_2_Three, [0]  Should have Size=1,3,1');
   checkIsEqual(1,lDifferences[0].Size);
+  checkIsEqual(0,lDifferences[0].TextSize);
+  checkIsEqual(1,lDifferences[0].CompareToSize);
 
-  NewTest('ABC_ONE_TWO_Three<->ABCD_ONE_2_Three, [1]  Should be dtCompareHasAddition');
-  checkIsTrue(lDifferences[1].TypeOfDifference=dtCompareHasAddition);
-  NewTest('ABC_ONE_TWO_Three<->ABCD_ONE_2_Three, [1]  Should have Start=9');
-  checkIsEqual(4,lDifferences[1].TextStart);
+  NewTest('ABC_ONE_TWO_Three<->ABCD_ONE_2_Three, [1]  Should be dtCompareHasOmission');
+  checkIsTrue(lDifferences[1].TypeOfDifference=dtCompareHasOmission);
+  NewTest('ABC_ONE_TWO_Three<->ABCD_ONE_2_Three, [1]  Should have Start=9,10');
+  checkIsEqual(9,lDifferences[1].TextStart);
+  checkIsEqual(10,lDifferences[1].CompareStart);
   NewTest('ABC_ONE_TWO_Three<->ABCD_ONE_2_Three, [1]  Should have Size=1');
-  checkIsEqual(1,lDifferences[1].Size);
+  checkIsEqual(3,lDifferences[1].Size);
+  checkIsEqual(3,lDifferences[1].TextSize);
+  checkIsEqual(1,lDifferences[1].CompareToSize);
   (**)
 
 end;
@@ -477,13 +483,22 @@ begin
   NewTest('Compare Short String');
   CheckIsEqual('ABC', 'DEF');
 
-
   NewTest('Compare Lines without breaks String');
   CheckIsEqual('The quick brown fox jumps over the lazy dog', 'The quick brown fix jumps over the lazy dog');
 
+  NewTest('Compare Lines without breaks String and multiple differenses');
+  CheckIsEqual('The quick brown fox jumps over the lazy dog', 'The quick brown fix jumps over the lzay dog');
+
+  NewTest('Compare Lines with omission ');
+  CheckIsEqual('The quick brown fox jumps over the lazy dog', 'The brown fox jumps over the lazy dog');
+
+  NewTest('Compare Lines with Addition ');
+  CheckIsEqual('The quick brown fox jumps over the lazy dog', 'The quick brown fox jumps jumps over the lazy dog');
+
+  (** )
+
   NewTest('Compare Lines with multiple differences String');
   CheckIsEqual('The quick brown fox jumps over the lazy dog', 'The quick brown fix jumps over the lasy dog');
-
 
   NewTest('Compare MultiLines Results');
   CheckIsEqual(
@@ -493,7 +508,9 @@ begin
     'The quick brown fix jumps over the lazy dog and'#13#10+
     ' there are multople lines to dwal with'#13#10#13#10+
     'But still works alright'
-    )
+    );
+  (**)
+
 end;
 
 

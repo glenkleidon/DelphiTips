@@ -37,6 +37,7 @@ begin
     (**)
     NewSet('Compare Result Display Improvements');
     PrepareSet(Nil);
+    (** )
     AddTestCase('Check Find Substitutions',
       Test_Find_Differences_Substituted_works_as_expected);
     AddTestCase('Check Find Omissions',
@@ -44,9 +45,10 @@ begin
     AddTestCase('Check Find Additions',
       Test_Find_Differences_Additions_Acutal_works_as_expected);
     AddTestCase('Multiple Differences Located',
-      Test_Find_multiple_Differences, skipcase);
+      Test_Find_multiple_Differences);
+    (**)
     AddTestCase('Compare Outputs results in easy to read format',
-      Test_Difference_compare_easier_to_read, SKIPCASE);
+      Test_Difference_compare_easier_to_read);
     FinaliseSet(Nil);
     RunTestSets;
     TestSummary;

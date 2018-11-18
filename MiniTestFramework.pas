@@ -34,6 +34,7 @@ Const
   FOREGROUND_CYAN = 3;
   FOREGROUND_YELLOW = 6;
   FOREGROUND_PURPLE = 5;
+  BACKGROUND_WHITE = BACKGROUND_BLUE OR BACKGROUND_GREEN OR BACKGROUND_RED;
 
   clTitle = FOREGROUND_YELLOW;
   clError = FOREGROUND_RED or FOREGROUND_INTENSITY;
@@ -41,6 +42,9 @@ Const
   clMessage = FOREGROUND_CYAN;
   clDefault = FOREGROUND_DEFAULT;
   clSkipped = FOREGROUND_PURPLE;
+  // Difference Colours
+  clDifferent = BACKGROUND_WHITE OR FOREGROUND_RED;
+  clTextDifferent = BACKGROUND_WHITE OR FOREGROUND_RED or FOREGROUND_INTENSITY;
 
 Type
   TComparitorType = Variant;
@@ -58,12 +62,21 @@ Type
     CompareStart: Integer;
     Size: Integer;
     TextSize: Integer;
+    PartialMatches: Integer;
     CompareToSize: Integer;
     LastWordDelimiterInText: Integer;
     LastWordDelimiterInCompareTo: Integer;
   end;
 
   TDifferences = Array of TDifference;
+
+  TConsoleText = Record
+    Text: string;
+    Colour: Integer;
+    EOL: boolean;
+  end;
+
+  TConsoleTextArray = Array of TConsoleText;
 
   TTestSet = Record
     SetName: string;
@@ -823,9 +836,8 @@ var
     Result := -1;
     for ii := 1 to 6 do
     begin
-      if (esr = DIFF_MATRIX[ii, 1]) and
-         (t = DIFF_MATRIX[ii, 2]) and
-         (dr = DIFF_MATRIX[ii, 3]) then
+      if (esr = DIFF_MATRIX[ii, 1]) and (t = DIFF_MATRIX[ii, 2]) and
+        (dr = DIFF_MATRIX[ii, 3]) then
       begin
         Result := ii;
         exit;
@@ -845,6 +857,7 @@ var
     ADifference.Size := 0;
     ADifference.TextSize := 0;
     ADifference.CompareToSize := 0;
+    ADifference.PartialMatches := 0;
     ADifference.LastWordDelimiterInText := 0;
     ADifference.LastWordDelimiterInCompareTo := 0;
   end;
@@ -906,8 +919,8 @@ var
 
   Function FindNextSame(AFirstText, ASecondText: String): TDifference;
   var
-    jj, ii: Integer;
-    Fl, Sl, FPos, lMatchLength, lBestMatch,srchLen: Integer;
+    jj, ii, BetterMatchCount: Integer;
+    Fl, Sl, FPos, lMatchLength, lBestMatch, srchLen: Integer;
     lDiffType: TDifferenceType;
 
     Procedure SetBest;
@@ -916,18 +929,21 @@ var
       Result.TextStart := FPos;
       Result.Size := lMatchLength;
       Result.TypeOfDifference := dtNone;
+      inc(Result.PartialMatches);
     end;
 
   begin
     ResetDifference(Result);
     Result.TypeOfDifference := dtDifferent;
     Result.Size := MAXINT;
+    BetterMatchCount := 0;
     Fl := length(AFirstText);
     Sl := length(ASecondText);
     if Sl = 0 then
       exit;
     srchLen := Fl;
-    if Sl>SrchLen then SrchLen := Sl;
+    if Sl > srchLen then
+      srchLen := Sl;
 
     FPos := 0;
     lBestMatch := 0;
@@ -935,9 +951,9 @@ var
       inc(FPos);
       lMatchLength := 0;
       lDiffType := dtDifferent;
-      for jj := 1 to SrchLen do
+      for jj := 1 to srchLen do
       begin
-        if jj > sl then
+        if jj > Sl then
           break;
         // First string is shorter than the second
         if ASecondText[jj] = AFirstText[FPos + lMatchLength] then
@@ -974,6 +990,9 @@ var
         SetBest;
       end;
     until FPos >= Fl;
+    if Result.PartialMatches > 0 then
+      Dec(Result.PartialMatches);
+
   end;
 
 begin
@@ -989,19 +1008,12 @@ begin
   Result[p] := FindNextDifference(AText, ACompareTo);
   Tp := Result[p].TextStart;
   Cp := Tp;
+  Result[p].TextStart := Tp;
+  Result[p].CompareStart := Cp;
 
   // ok find where the differences end.
   DoNext := false;
   repeat
-    if DoNext then
-    begin
-      p := length(Result);
-      SetLength(Result, p + 1);
-      SetLength(Result, 1);
-      Result[p].TypeOfDifference := dtDifferent;
-    end;
-    Result[p].TextStart := Tp;
-    Result[p].CompareStart := Cp;
     // What kind of difference?
     case Result[p].TypeOfDifference of
       dtNone:
@@ -1029,8 +1041,12 @@ begin
           lNextSameText := FindNextSame(RestOfText, RestOfCompareTo);
           lNextSameCompareTo := FindNextSame(RestOfCompareTo, RestOfText);
 
-          Result[p].TextSize := lNextSameText.TextStart-1;
-          Result[p].CompareToSize := lNextSameCompareTo.TextStart-1;
+          Result[p].TextSize := lNextSameText.TextStart - 1;
+          Result[p].CompareToSize := lNextSameCompareTo.TextStart - 1;
+          if Result[p].TextSize > Result[p].CompareToSize then
+            Result[p].Size := Result[p].TextSize
+          else
+            Result[p].Size := Result[p].CompareToSize;
 
           case DiffType(lNextSameText, lNextSameCompareTo) of
             1: // Substitution
@@ -1040,57 +1056,82 @@ begin
               end;
             2: // Substitution with Addition
               begin
+                Result[p].TypeOfDifference := dtSubstitution;
               end;
             3: // Substitution with ommission
               begin
-                  Result[p].Size := Result[p].CompareToSize;
+                Result[p].TypeOfDifference := dtSubstitution;
               end;
             4: // Different to end
               begin
-                Result[p].TextSize := Tl+1-Tp;
-                Result[p].CompareToSize := Cl+1-Cp;
+                Result[p].TextSize := Tl + 1 - Tp;
+                Result[p].CompareToSize := Cl + 1 - Cp;
                 Result[p].Size := Result[p].TextSize;
-                if Result[p].TextSize<Result[p].CompareToSize then
+                if Result[p].TextSize < Result[p].CompareToSize then
                   Result[p].Size := Result[p].CompareToSize;
                 Result[p].TypeOfDifference := dtSubstitution;
+                exit;
               end;
             5: // Addition
               begin
                 Result[p].TypeOfDifference := dtCompareHasAddition;
-                if Result[p].TextSize>Result[p].CompareToSize then
-                  Result[p].Size := Result[p].TextSize
-                else
-                  Result[p].Size := Result[p].CompareToSize;
               end;
             6: // Omission
               begin
-                Result[p].Size := Result[p].TextSize;
                 Result[p].TypeOfDifference := dtCompareHasOmission;
-
               end;
           else
             begin
               /// HMMM seems to be something wrong here.
-                if Result[p].TextSize>Result[p].CompareToSize then
-                  Result[p].Size := Result[p].TextSize
-                else
-                  Result[p].Size := Result[p].CompareToSize;
+              if Result[p].TextSize > Result[p].CompareToSize then
+                Result[p].Size := Result[p].TextSize
+              else
+                Result[p].Size := Result[p].CompareToSize;
             end;
           end;
-          Tp := Tp + Result[p].TextSize+1;
-          Cp := Cp + Result[p].CompareToSize+1;
+          Tp := Tp + lNextSameText.TextStart + lNextSameText.Size - 1;
+          Cp := Cp + lNextSameCompareTo.TextStart + lNextSameCompareTo.Size - 1;
         end;
     end;
     DoNext := (Cl >= Cp) and (Tl >= Tp);
+    if DoNext then
+    begin
+      p := length(Result);
+      SetLength(Result, p + 1);
+      Result[p].TypeOfDifference := dtDifferent;
+      Result[p].TextStart := Tp;
+      Result[p].CompareStart := Cp;
+    end;
   until not DoNext;
 
 end;
 
 procedure DisplayMessage(AMessage: String; AMessageColour: smallint);
 var
-  lExpected, lActual: TStringlist;
+  lExpected, lActual, lFormatStr: string;
   lDifferences: TDifferences;
-  p: Integer;
+  lLeftColumn, lRightColumn: TConsoleTextArray;
+  lSingleRow: boolean;
+
+  i, p, lExpectedStart, lActualStart, lExpectedPos, lActualPos, lMaxSize, lSize,
+    lColumnWidth, lLeftFields, lRightFields, lDifferenceMax, lLeftPos,
+    lRightPos: Integer;
+
+  Procedure AddTextToColumn(Var AColumn: TConsoleTextArray; AText: string;
+    AColour: Integer);
+  var
+    pp: Integer;
+  begin
+    pp := length(AColumn);
+    SetLength(AColumn, pp + 1);
+    AColumn[pp].Text := AText;
+    AColumn[pp].Colour := AColour;
+  end;
+
+  Function AddTrailingSpace(AText: String; ASize: Integer): string;
+  begin
+    Result := AText + stringofchar(' ', ASize - length(AText));
+  end;
 
 begin
   p := pos(EXPECTED_ACTUAL_SEPARATOR, AMessage);
@@ -1116,148 +1157,185 @@ begin
   /// This is what I expected but this  This is what I EXPECTED but this is w
   /// ========                          ========
   ///
+  PrintLn('');
 
-  lDifferences := FindDifferences(copy(AMessage, 1, p - 1),
-    copy(AMessage, p + length(EXPECTED_ACTUAL_SEPARATOR), MAXINT));
-  lExpected := TStringlist.create;
-  lActual := TStringlist.create;
-  try
+  lExpectedStart := pos(EXPECTED_FORMAT_MESSAGE, AMessage) +
+    length(EXPECTED_FORMAT_MESSAGE);
+  lActualStart := p + length(ACTUAL_FORMAT_MESSAGE) +
+    length(EXPECTED_ACTUAL_SEPARATOR);
 
-    PrintLn(AMessage, AMessageColour);
+  lExpected := copy(AMessage, lExpectedStart, p - lExpectedStart);
+  lActual := copy(AMessage, lActualStart, MAXINT);
 
-  finally
-    freeandnil(lExpected);
-    freeandnil(lActual);
-  end;
-
-end;
-
-function TestTypeFromSkip(ASkipped: TSkipType): TCheckTestType;
-begin
-  if (Not IgnoreSkip) and ((ASkipped = skipTrue) or SkippingSet) then
-    Result := cttSkip
-  else
-    Result := cttComparison;
-end;
-
-Function DontSkip: TSkipType;
-begin
-  IgnoreSkip := true;
-  Result := skipFalse;
-end;
-
-Function CheckIsEqual(AExpected, AResult: TComparitorType;
-  AMessage: string = ''; ASkipped: TSkipType = skipFalse): boolean;
-begin
-  Result := false;
-  try
-    Result := Check(true, AExpected, AResult, AMessage,
-      TestTypeFromSkip(ASkipped));
-  except
-    on e: Exception do
-      CheckException(e);
-  end;
-end;
-
-Function CheckNotEqual(AResult1, AResult2: TComparitorType; AMessage: string;
-  ASkipped: TSkipType): boolean;
-Begin
-  Result := false;
-  try
-    Result := Check(false, AResult1, AResult2, AMessage,
-      TestTypeFromSkip(ASkipped));
-  except
-    on e: Exception do
-      CheckException(e);
-  end;
-end;
-
-Function CheckIsTrue(AResult: boolean; AMessage: string;
-  ASkipped: TSkipType): boolean;
-begin
-  Result := CheckIsEqual(true, AResult, AMessage, ASkipped);
-end;
-
-Function CheckIsFalse(AResult: boolean; AMessage: string;
-  ASkipped: TSkipType): boolean;
-begin
-  Result := CheckIsEqual(false, AResult, AMessage, ASkipped);
-end;
-
-Procedure CheckException(AException: Exception);
-var
-  lExpected: string;
-  lExceptionClassName: string;
-  lExceptionMessage: string;
-begin
-  lExpected := ExpectedException;
-  if (AException = nil) then
+  // Does the difference require multiple columns, or will a single line do?
+  if (length(lExpected) < (ConsoleScreenWidth - length(EXPECTED_FORMAT_MESSAGE)
+    - 1)) and (length(lActual) < (ConsoleScreenWidth -
+    length(ACTUAL_FORMAT_MESSAGE) - 1)) then
   begin
-    lExceptionClassName := NIL_EXCEPTION_CLASSNAME;
-    lExceptionMessage := NO_EXCEPTION_EXPECTED;
+    lSingleRow := true;
+    lColumnWidth := (ConsoleScreenWidth - 5)
   end
   else
   begin
-    lExceptionClassName := AException.ClassName;
-    lExceptionMessage := AException.Message;
+    lSingleRow := false;
+    lColumnWidth := (ConsoleScreenWidth - 5) div 2;
   end;
 
-  if lExpected = '' then
-    lExpected := NO_EXCEPTION_EXPECTED;
-  Check((lExceptionClassName = lExpected) or (pos(lExpected, lExceptionMessage)
-    > 0), lExpected, lExceptionClassName + ':' + lExceptionMessage, '',
-    cttException);
-end;
+  lDifferences := FindDifferences(lExpected, lActual);
+  lDifferenceMax := length(lDifferences) - 1;
+  lSize := 0;
+  lExpectedPos := 1;
+  lActualPos := 1;
+  SetLength(lLeftColumn, 0);
+  SetLength(lRightColumn, 0);
 
-Function NotImplemented(AMessage: string = ''): boolean;
-var
-  lMessage: string;
-begin
-  if AMessage = '' then
-    lMessage := 'Not Implemented'
+  // Add the Content to each column
+  for i := 0 to lDifferenceMax do
+  begin
+    // Left Column Text
+    AddTextToColumn(lLeftColumn, copy(lExpected, lExpectedPos,
+      lDifferences[i].TextStart - lExpectedPos), clError);
+    AddTextToColumn(lLeftColumn, AddTrailingSpace(copy(lExpected,
+      lDifferences[i].TextStart, lDifferences[i].TextSize),
+      lDifferences[i].Size), clDifferent);
+    lExpectedPos := lDifferences[i].TextStart + lDifferences[i].TextSize;
+    // Right Column text
+    AddTextToColumn(lRightColumn, copy(lActual, lActualPos,
+      lDifferences[i].CompareStart - lActualPos), clError);
+    AddTextToColumn(lRightColumn,
+      AddTrailingSpace(copy(lActual, lDifferences[i].CompareStart,
+      lDifferences[i].CompareToSize), lDifferences[i].Size), clDifferent);
+    lActualPos := lDifferences[i].CompareStart + lDifferences[i].CompareToSize;
+  end;
+  AddTextToColumn(lLeftColumn, copy(lExpected, lExpectedPos, MAXINT), clError);
+  AddTextToColumn(lRightColumn, copy(lActual, lActualPos, MAXINT), clError);
+
+  // Now output the columns
+  lLeftPos := -1;
+  lRightPos := -1;
+  lLeftFields := length(lLeftColumn);
+  lRightFields := length(lRightColumn);
+  // Ensure last field has EOL
+  lLeftColumn[lLeftFields - 1].EOL := true;
+  lRightColumn[lRightFields - 1].EOL := true;
+
+  // Output the heading
+  if lSingleRow then
+  begin
+    Print(EXPECTED_FORMAT_MESSAGE, clError);
+  end
   else
-    lMessage := AMessage;
-  Result := CheckIsTrue(true, lMessage, skipTrue);
-end;
+  begin
+    lFormatStr := Format('%%.%us|%%.%us', [lColumnWidth, lColumnWidth]);
+    Print(Format(lFormatStr, [AddTrailingSpace(EXPECTED_FORMAT_MESSAGE,
+      lColumnWidth), AddTrailingSpace(ACTUAL_FORMAT_MESSAGE, lColumnWidth)]),
+      clError); end; while (lLeftPos < lLeftFields - 1) or (lRightPos <
+      lRightFields - 1) do begin
+    // output left Text
+    if (lLeftPos < lLeftFields) then begin repeat inc(lLeftPos);
+    Print(lLeftColumn[lLeftPos].Text, lLeftColumn[lLeftPos].Colour)
+      until lLeftColumn[lLeftPos].EOL;
+    end else Print(stringofchar(' ', lColumnWidth), clDifferent);
 
-Procedure NewSet(ASetName: string);
-begin
-  CurrentSetName := ASetName;
-  CreatingSets := true;
-end;
+    // Column Separator;
+    if lSingleRow then begin PrintLn('', clError);
+    Print(ACTUAL_FORMAT_MESSAGE, clError); end else begin Print('|',
+      clError); end;
 
-Procedure NewCase(ATestCaseName: string);
-begin
-  NewTest('', ATestCaseName);
-end;
+    if (lRightPos < lRightFields) then begin repeat inc(lRightPos);
+    Print(lRightColumn[lRightPos].Text, lRightColumn[lRightPos].Colour)
+      until lRightColumn[lRightPos].EOL;
+    end else Print(stringofchar(' ', lColumnWidth), clDifferent); end;
+    PrintLn('', clError);
 
-procedure NewTestCase(ACase: string; ATestCaseName: string);
-begin
-  NewTest(ACase, ATestCaseName);
-end;
+    end;
 
-procedure NewTest(ACase: string; ATestCaseName: string);
-begin
+    function TestTypeFromSkip(ASkipped: TSkipType): TCheckTestType;
+    begin if (Not IgnoreSkip) and ((ASkipped = skipTrue) or SkippingSet)
+    then Result := cttSkip else Result := cttComparison; end;
 
-  if (ATestCaseName <> '') and
-    ((ACase = '') OR (CurrentTestCaseName <> ATestCaseName)) then
-    NextTestCase(ATestCaseName);
+    Function DontSkip: TSkipType; begin IgnoreSkip := true;
+    Result := skipFalse; end;
 
-  if (ACase <> '') then
-    CurrentTestCaseLabel := ACase;
-  ExpectedException := ExpectedSetException;
-  IgnoreSkip := false;
-end;
+    Function CheckIsEqual(AExpected, AResult: TComparitorType;
+    AMessage:
+      string = '';
+    ASkipped:
+      TSkipType = skipFalse): boolean; begin Result := false;
+    try Result := Check(true, AExpected, AResult, AMessage,
+      TestTypeFromSkip(ASkipped));
+    except on e: Exception do CheckException(e); end; end;
 
-initialization
+    Function CheckNotEqual(AResult1, AResult2: TComparitorType;
+    AMessage:
+      string;
+    ASkipped:
+      TSkipType): boolean; Begin Result := false;
+    try Result := Check(false, AResult1, AResult2, AMessage,
+      TestTypeFromSkip(ASkipped));
+    except on e: Exception do CheckException(e); end; end;
+
+    Function CheckIsTrue(AResult: boolean;
+    AMessage:
+      string;
+    ASkipped:
+      TSkipType): boolean; begin Result := CheckIsEqual(true, AResult, AMessage,
+      ASkipped); end;
+
+    Function CheckIsFalse(AResult: boolean;
+    AMessage:
+      string;
+    ASkipped:
+      TSkipType): boolean; begin Result := CheckIsEqual(false, AResult,
+      AMessage, ASkipped); end;
+
+    Procedure CheckException(AException: Exception); var lExpected: string;
+    lExceptionClassName: string; lExceptionMessage: string;
+    begin lExpected := ExpectedException;
+    if (AException = nil) then begin lExceptionClassName :=
+      NIL_EXCEPTION_CLASSNAME; lExceptionMessage := NO_EXCEPTION_EXPECTED;
+    end else begin lExceptionClassName := AException.ClassName;
+    lExceptionMessage := AException.Message; end;
+
+    if lExpected = '' then lExpected := NO_EXCEPTION_EXPECTED;
+    Check((lExceptionClassName = lExpected) or
+      (pos(lExpected, lExceptionMessage) > 0), lExpected,
+      lExceptionClassName + ':' + lExceptionMessage, '', cttException); end;
+
+    Function NotImplemented(AMessage: string = ''): boolean;
+    var lMessage: string; begin if AMessage = '' then lMessage :=
+      'Not Implemented' else lMessage := AMessage;
+    Result := CheckIsTrue(true, lMessage, skipTrue); end;
+
+    Procedure NewSet(ASetName: string); begin CurrentSetName := ASetName;
+    CreatingSets := true; end;
+
+    Procedure NewCase(ATestCaseName: string);
+    begin NewTest('', ATestCaseName); end;
+
+    procedure NewTestCase(ACase: string;
+    ATestCaseName:
+      string); begin NewTest(ACase, ATestCaseName); end;
+
+    procedure NewTest(ACase: string;
+    ATestCaseName:
+      string); begin
+
+      if (ATestCaseName <> '') and ((ACase = '') OR
+      (CurrentTestCaseName <> ATestCaseName)) then NextTestCase(ATestCaseName);
+
+    if (ACase <> '') then CurrentTestCaseLabel := ACase;
+    ExpectedException := ExpectedSetException; IgnoreSkip := false; end;
+
+    initialization
 
 {$IFDEF CompilerVersion}
 {$IF CompilerVersion >= 20.0}
-  system.ReportMemoryLeaksOnShutdown := true;
+      system.ReportMemoryLeaksOnShutdown := true;
 {$IFEND}
 {$ENDIF}
-TotalOutputFormat := DEFAULT_TOTALS_FORMAT;
-SetOutputFormat := DEFAULT_SET_FORMAT;
-CaseOutputFormat := DEFAULT_CASE_FORMAT;
+    TotalOutputFormat := DEFAULT_TOTALS_FORMAT;
+    SetOutputFormat := DEFAULT_SET_FORMAT;
+    CaseOutputFormat := DEFAULT_CASE_FORMAT;
 
-end.
+    end.
