@@ -104,6 +104,7 @@ var
   TotalErroredTests: Integer = 0;
   TotalCases: Integer = 0;
   TotalSets: Integer = 0;
+  DifferencesFound: Integer;
 
   CasePassedTests, CaseFailedTests, CaseErrors, CaseSkippedTests: Integer;
   SetCases, SetPassedTests, SetFailedTests, SetErrors, SetSkippedTests: Integer;
@@ -154,7 +155,8 @@ Procedure PrintLnCentred(AText: string; AChar: char;
   AColour: smallint = FOREGROUND_DEFAULT);
 function FindDifferences(AText, ACompareTo: string): TDifferences;
 
-procedure DisplayMessage(AMessage: String; AMessageColour: smallint);
+procedure DisplayMessage(AMessage: String; AMessageColour: smallint;
+  ADataType: Integer);
 
 implementation
 
@@ -674,6 +676,7 @@ begin
   Result := false;
   lMessageColour := clDefault;
   lResult := 0;
+  DifferencesFound := 0;
   try
     case ATestType Of
       cttSkip:
@@ -781,7 +784,7 @@ begin
 
     Print(Format('  %s-', [PASS_FAIL[lResult]]), lMessageColour);
     Print(Format('%s%s', [CurrentTestCaseLabel, lCounter]));
-    DisplayMessage(lMessage, lMessageColour);
+    DisplayMessage(lMessage, lMessageColour, varType(AResult));
     Result := (lResult = 0);
   end;
 end;
@@ -794,7 +797,7 @@ const
 
 var
   Cp, Tp, p, lStartPos, Tl, Cl: Integer;
-  lLastTp : Integer; // Used in framework error detection
+  lLastTp: Integer; // Used in framework error detection
   DoNext: boolean;
   lNextSameCompareTo, lNextSameText: TDifference;
   lText, lCompareTo, RestOfCompareTo, RestOfText: string;
@@ -1018,10 +1021,10 @@ begin
   repeat
     // extra check to detect error in framework and prevent an infinite loop
     // situation
-    if Tp=lLastTp then
+    if Tp = lLastTp then
     begin
-       Println('Framework error: Unhandled difference Scenario detected');
-       break;
+      PrintLn('Framework error: Unhandled difference Scenario detected');
+      break;
     end;
     lLastTp := Tp;
     // What kind of difference?
@@ -1093,7 +1096,8 @@ begin
           else
             begin
               /// HMMM seems to be something wrong here.
-              Println('Framework ERROR: Undetected Comparison type detected!!', clError);
+              PrintLn('Framework ERROR: Unrecognised Comparison type detected!!',
+                clError);
               if Result[p].TextSize > Result[p].CompareToSize then
                 Result[p].Size := Result[p].TextSize
               else
@@ -1117,7 +1121,8 @@ begin
 
 end;
 
-procedure DisplayMessage(AMessage: String; AMessageColour: smallint);
+procedure DisplayMessage(AMessage: String; AMessageColour: smallint;
+  ADataType: Integer);
 var
   lExpected, lActual, lFormatStr: string;
   lDifferences: TDifferences;
@@ -1217,6 +1222,18 @@ begin
     PrintLn(AMessage, AMessageColour);
     exit;
   end;
+
+  // Only do the test on string data types
+  if NOT((ADataType = varString) OR
+{$IFNDEF BEFOREVARIANTS}
+    (ADataType = varUString) or (ADataType = varUStrArg) or
+{$ENDIF}
+    (ADataType in [varStrArg, varOleStr])) then
+   begin
+    PrintLn(StringReplace(AMessage,#1,'',[]) , AMessageColour);
+    exit;
+   end;
+
   /// Ok, we have errored - look for the reason.
   /// The idea is to do this:
   /// If the lines can be compared above and below each other
@@ -1257,7 +1274,8 @@ begin
   end;
 
   lDifferences := FindDifferences(lExpected, lActual);
-  lDifferenceMax := length(lDifferences) - 1;
+  DifferencesFound := length(lDifferences);
+  lDifferenceMax := DifferencesFound - 1;
   lSize := 0;
   lExpectedPos := 1;
   lActualPos := 1;
