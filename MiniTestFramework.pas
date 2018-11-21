@@ -97,7 +97,7 @@ var
   CreatingSets: boolean = false;
 
   ExpectedException, ExpectedSetException, LastSetName, CurrentSetName,
-    CurrentTestCaseName, CurrentTestCaseLabel: string;
+    CurrentTestCaseName, CurrentTestCaseLabel, DeferredTestCaseLabel: string;
   TotalPassedTests: Integer = 0;
   TotalFailedTests: Integer = 0;
   TotalSkippedTests: Integer = 0;
@@ -140,6 +140,11 @@ Function CheckIsFalse(AResult: boolean; AMessage: string = '';
   ASkipped: TSkipType = skipFalse): boolean;
 Function CheckNotEqual(AResult1, AResult2: TComparitorType;
   AMessage: string = ''; ASkipped: TSkipType = skipFalse): boolean;
+Procedure DeferTestCase(ATestName: string='');
+Procedure DeferredTestSuccess;
+Procedure DeferredTestFail;
+Procedure DeferredTestException(E:Exception);
+Procedure ResumeTestCase;
 Procedure ExpectException(AExceptionClassName: string;
   AExpectForSet: boolean = false);
 Procedure CheckException(AException: Exception);
@@ -1484,7 +1489,6 @@ end;
 
 procedure NewTest(ACase: string; ATestCaseName: string);
 begin
-
   if (ATestCaseName <> '') and
     ((ACase = '') OR (CurrentTestCaseName <> ATestCaseName)) then
     NextTestCase(ATestCaseName);
@@ -1494,6 +1498,40 @@ begin
   ExpectedException := ExpectedSetException;
   IgnoreSkip := false;
 end;
+
+Procedure DeferTestCase(ATestName: string='');
+begin
+  if length(ATestName)=0 then
+    DeferredTestCaseLabel := CurrentTestCaseLabel
+  else DeferredTestCaseLabel := ATestname;
+end;
+
+Procedure ResumeTestCase;
+begin
+  if length(DeferredTestCaseLabel)>0 then
+    NewTest(DeferredTestCaseLabel);
+  DeferredTestCaseLabel := '';
+end;
+
+Procedure DeferredTestSuccess;
+begin
+  ResumeTestCase;
+  CheckIsTrue(True);
+end;
+
+Procedure DeferredTestFail;
+begin
+  ResumeTestCase;
+  CheckIsTrue(false);
+end;
+
+Procedure DeferredTestException(E:Exception);
+begin
+  ResumeTestCase;
+  CheckException(E);
+end;
+
+
 
 initialization
 
