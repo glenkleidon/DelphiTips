@@ -502,22 +502,23 @@ begin
     + '"1899-12-30T00:00:00.000Z","EntityTypeId": 2,"EntityId": ${#Project#ContractId},'
     + '"InterfaceId": 100,"IPAddress": "127.0.0.1","CallerSystemId": 2,"DownloadDocumentInput":'
     + '{'#9'"DocumentTypeCode": 101,'#9'"Version": 0,'#9'"RequestUsername":' +
-    ' "qtb000"}}';
+    ' "OOO000"}}';
 
   lResult :=
     '{"DownloadDocumentInput":{"DocumentTypeCode":101,"DocumentLocationId":0,"Version":'
-    + '0,"RequestUsername":"qtb000","RefCount":0},"Authentication":{"Username":'
+    + '0,"RequestUsername":"OOO000","RefCount":0},"Authentication":{"Username":'
     + '"USERX","Password":"XXXXXX","Token":"","RefCount":0},"RequestStartTime"'
     + ':"1899-12-30T00:00:00.000+11:00","CallerSystemId":2,"CorrelationId":' +
     '"30BA96DD-398A-4EED-8696-F9F6B0F88877","EntityId":0,"EntityTypeId":0,' +
     '"InterfaceId":100,"IPAddress":"127.0.0.1","RefCount":0}';
+  checkIsEqual(lExpected, lResult);
 
   lDifferences := FindDifferences(lExpected, lResult);
-  NewTest('JSON Comparison, Length of result should be 8');
-  checkIsEqual(8, length(lDifferences));
+  NewTest('JSON Comparison, Length of result should be 7');
+  checkIsEqual(7, length(lDifferences));
 
   NewTest('JSON Comparison, [0]  Should be dtCompareHasOmission');
-  checkIsTrue(lDifferences[0].TypeOfDifference = dtCompareHasOmission);
+  checkIsTrue(lDifferences[0].TypeOfDifference = dtDifferent);
   NewTest('JSON Comparison, [0]  Should have Start=9,10');
   checkIsEqual(9, lDifferences[0].TextStart);
   checkIsEqual(10, lDifferences[0].CompareStart);

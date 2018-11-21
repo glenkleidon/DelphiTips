@@ -140,10 +140,10 @@ Function CheckIsFalse(AResult: boolean; AMessage: string = '';
   ASkipped: TSkipType = skipFalse): boolean;
 Function CheckNotEqual(AResult1, AResult2: TComparitorType;
   AMessage: string = ''; ASkipped: TSkipType = skipFalse): boolean;
-Procedure DeferTestCase(ATestName: string='');
+Procedure DeferTestCase(ATestName: string = '');
 Procedure DeferredTestSuccess;
 Procedure DeferredTestFail;
-Procedure DeferredTestException(E:Exception);
+Procedure DeferredTestException(E: Exception);
 Procedure ResumeTestCase;
 Procedure ExpectException(AExceptionClassName: string;
   AExpectForSet: boolean = false);
@@ -469,8 +469,8 @@ begin
       MiniTestCases[i].Execute;
       LastSetName := CurrentSetName;
     except
-      on e: Exception do
-        CheckException(e);
+      on E: Exception do
+        CheckException(E);
     end;
   // Last Case is done, Need to Update the Final Set Results.
   CurrentSetName := FINAL_SET_NAME;
@@ -743,9 +743,9 @@ begin
           end;
           inc(CasePassedTests);
         except
-          on e: Exception do
+          on E: Exception do
           begin
-            if (e.ClassName = ExpectedException) then
+            if (E.ClassName = ExpectedException) then
             begin
               // At this level, it will only be exceptions
               // for Variant type comparisons
@@ -757,7 +757,7 @@ begin
               lResult := 2;
               lMessageColour := clMessage;
               lMessage := #13#10'   Illegal Comparison Test Framework: ' +
-                e.Message;
+                E.Message;
               inc(CaseErrors);
             end;
           end;
@@ -934,11 +934,14 @@ var
 
     Procedure SetBest;
     begin
-      lBestMatch := lMatchLength;
-      Result.TextStart := FPos;
-      Result.Size := lMatchLength;
-      Result.TypeOfDifference := dtNone;
-      inc(Result.PartialMatches);
+      if lMatchLength > lBestMatch then
+      begin
+        lBestMatch := lMatchLength;
+        Result.TextStart := FPos;
+        Result.Size := lMatchLength;
+        Result.TypeOfDifference := dtNone;
+        inc(Result.PartialMatches);
+      end;
     end;
 
   begin
@@ -984,8 +987,7 @@ var
           if (lMatchLength > 0) then
           begin
             // ok stopped matching
-            if lMatchLength > lBestMatch then
-              SetBest;
+            SetBest;
             lMatchLength := 0;
             break;
             // TODO - start again at jj=next after first match..
@@ -993,11 +995,7 @@ var
           // ok haven't found a match yet, keep looking
         end;
       end;
-      if lMatchLength > lBestMatch then
-      begin
-        // match all the way to the end
-        SetBest;
-      end;
+      SetBest;
     until FPos >= Fl;
     if Result.PartialMatches > 0 then
       Dec(Result.PartialMatches);
@@ -1100,13 +1098,12 @@ begin
               end;
           else
             begin
-              /// HMMM seems to be something wrong here.
-              PrintLn('Framework ERROR: Unrecognised Comparison type detected!!',
-                clError);
-              if Result[p].TextSize > Result[p].CompareToSize then
-                Result[p].Size := Result[p].TextSize
-              else
-                Result[p].Size := Result[p].CompareToSize;
+              /// Just completely different
+                Result[p].TextSize := Tl + 1 - Tp;
+                Result[p].CompareToSize := Cl + 1 - Cp;
+                Result[p].Size := Result[p].TextSize;
+                if Result[p].TextSize < Result[p].CompareToSize then
+                  Result[p].Size := Result[p].CompareToSize;
             end;
           end;
           Tp := Tp + lNextSameText.TextStart + lNextSameText.Size - 1;
@@ -1130,6 +1127,7 @@ procedure DisplayMessage(AMessage: String; AMessageColour: smallint;
   ADataType: Integer);
 var
   lExpected, lActual, lFormatStr: string;
+  lColTextSize: integer;
   lDifferences: TDifferences;
   lLeftColumn, lRightColumn: TConsoleTextArray;
   lSingleRow: boolean;
@@ -1217,6 +1215,21 @@ var
       freeandnil(lText);
     end;
   end;
+  // remove tab and delete
+  Procedure EscapeTabs;
+  var ii : integer;
+      lPos : PChar;
+  begin
+    lPos := @AMessage[1];
+    for ii := 1 to length(AMessage) do
+    begin
+      case ord(lPos^) of
+         9,8,127 : lPos^:=#1;
+      end;
+      inc(lPos);
+    end;
+
+  end;
 
 begin
   p := pos(EXPECTED_ACTUAL_SEPARATOR, AMessage);
@@ -1234,10 +1247,10 @@ begin
     (ADataType = varUString) or (ADataType = varUStrArg) or
 {$ENDIF}
     (ADataType in [varStrArg, varOleStr])) then
-   begin
-    PrintLn(StringReplace(AMessage,#1,'',[]) , AMessageColour);
+  begin
+    PrintLn(StringReplace(AMessage, #1, '', []), AMessageColour);
     exit;
-   end;
+  end;
 
   /// Ok, we have errored - look for the reason.
   /// The idea is to do this:
@@ -1256,6 +1269,7 @@ begin
   ///
   PrintLn('');
 
+  EscapeTabs;
   lExpectedStart := pos(EXPECTED_FORMAT_MESSAGE, AMessage) +
     length(EXPECTED_FORMAT_MESSAGE);
   lActualStart := p + length(ACTUAL_FORMAT_MESSAGE) +
@@ -1336,21 +1350,22 @@ begin
     // Space at the beginning.
     if not lSingleRow then
     begin
-      if (lLeftPos = 1) then
-        Print('  ', clError)
-      else
-        Print('  |', clError);
+      Print('  |', clError);
     end;
     // output left Text
     if (lLeftPos < lLeftFields) then
     begin
       repeat
         inc(lLeftPos);
+        lColTextSize :=  length(lLeftColumn[lLeftPos].Text);
         Print(lLeftColumn[lLeftPos].Text, lLeftColumn[lLeftPos].Colour)
       until lLeftColumn[lLeftPos].EOL;
     end
     else
-      Print(stringofchar(' ', lColumnWidth), clDifferent);
+    begin
+      Print(stringofchar('|', lColumnWidth), clDifferent);
+      lColTextSize := lColumnWidth;
+    end;
 
     // Column Separator;
     if lSingleRow then
@@ -1362,20 +1377,20 @@ begin
     begin
       // The last line needs some extra space.
       if (lLeftPos = lLeftFields - 1) then
-        Print(stringofchar(' ', lColumnWidth - length(lLeftColumn[lLeftPos]
-          .Text)), clError);
+        Print(stringofchar('|', lColumnWidth - lColTextSize), clError);
       Print('|', clError);
     end;
-
+    lColTextSize := lColumnWidth;
     if (lRightPos < lRightFields) then
     begin
       repeat
         inc(lRightPos);
+        lColTextSize :=  length(lRightColumn[lRightPos].Text);
         Print(lRightColumn[lRightPos].Text, lRightColumn[lRightPos].Colour)
       until lRightColumn[lRightPos].EOL;
     end
     else
-      Print(stringofchar(' ', lColumnWidth), clDifferent);
+      Print(stringofchar('|', lColumnWidth), clDifferent);
     if lSingleRow then
       PrintLn('', clError)
     else
@@ -1405,8 +1420,8 @@ begin
     Result := Check(true, AExpected, AResult, AMessage,
       TestTypeFromSkip(ASkipped));
   except
-    on e: Exception do
-      CheckException(e);
+    on E: Exception do
+      CheckException(E);
   end;
 end;
 
@@ -1418,8 +1433,8 @@ Begin
     Result := Check(false, AResult1, AResult2, AMessage,
       TestTypeFromSkip(ASkipped));
   except
-    on e: Exception do
-      CheckException(e);
+    on E: Exception do
+      CheckException(E);
   end;
 end;
 
@@ -1499,16 +1514,17 @@ begin
   IgnoreSkip := false;
 end;
 
-Procedure DeferTestCase(ATestName: string='');
+Procedure DeferTestCase(ATestName: string = '');
 begin
-  if length(ATestName)=0 then
+  if length(ATestName) = 0 then
     DeferredTestCaseLabel := CurrentTestCaseLabel
-  else DeferredTestCaseLabel := ATestname;
+  else
+    DeferredTestCaseLabel := ATestName;
 end;
 
 Procedure ResumeTestCase;
 begin
-  if length(DeferredTestCaseLabel)>0 then
+  if length(DeferredTestCaseLabel) > 0 then
     NewTest(DeferredTestCaseLabel);
   DeferredTestCaseLabel := '';
 end;
@@ -1516,7 +1532,7 @@ end;
 Procedure DeferredTestSuccess;
 begin
   ResumeTestCase;
-  CheckIsTrue(True);
+  CheckIsTrue(true);
 end;
 
 Procedure DeferredTestFail;
@@ -1525,13 +1541,11 @@ begin
   CheckIsTrue(false);
 end;
 
-Procedure DeferredTestException(E:Exception);
+Procedure DeferredTestException(E: Exception);
 begin
   ResumeTestCase;
   CheckException(E);
 end;
-
-
 
 initialization
 
