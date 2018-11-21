@@ -497,7 +497,7 @@ var
 begin
 
   lExpected :=
-    '{"Authentication": {'#9'"Username": "inteflow",'#9'"Password": "XXXXXX"},'
+    '{"Authentication": {'#9'"Username": "USERX",'#9'"Password": "XXXXXX"},'
     + '"CorrelationId": "30BA96DD-398A-4EED-8696-F9F6B0F88877","RequestStartTime":'
     + '"1899-12-30T00:00:00.000Z","EntityTypeId": 2,"EntityId": ${#Project#ContractId},'
     + '"InterfaceId": 100,"IPAddress": "127.0.0.1","CallerSystemId": 2,"DownloadDocumentInput":'
@@ -507,7 +507,7 @@ begin
   lResult :=
     '{"DownloadDocumentInput":{"DocumentTypeCode":101,"DocumentLocationId":0,"Version":'
     + '0,"RequestUsername":"qtb000","RefCount":0},"Authentication":{"Username":'
-    + '"Inteflow","Password":"IFPassword","Token":"","RefCount":0},"RequestStartTime"'
+    + '"USERX","Password":"XXXXXX","Token":"","RefCount":0},"RequestStartTime"'
     + ':"1899-12-30T00:00:00.000+11:00","CallerSystemId":2,"CorrelationId":' +
     '"30BA96DD-398A-4EED-8696-F9F6B0F88877","EntityId":0,"EntityTypeId":0,' +
     '"InterfaceId":100,"IPAddress":"127.0.0.1","RefCount":0}';
