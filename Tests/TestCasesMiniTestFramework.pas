@@ -517,15 +517,36 @@ begin
   NewTest('JSON Comparison, Length of result should be 7');
   checkIsEqual(7, length(lDifferences));
 
-  NewTest('JSON Comparison, [0]  Should be dtCompareHasOmission');
+  NewTest('JSON Comparison, [0]  Should be dtDifferent');
   checkIsTrue(lDifferences[0].TypeOfDifference = dtDifferent);
-  NewTest('JSON Comparison, [0]  Should have Start=9,10');
-  checkIsEqual(9, lDifferences[0].TextStart);
-  checkIsEqual(10, lDifferences[0].CompareStart);
-  NewTest('JSON Comparison, [0]  Should have Size=1');
-  checkIsEqual(3, lDifferences[0].size);
-  checkIsEqual(3, lDifferences[0].TextSize);
-  checkIsEqual(1, lDifferences[0].CompareToSize);
+  NewTest('JSON Comparison, [1]  Should be dtDifferent');
+  checkIsTrue(lDifferences[1].TypeOfDifference = dtDifferent);
+  NewTest('JSON Comparison, [2]  Should be dtCompareHasOmission');
+  checkIsTrue(lDifferences[2].TypeOfDifference = dtCompareHasOmission);
+  NewTest('JSON Comparison, [3]  Should be dtCompareHasOmission');
+  checkIsTrue(lDifferences[3].TypeOfDifference = dtCompareHasOmission);
+  NewTest('JSON Comparison, [4]  Should be dtDifferent');
+  checkIsTrue(lDifferences[4].TypeOfDifference = dtDifferent);
+  NewTest('JSON Comparison, [5]  Should be dtCompareHasOmission');
+  checkIsTrue(lDifferences[5].TypeOfDifference = dtCompareHasOmission);
+  NewTest('JSON Comparison, [6]  Should be dtCompareHasOmission');
+  checkIsTrue(lDifferences[6].TypeOfDifference = dtCompareHasOmission);
+
+  NewTest('JSON Comparison, [0]  Should have Start=3,3');
+  checkIsEqual(3, lDifferences[0].TextStart);
+  checkIsEqual(3, lDifferences[0].CompareStart);
+  NewTest('JSON Comparison, [0]  Should have Size=415,375,415');
+  checkIsEqual(415, lDifferences[0].size);
+  checkIsEqual(375, lDifferences[0].TextSize);
+  checkIsEqual(415, lDifferences[0].CompareToSize);
+
+  NewTest('JSON Comparison, [6]  Should have Start=3,3');
+  checkIsEqual(3, lDifferences[6].TextStart);
+  checkIsEqual(3, lDifferences[6].CompareStart);
+  NewTest('JSON Comparison, [6]  Should have Size=415,375,415');
+  checkIsEqual(415, lDifferences[6].size);
+  checkIsEqual(375, lDifferences[6].TextSize);
+  checkIsEqual(415, lDifferences[6].CompareToSize);
 
 end;
 

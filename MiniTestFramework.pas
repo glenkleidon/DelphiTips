@@ -1228,7 +1228,62 @@ var
       end;
       inc(lPos);
     end;
+  end;
 
+  // Output left column
+  procedure OutputLeftColumn;
+  begin
+    if (lLeftPos < lLeftFields) then
+    begin
+      lColTextSize := 0;
+      repeat
+        inc(lLeftPos);
+        lColTextSize := lColTextSize + length(lLeftColumn[lLeftPos].Text);
+        Print(lLeftColumn[lLeftPos].Text, lLeftColumn[lLeftPos].Colour)
+      until lLeftColumn[lLeftPos].EOL;
+    end
+    else
+    begin
+      lColTextSize := lColumnWidth;
+      Print(stringofchar('|', lColumnWidth), clDifferent);
+    end;
+    // Column Separator;
+    if lSingleRow then
+    begin
+      PrintLn('', clError);
+      Print(ACTUAL_FORMAT_MESSAGE, clError);
+    end
+    else
+    begin
+      // The last line needs some extra space.
+      if (lLeftPos = lLeftFields - 1) then
+        Print(stringofchar('|', lColumnWidth - lColTextSize), clError);
+      Print('|', clError);
+    end;
+  end;
+
+  //Output Rigth Column
+  Procedure OutputRightColumn;
+  begin
+    lColTextSize := lColumnWidth;
+    if (lRightPos < lRightFields) then
+    begin
+      lColTextSize := 0;
+      repeat
+        inc(lRightPos);
+        lColTextSize := lColTextSize + length(lRightColumn[lRightPos].Text);
+        Print(lRightColumn[lRightPos].Text, lRightColumn[lRightPos].Colour)
+      until lRightColumn[lRightPos].EOL;
+    end
+    else Print(stringofchar('|', lColumnWidth), clDifferent);
+    if lSingleRow then
+      PrintLn('', clError)
+    else
+    begin
+      if (lRightPos = lRightFields - 1) then
+        Print(stringofchar('|', lColumnWidth - lColTextSize), clError);
+      Println('|', clError);
+    end;
   end;
 
 begin
@@ -1345,57 +1400,15 @@ begin
       lColumnWidth), AddTrailingSpace(ACTUAL_FORMAT_MESSAGE, lColumnWidth)]
       ), clError);
   end;
+
   while (lLeftPos < lLeftFields - 1) or (lRightPos < lRightFields - 1) do
   begin
     // Space at the beginning.
-    if not lSingleRow then
-    begin
-      Print('  |', clError);
-    end;
-    // output left Text
-    if (lLeftPos < lLeftFields) then
-    begin
-      repeat
-        inc(lLeftPos);
-        lColTextSize :=  length(lLeftColumn[lLeftPos].Text);
-        Print(lLeftColumn[lLeftPos].Text, lLeftColumn[lLeftPos].Colour)
-      until lLeftColumn[lLeftPos].EOL;
-    end
-    else
-    begin
-      Print(stringofchar('|', lColumnWidth), clDifferent);
-      lColTextSize := lColumnWidth;
-    end;
-
-    // Column Separator;
-    if lSingleRow then
-    begin
-      PrintLn('', clError);
-      Print(ACTUAL_FORMAT_MESSAGE, clError);
-    end
-    else
-    begin
-      // The last line needs some extra space.
-      if (lLeftPos = lLeftFields - 1) then
-        Print(stringofchar('|', lColumnWidth - lColTextSize), clError);
-      Print('|', clError);
-    end;
-    lColTextSize := lColumnWidth;
-    if (lRightPos < lRightFields) then
-    begin
-      repeat
-        inc(lRightPos);
-        lColTextSize :=  length(lRightColumn[lRightPos].Text);
-        Print(lRightColumn[lRightPos].Text, lRightColumn[lRightPos].Colour)
-      until lRightColumn[lRightPos].EOL;
-    end
-    else
-      Print(stringofchar('|', lColumnWidth), clDifferent);
-    if lSingleRow then
-      PrintLn('', clError)
-    else
-      PrintLn('|', clError);
+    if not lSingleRow then Print('  |', clError);
+    OutputLeftColumn;
+    OutputRightColumn;
   end;
+
 end;
 
 function TestTypeFromSkip(ASkipped: TSkipType): TCheckTestType;
