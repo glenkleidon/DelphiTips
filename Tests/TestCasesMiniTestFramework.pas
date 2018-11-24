@@ -24,6 +24,9 @@ Procedure Test_Unexpected_Exception_Raises_Error;
 Procedure Test_Set_level_Skips_work_as_expected;
 Procedure Check_That_Test_Cases_Ran_Correctly;
 procedure Test_Case_Level_skip_works_as_expected;
+
+procedure Test_LCS_returns_Correct_Result;
+procedure Test_LCSDiff_returns_Correct_Result;
 Procedure Test_Find_Differences_Substituted_works_as_expected;
 Procedure Test_Find_Differences_Omitted_Acutal_works_as_expected;
 Procedure Test_Find_Differences_Additions_Acutal_works_as_expected;
@@ -497,8 +500,8 @@ var
 begin
 
   lExpected :=
-    '{"Authentication": {'#9'"Username": "USERX",'#9'"Password": "XXXXXX"},'
-    + '"CorrelationId": "30BA96DD-398A-4EED-8696-F9F6B0F88877","RequestStartTime":'
+    '{"Authentication": {'#9'"Username": "USERX",'#9'"Password": "XXXXXX"},' +
+    '"CorrelationId": "30BA96DD-398A-4EED-8696-F9F6B0F88877","RequestStartTime":'
     + '"1899-12-30T00:00:00.000Z","EntityTypeId": 2,"EntityId": ${#Project#ContractId},'
     + '"InterfaceId": 100,"IPAddress": "127.0.0.1","CallerSystemId": 2,"DownloadDocumentInput":'
     + '{'#9'"DocumentTypeCode": 101,'#9'"Version": 0,'#9'"RequestUsername":' +
@@ -623,6 +626,183 @@ begin
   begin
     Println('   Wrong Number of errors, 4 expected!', FOREGROUND_YELLOW);
   end;
+
+end;
+
+procedure Test_LCS_returns_Correct_Result;
+var
+  lS1, lS2: string;
+  lExpected, lResult: string;
+begin
+  lS1 := '';
+  lS2 := '';
+  lResult := LCS(lS1, lS2);
+  lExpected := '';
+  NewTest('Empty values return empty');
+  checkIsEqual(lExpected, lResult);
+
+  lS1 := 'A';
+  lS2 := '';
+  lResult := LCS(lS1, lS2);
+  lExpected := '';
+  NewTest('One Empty value return empty');
+  checkIsEqual(lExpected, lResult);
+
+  lS1 := 'A';
+  lS2 := 'B';
+  lResult := LCS(lS1, lS2);
+  lExpected := '';
+  NewTest('Two different chars return empty');
+  checkIsEqual(lExpected, lResult);
+
+  lS1 := 'ACD';
+  lS2 := 'EFG';
+  lResult := LCS(lS1, lS2);
+  lExpected := '';
+  NewTest('Two different strings of the same length return empty');
+  checkIsEqual(lExpected, lResult);
+
+  lS1 := 'ACDHIJKLMNOP';
+  lS2 := 'EFG';
+  lResult := LCS(lS1, lS2);
+  lExpected := '';
+  NewTest('Two strings of the different lengths return empty');
+  checkIsEqual(lExpected, lResult);
+
+  lS1 := 'B';
+  lS2 := 'B';
+  lResult := LCS(lS1, lS2);
+  lExpected := 'B';
+  NewTest('Two same chars return char');
+  checkIsEqual(lExpected, lResult);
+
+  lS1 := 'ACD';
+  lS2 := 'ECG';
+  lResult := LCS(lS1, lS2);
+  lExpected := 'C';
+  NewTest('Two strings of the same length 1 char same returns 1 char');
+  checkIsEqual(lExpected, lResult);
+
+  lS1 := 'ACDHEJKLMNOP';
+  lS2 := 'EFG';
+  lResult := LCS(lS1, lS2);
+  lExpected := 'E';
+  NewTest('Two strings of the differnent lengths with 1 char same returns 1 char');
+  checkIsEqual(lExpected, lResult);
+
+  lS2 := 'ACDHEJKLMNOP';
+  lS1 := 'AFG';
+  lResult := LCS(lS1, lS2);
+  lExpected := 'A';
+  NewTest('Two strings of the differnent lengths with 1 char same returns 1 char');
+  checkIsEqual(lExpected, lResult);
+
+
+end;
+procedure Test_LCSDiff_returns_Correct_Result;
+var
+  lS1, lS2: string;
+  lResult: TStringDifferences;
+begin
+  lS1 := '';
+  lS2 := '';
+  lResult := LCSDiff(lS1, lS2);
+  NewTest('Empty values return empty');
+  checkIsEqual('', lResult.Same);
+  checkIsEqual('', lResult.FirstBefore);
+  checkIsEqual('', lResult.FirstAfter);
+  checkIsEqual('', lResult.SecondBefore);
+  checkIsEqual('', lResult.SecondAfter);
+
+  lS1 := 'A';
+  lS2 := '';
+  lResult := LCSDiff(lS1, lS2);
+  NewTest('One Empty value return Text in Before');
+  checkIsEqual('', lResult.Same);
+  checkIsEqual('A', lResult.FirstBefore);
+  checkIsEqual('', lResult.FirstAfter);
+  checkIsEqual('', lResult.SecondBefore);
+  checkIsEqual('', lResult.SecondAfter);
+
+  lS1 := 'A';
+  lS2 := 'B';
+  lResult := LCSDiff(lS1, lS2);
+  NewTest('Two different chars Text in Before');
+  checkIsEqual('', lResult.Same);
+  checkIsEqual('A', lResult.FirstBefore);
+  checkIsEqual('', lResult.FirstAfter);
+  checkIsEqual('B', lResult.SecondBefore);
+  checkIsEqual('', lResult.SecondAfter);
+
+  lS1 := 'ACD';
+  lS2 := 'EFG';
+  lResult := LCSDiff(lS1, lS2);
+  NewTest('Two different strings of the same length return Text in Before');
+  checkIsEqual('', lResult.Same);
+  checkIsEqual('ACD', lResult.FirstBefore);
+  checkIsEqual('', lResult.FirstAfter);
+  checkIsEqual('EFG', lResult.SecondBefore);
+  checkIsEqual('', lResult.SecondAfter);
+
+  lS1 := 'ACDHIJKLMNOP';
+  lS2 := 'EFG';
+  lResult := LCSDiff(lS1, lS2);
+  NewTest('Two strings of the different lengths return Text in Before');
+  checkIsEqual('', lResult.Same);
+  checkIsEqual('ACDHIJKLMNOP', lResult.FirstBefore);
+  checkIsEqual('', lResult.FirstAfter);
+  checkIsEqual('EFG', lResult.SecondBefore);
+  checkIsEqual('', lResult.SecondAfter);
+
+  lS1 := 'B';
+  lS2 := 'B';
+  lResult := LCSDiff(lS1, lS2);
+  NewTest('Two same chars return char and nothing in before or after');
+  checkIsEqual('B', lResult.Same);
+  checkIsEqual('', lResult.FirstBefore);
+  checkIsEqual('', lResult.FirstAfter);
+  checkIsEqual('', lResult.SecondBefore);
+  checkIsEqual('', lResult.SecondAfter);
+
+  lS1 := 'ACD';
+  lS2 := 'ECG';
+  lResult := LCSDiff(lS1, lS2);
+  NewTest('Same length String with 1 char same returns char and text in B,A');
+  checkIsEqual('C', lResult.Same);
+  checkIsEqual('A', lResult.FirstBefore);
+  checkIsEqual('D', lResult.FirstAfter);
+  checkIsEqual('E', lResult.SecondBefore);
+  checkIsEqual('G', lResult.SecondAfter);
+
+  lS1 := 'ACDHEJKLMNOP';
+  lS2 := 'EFG';
+  lResult := LCSDiff(lS1, lS2);
+  NewTest('Different length strings with 1 char same returns char and FB,FA,SA');
+  checkIsEqual('E', lResult.Same);
+  checkIsEqual('ACDH', lResult.FirstBefore);
+  checkIsEqual('JKLMNOP', lResult.FirstAfter);
+  checkIsEqual('', lResult.SecondBefore);
+  checkIsEqual('FG', lResult.SecondAfter);
+
+  lS1 := 'AFG';
+  lS2 := 'ACDHEJKLMNOP';
+  lResult := LCSDiff(lS1, lS2);
+  NewTest('Different length strings with first char same returns char and FA,BA');
+  checkIsEqual('A', lResult.Same);
+  checkIsEqual('', lResult.FirstBefore);
+  checkIsEqual('FG', lResult.FirstAfter);
+  checkIsEqual('', lResult.SecondBefore);
+  checkIsEqual('CDHEJKLMNOP', lResult.SecondAfter);
+
+  lS1 := 'AFABCDEFGG';
+  lS2 := '123456ABCDEFG8901234';
+  lResult := LCSDiff(lS1, lS2);
+  NewTest('Different length strings with first char same returns char and FA,BA');
+  checkIsEqual('ABCDEFG', lResult.Same);
+  checkIsEqual('AF', lResult.FirstBefore);
+  checkIsEqual('G', lResult.FirstAfter);
+  checkIsEqual('123456', lResult.SecondBefore);
+  checkIsEqual('8901234', lResult.SecondAfter);
 
 end;
 

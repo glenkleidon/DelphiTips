@@ -37,6 +37,9 @@ begin
     (**)
     NewSet('Compare Result Display Improvements');
     PrepareSet(Nil);
+    AddTestCase('LCS check', Test_LCS_returns_Correct_Result);
+    AddTestCase('LCS check', Test_LCSDiff_returns_Correct_Result);
+
     (** )
     AddTestCase('Check Find Substitutions',
       Test_Find_Differences_Substituted_works_as_expected);
@@ -46,12 +49,12 @@ begin
       Test_Find_Differences_Additions_Acutal_works_as_expected);
     AddTestCase('Multiple Differences Located',
       Test_Find_multiple_Differences);
-    (**)
+    (** )
     AddTestCase('Complex JSON string comparison', Test_Complex_JSON_String);
     (** )
     AddTestCase('Simple Types',
       Test_Simple_Types_Compare_sensibly);
-    (**)
+    (** )
     AddTestCase('Compare Outputs results in easy to read format',
       Test_Difference_compare_easier_to_read);
     (**)
