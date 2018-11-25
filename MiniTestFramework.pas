@@ -34,6 +34,7 @@ Const
   FOREGROUND_CYAN = 3;
   FOREGROUND_YELLOW = 6;
   FOREGROUND_PURPLE = 5;
+  BACKGROUND_YELLOW = $60;
   BACKGROUND_WHITE = BACKGROUND_BLUE OR BACKGROUND_GREEN OR BACKGROUND_RED;
 
   clTitle = FOREGROUND_YELLOW;
@@ -43,8 +44,10 @@ Const
   clDefault = FOREGROUND_DEFAULT;
   clSkipped = FOREGROUND_PURPLE;
   // Difference Colours
-  clDifferent = BACKGROUND_WHITE OR FOREGROUND_RED;
   clTextDifferent = BACKGROUND_WHITE OR FOREGROUND_RED or FOREGROUND_INTENSITY;
+  clExpectedText = FOREGROUND_GREEN OR BACKGROUND_WHITE;
+  clActualText = FOREGROUND_BLUE OR BACKGROUND_WHITE;
+  clOmission = BACKGROUND_YELLOW;
 
 Type
   TComparitorType = Variant;
@@ -56,33 +59,27 @@ Type
   TDifferenceType = (dtNone, dtCompareTooLong, dtCompareTooShort, dtDifferent,
     dtCompareHasOmission, dtCompareHasAddition, dtSubstitution);
 
-  TStringDifferences = Record
+  TLCSParams = Record
+    Length: integer;
+    FirstPos: integer;
+    SecondPos: integer;
+  end;
+
+  TStringDifference = Record
     Same: String;
     FirstBefore: string;
     FirstAfter: string;
-    FirstPos : integer;
+    FirstPos: integer;
     SecondBefore: string;
     SecondAfter: string;
-    SecondPos : integer;
+    SecondPos: integer;
   end;
 
-  TDifference = Record
-    TypeOfDifference: TDifferenceType;
-    TextStart: Integer;
-    CompareStart: Integer;
-    Size: Integer;
-    TextSize: Integer;
-    PartialMatches: Integer;
-    CompareToSize: Integer;
-    LastWordDelimiterInText: Integer;
-    LastWordDelimiterInCompareTo: Integer;
-  end;
-
-  TDifferences = Array of TDifference;
+  TStringDifferences = Array of TStringDifference;
 
   TConsoleText = Record
     Text: string;
-    Colour: Integer;
+    Colour: integer;
     EOL: boolean;
   end;
 
@@ -108,16 +105,16 @@ var
 
   ExpectedException, ExpectedSetException, LastSetName, CurrentSetName,
     CurrentTestCaseName, CurrentTestCaseLabel, DeferredTestCaseLabel: string;
-  TotalPassedTests: Integer = 0;
-  TotalFailedTests: Integer = 0;
-  TotalSkippedTests: Integer = 0;
-  TotalErroredTests: Integer = 0;
-  TotalCases: Integer = 0;
-  TotalSets: Integer = 0;
-  DifferencesFound: Integer;
+  TotalPassedTests: integer = 0;
+  TotalFailedTests: integer = 0;
+  TotalSkippedTests: integer = 0;
+  TotalErroredTests: integer = 0;
+  TotalCases: integer = 0;
+  TotalSets: integer = 0;
+  DifferencesFound: integer;
 
-  CasePassedTests, CaseFailedTests, CaseErrors, CaseSkippedTests: Integer;
-  SetCases, SetPassedTests, SetFailedTests, SetErrors, SetSkippedTests: Integer;
+  CasePassedTests, CaseFailedTests, CaseErrors, CaseSkippedTests: integer;
+  SetCases, SetPassedTests, SetFailedTests, SetErrors, SetSkippedTests: integer;
 
   TotalOutputFormat, SetOutputFormat, CaseOutputFormat: string;
 
@@ -133,7 +130,7 @@ Procedure PrepareSet(AProcedure: TTestCaseProcedure);
 Procedure FinaliseSet(AProcedure: TTestCaseProcedure);
 Procedure FinalizeSet(AProcedure: TTestCaseProcedure);
 Procedure RunTestSets;
-Procedure SkipTestCases(ACaseId: Integer);
+Procedure SkipTestCases(ACaseId: integer);
 
 Procedure NewTest(ACase: string; ATestCaseName: string = '');
 Procedure NewSet(ASetName: string);
@@ -160,21 +157,23 @@ Procedure ExpectException(AExceptionClassName: string;
 Procedure CheckException(AException: Exception);
 Function NotImplemented(AMessage: string = ''): boolean;
 Function DontSkip: TSkipType;
-Function TotalTests: Integer;
+Function TotalTests: integer;
 Procedure TestSummary;
 procedure CaseResults;
-Function ConsoleScreenWidth: Integer;
+Function ConsoleScreenWidth: integer;
 Procedure Print(AText: String; AColour: smallint = FOREGROUND_DEFAULT);
 Procedure PrintLn(AText: String; AColour: smallint = FOREGROUND_DEFAULT);
 Procedure PrintLnCentred(AText: string; AChar: char;
   AColour: smallint = FOREGROUND_DEFAULT);
-function lcs(a, b: string): string;
-function LCSDiff(AText, ACompareTo: string): TStringDifferences;
-Procedure ResetStringDifferences(var ADiff: TStringDifferences);
-function FindDifferences(AText, ACompareTo: string): TDifferences;
-procedure DisplayMessage(AMessage: String; AMessageColour: smallint;
-  ADataType: Integer);
 
+// Difference Engine
+// function lcs(a, b: string): string;
+function LCSDiff(AText, ACompareTo: string): TStringDifference;
+function LCSDifferences(AText, ACompareTo: string): TStringDifferences;
+function lcsStr(a, b: string): string;
+Procedure ResetStringDifference(var ADiff: TStringDifference);
+procedure DisplayMessage(AMessage: String; AMessageColour: smallint;
+  ADataType: integer);
 
 implementation
 
@@ -186,22 +185,22 @@ Const
 
 Type
   TCheckTestType = (cttComparison, cttSkip, cttException);
-  TIntArray = array of Integer;
+  TIntArray = array of integer;
   TIntArrayArray = array of TIntArray;
 
 {$IFDEF BEFOREVARIANTS}
-  TvarType = Integer;
+  TvarType = integer;
 {$ENDIF}
 
 var
-  SameTestCounter: Integer = 0;
+  SameTestCounter: integer = 0;
   LastTestCaseLabel: string;
-  SetCounter: Integer = 0;
+  SetCounter: integer = 0;
 
   /// ////////  SCREEN MANAGEMENT \\\\\\\\\\\\\\\\\
 
 var
-  Screen_width: Integer = -1;
+  Screen_width: integer = -1;
   Console_Handle: THandle = 0;
 
 Function CanDisplayCaseName(ACaseName: string): boolean;
@@ -215,7 +214,7 @@ begin
   Result := Format(DEFAULT_SET_NAME + ' %u', [SetCounter]);
 end;
 
-Function TotalTests: Integer;
+Function TotalTests: integer;
 begin
   Result := TotalPassedTests + TotalFailedTests + TotalSkippedTests +
     TotalErroredTests + CasePassedTests + CaseFailedTests + CaseSkippedTests +
@@ -244,7 +243,7 @@ begin
   SetConsoleTextAttribute(ConsoleHandle, AColour);
 end;
 
-Function ConsoleScreenWidth: Integer;
+Function ConsoleScreenWidth: integer;
 var
   lScreenInfo: TConsoleScreenBufferInfo;
 begin
@@ -276,11 +275,11 @@ end;
 Procedure PrintLnCentred(AText: string; AChar: char;
   AColour: smallint = FOREGROUND_DEFAULT);
 var
-  PreSpace, PostSpace, TitleSpace: Integer;
+  PreSpace, PostSpace, TitleSpace: integer;
 begin
   TitleSpace := ConsoleScreenWidth - 4;
-  PreSpace := trunc((TitleSpace - length(AText)) / 2);
-  PostSpace := TitleSpace - PreSpace - length(AText);
+  PreSpace := trunc((TitleSpace - Length(AText)) / 2);
+  PostSpace := TitleSpace - PreSpace - Length(AText);
   Print(stringofchar(AChar, PreSpace));
   Print('  ' + AText + '  ', AColour);
   PrintLn(stringofchar(AChar, PostSpace));
@@ -295,12 +294,12 @@ end;
 Procedure AddTestCase(ATestCaseName: string; AProcedure: TTestCaseProcedure;
   ASkipped: TSkipType; AExpectedException: string);
 var
-  l: Integer;
+  l: integer;
 begin
-  if length(CurrentSetName) = 0 then
+  if Length(CurrentSetName) = 0 then
     CurrentSetName := NextSetName;
 
-  l := length(MiniTestCases);
+  l := Length(MiniTestCases);
   SetLength(MiniTestCases, l + 1);
   MiniTestCases[l].SetName := CurrentSetName;
   MiniTestCases[l].Execute := AProcedure;
@@ -414,7 +413,7 @@ end;
 procedure SetResults;
 begin
 
-  if (SetIsEmpty) or (length(CurrentSetName) = 0) then
+  if (SetIsEmpty) or (Length(CurrentSetName) = 0) then
     exit;
 
   PrintLn(Format(SetOutputFormat, [SetCases, SetPassedTests + SetFailedTests +
@@ -438,7 +437,7 @@ Procedure SetHeading(ASetName: string);
 var
   lHeading: string;
 begin
-  if length(ASetName) = 0 then
+  if Length(ASetName) = 0 then
     exit;
   lHeading := 'Test Set:' + ASetName;
   PrintLn(lHeading, clTitle);
@@ -448,7 +447,7 @@ end;
 
 /// //////// TEST CASES  \\\\\\\\\\\\\\\\\
 
-Procedure SkipTestCases(ACaseId: Integer);
+Procedure SkipTestCases(ACaseId: integer);
 begin
   NewTest(MiniTestCases[ACaseId].TestCaseName);
   CheckIsTrue(false, 'Case Skipped', Skip);
@@ -456,10 +455,10 @@ end;
 
 Procedure RunTestSets;
 var
-  i, l: Integer;
+  i, l: integer;
 begin
   CreatingSets := false;
-  l := length(MiniTestCases);
+  l := Length(MiniTestCases);
   if l > 0 then
   begin
     LastSetName := MiniTestCases[0].SetName;
@@ -505,7 +504,7 @@ begin
   if ASetName = FINAL_SET_NAME then
     ASetName := ''; // Finalising.
 
-  if length(ASetName) > 0 then
+  if Length(ASetName) > 0 then
   begin
     SetHeading(ASetName);
     inc(TotalSets);
@@ -689,7 +688,7 @@ Function Check(IsEqual: boolean; AExpected, AResult: TComparitorType;
   AMessage: string; ATestType: TCheckTestType): boolean;
 var
   lMessage, lCounter: string;
-  lResult: Integer;
+  lResult: integer;
   Outcome: boolean;
   lMessageColour: smallint;
 begin
@@ -809,29 +808,70 @@ begin
   end;
 end;
 
-function lcs(a, b: string): string;
-var
-  X, y: string;
-  lenga, lengb: Integer;
+function lcsMax(a, b: TLCSParams): TLCSParams;
 begin
-  lenga := length(a);
-  lengb := length(b);
-  lcs := '';
-  if (lenga > 0) and (lengb > 0) then
-    if a[lenga] = b[lengb] then
-      lcs := lcs(copy(a, 1, lenga - 1), copy(b, 1, lengb - 1)) + a[lenga]
-    else
-    begin
-      X := lcs(a, copy(b, 1, lengb - 1));
-      y := lcs(copy(a, 1, lenga - 1), b);
-      if length(X) > length(y) then
-        lcs := X
-      else
-        lcs := y;
-    end;
+  if (a.Length > b.Length) then
+    Result := a
+  else
+    Result := b;
 end;
 
-Procedure ResetStringDifferences(var ADiff: TStringDifferences);
+Function lcs(X, Y: string): TLCSParams;
+var
+  lSize, lBestSize, pF, pS, lx, ly, lr, i, j, k: integer;
+  procedure SetBest;
+  begin
+    if (lSize > Result.Length) OR
+      ((lSize = Result.Length) and (pS < Result.SecondPos)) then
+    begin
+      Result.FirstPos := pF;
+      Result.SecondPos := pS;
+      Result.Length := lSize;
+      lSize := 0;
+    end;
+  end;
+
+begin
+  Result.Length := 0;
+  Result.FirstPos := 0;
+  Result.SecondPos := 0;
+  lx := Length(X);
+  ly := Length(Y);
+  lSize := 0;
+  for i := 1 to lx do
+  begin
+    for j := 1 to ly do
+    begin
+      if X[i] = Y[j] then
+      begin
+        pF := i;
+        pS := j;
+        k := 1;
+        lSize := 1;
+        while (((i + k) <= lx) and ((j + k) <= ly)) do
+        begin
+          if X[i + k] = Y[j + k] then
+            inc(lSize)
+          else
+            break;
+          inc(k);
+        end;
+        SetBest;
+      end;
+    end;
+    SetBest;
+  end;
+end;
+
+function lcsStr(a, b: string): string;
+var
+  l: TLCSParams;
+begin
+  l := lcs(a, b);
+  Result := copy(a, l.FirstPos, l.Length);
+end;
+
+Procedure ResetStringDifference(var ADiff: TStringDifference);
 begin
   ADiff.Same := '';
   ADiff.FirstBefore := '';
@@ -842,13 +882,13 @@ begin
   ADiff.SecondPos := 0;
 end;
 
-function LCSDiff(AText, ACompareTo: string): TStringDifferences;
+function LCSDiff(AText, ACompareTo: string): TStringDifference;
 var
-  p, ls: Integer;
+  p, ls: integer;
 begin
-  ResetStringDifferences(Result);
-  Result.Same := lcs(AText, ACompareTo);
-  ls := length(Result.Same);
+  ResetStringDifference(Result);
+  Result.Same := lcsStr(AText, ACompareTo);
+  ls := Length(Result.Same);
   if ls = 0 then
   begin
     // No Same text found.
@@ -877,479 +917,72 @@ begin
   end;
 end;
 
-function FindDifferences(AText, ACompareTo: string): TDifferences;
-
-const
-  DIFF_MATRIX: array [1 .. 6, 1 .. 3] of Integer = ((1, 1, 1), (3, 1, 2),
-    (2, 1, 2), (1, 2, 6), (2, 1, 1), (3, 1, 1));
-
+function LCSDifferences(AText, ACompareTo: string): TStringDifferences;
 var
-  Cp, Tp, p, lStartPos, Tl, Cl: Integer;
-  lLastTp: Integer;
-  // Used in framework error detection
-  DoNext: boolean;
-  lNextSameCompareTo, lNextSameText: TDifference;
-  lText, lCompareTo, RestOfCompareTo, RestOfText: string;
-
-  Function DiffType(ATextDiff, ACompareDiff: TDifference): Integer;
-  var
-    esr, t, dr, lSizeDiff, ii: Integer;
-  Begin
-    // End-start ratio
-    esr := 1;
-    if (ATextDiff.TextStart < ACompareDiff.TextStart) then
-      esr := 2
-    else if (ATextDiff.TextStart > ACompareDiff.TextStart) then
-      esr := 3;
-    // diff types
-    t := 1;
-    if ((ATextDiff.TypeOfDifference = dtDifferent) and
-      (ACompareDiff.TypeOfDifference = dtDifferent)) then
-      t := 2
-    else if ((ATextDiff.TypeOfDifference = dtNone) and
-      (ACompareDiff.TypeOfDifference = dtDifferent)) then
-      t := 3
-    else if ((ATextDiff.TypeOfDifference = dtDifferent) and
-      (ACompareDiff.TypeOfDifference = dtNone)) then
-      t := 4;
-    // Difference Ratio
-    dr := 1;
-    lSizeDiff := ATextDiff.Size - ACompareDiff.Size;
-    if ((ATextDiff.Size = MAXINT) and (ACompareDiff.Size = MAXINT)) then
-      dr := 6
-    else if ((ATextDiff.Size > 0) and (ACompareDiff.Size = 0)) then
-      dr := 5
-    else if ((ATextDiff.Size = 0) and (ACompareDiff.Size > 0)) then
-      dr := 4
-    else if (lSizeDiff < 0) then
-      dr := 2
-    else if (lSizeDiff > 0) then
-      dr := 3;
-
-    Result := -1;
-    for ii := 1 to 6 do
-    begin
-      if (esr = DIFF_MATRIX[ii, 1]) and (t = DIFF_MATRIX[ii, 2]) and
-        (dr = DIFF_MATRIX[ii, 3]) then
-      begin
-        Result := ii;
-        exit;
-      end;
-    end;
-  End;
-
-  Function IsWordEnd(AChar: char): boolean;
-  begin
-    Result := pos(AChar, ' ,;:()[]'#9#13#10) > 0;
-  end;
-
-  Procedure ResetDifference(var ADifference: TDifference);
-  begin
-    ADifference.TypeOfDifference := dtNone;
-    ADifference.TextStart := 0;
-    ADifference.Size := 0;
-    ADifference.TextSize := 0;
-    ADifference.CompareToSize := 0;
-    ADifference.PartialMatches := 0;
-    ADifference.LastWordDelimiterInText := 0;
-    ADifference.LastWordDelimiterInCompareTo := 0;
-  end;
-
-  function FindNextDifference(AFirstText, ASecondText: String): TDifference;
-  var
-    ii, lEndPos: Integer;
-    Fl, Sl: Integer;
-  begin
-    ResetDifference(Result);
-    Fl := length(ASecondText);
-    Sl := length(AFirstText);
-    lEndPos := Sl;
-    if Fl < Sl then
-      lEndPos := Fl;
-    if lEndPos = 0 then
-      exit;
-    for ii := 1 to lEndPos do
-    begin
-      Result.TextStart := ii;
-      if ii > Fl then
-      begin
-        Result.TypeOfDifference := dtCompareTooLong;
-        exit;
-      end;
-
-      if ii > Sl then
-      begin
-        Result.TypeOfDifference := dtCompareTooShort;
-        exit;
-      end;
-
-      if IsWordEnd(ASecondText[ii]) then
-        Result.LastWordDelimiterInCompareTo := ii;
-
-      if IsWordEnd(AFirstText[ii]) then
-        Result.LastWordDelimiterInText := ii;
-
-      if ASecondText[ii] <> AFirstText[ii] then
-      begin
-        Result.TypeOfDifference := dtDifferent;
-        exit;
-      end
-    end;
-    Result.TextStart := lEndPos + 1;
-    if (Sl < Fl) then
-    begin
-      Result.TypeOfDifference := dtCompareTooLong;
-    end
-    else if (Fl < Sl) then
-    begin
-      Result.TypeOfDifference := dtCompareTooShort;
-    end
-    else
-      Result.TextStart := 0;
-    // nothing actually found
-
-  end;
-
-  Function FindNextSame(AFirstText, ASecondText: String): TDifference;
-  var
-    ii, jj, kk, lf, ls, lMatchLength, lMatchStartPos: Integer;
-    lBestMatchStartPos, lBestMatchLength: Integer;
-    ch: char;
-    lMatchedToEnd: boolean;
-  begin
-    ResetDifference(Result);
-    Result.TypeOfDifference := dtDifferent;
-    lf := length(AFirstText);
-    ls := length(ASecondText);
-    lBestMatchLength := 0;
-    for ii := 1 to lf do
-    begin
-      ch := AFirstText[ii];
-      for jj := 1 to ls do
-      begin
-        if ch = ASecondText[jj] then
-        begin
-          // ok found a matching character. How long does this matching last?
-          lMatchLength := 1;
-          lMatchStartPos := jj;
-          for kk := ii + 1 to lf do
-          begin
-            if kk > ls then
-              break;
-            if AFirstText[kk] = ASecondText[jj + 1] then
-              inc(lMatchLength)
-            else
-              break;
-          end;
-          if lBestMatchLength < lMatchLength then
-          begin
-            lBestMatchStartPos := lMatchStartPos;
-            lBestMatchLength := lMatchLength;
-          end;
-          lMatchedToEnd := lMatchLength = (ls - jj);
-          if true then
-
-            if lMatchedToEnd then
-              break;
-
-        end;
-      end;
-
-    end;
-
-  end;
-
+  lDiff: TStringDifference;
+  ls, i, p: integer;
+  lBeforeDifferences, lAfterDifferences: TStringDifferences;
 begin
-  SetLength(Result, 0);
-  Tl := length(AText);
-  Cl := length(ACompareTo);
-  p := 0;
-  if (Tl = 0) and (Cl = 0) then
+  if Length(AText) + Length(ACompareTo) = 0 then
     exit;
-  SetLength(Result, 1);
-  lLastTp := -1;
+  lDiff := LCSDiff(AText, ACompareTo);
+  ls := Length(lDiff.Same);
+  if ls = 0 then
+  begin
+    SetLength(Result, 1);
+    Result[0] := lDiff;
+    exit;
+  end;
 
-  // Find the First Difference
-  Result[p] := FindNextDifference(AText, ACompareTo);
-  Tp := Result[p].TextStart;
-  Cp := Tp;
-  Result[p].TextStart := Tp;
-  Result[p].CompareStart := Cp;
+  // Get Differences before and after
+  if lDiff.FirstBefore <> lDiff.SecondBefore then
+    lBeforeDifferences := LCSDifferences(lDiff.FirstBefore, lDiff.SecondBefore);
+  if lDiff.FirstAfter <> lDiff.SecondAfter then
+    lAfterDifferences := LCSDifferences(lDiff.FirstAfter, lDiff.SecondAfter);
 
-  // ok find where the differences end.
-  DoNext := false;
-  repeat
-    // extra check to detect error in framework and prevent an infinite loop
-    // situation
-    if Tp = lLastTp then
-    begin
-      PrintLn('Framework error: Unhandled difference Scenario detected');
-      break;
-    end;
-    lLastTp := Tp;
-    // What kind of difference?
-    case Result[p].TypeOfDifference of
-      dtNone:
-        exit;
-      dtCompareTooLong:
-        begin
-          Result[p].TextSize := 0;
-          Result[p].CompareToSize := (Cl - Cp) - (Tl - Tp);
-          Result[p].Size := Result[p].CompareToSize;
-          exit;
-        end;
-      dtCompareTooShort:
-        begin
-          Result[p].TextSize := 0;
-          Result[p].CompareToSize := (Tl - Tp) - (Cl - Cp);
-          Result[p].Size := Result[p].CompareToSize;
-          exit;
-        end;
-      dtDifferent:
-        begin
-          // Find the Size of the Difference.
-          RestOfText := copy(AText, Tp, MAXINT);
-          RestOfCompareTo := copy(ACompareTo, Cp, MAXINT);
-
-          lNextSameText := FindNextSame(RestOfText, RestOfCompareTo);
-          lNextSameCompareTo := FindNextSame(RestOfCompareTo, RestOfText);
-
-          Result[p].TextSize := lNextSameText.TextStart - 1;
-          Result[p].CompareToSize := lNextSameCompareTo.TextStart - 1;
-          if Result[p].TextSize > Result[p].CompareToSize then
-            Result[p].Size := Result[p].TextSize
-          else
-            Result[p].Size := Result[p].CompareToSize;
-
-          case DiffType(lNextSameText, lNextSameCompareTo) of
-            1: // Substitution
-              begin
-                Result[p].Size := Result[p].TextSize;
-                Result[p].TypeOfDifference := dtSubstitution;
-              end;
-            2:
-              // Substitution with Addition
-              begin
-                Result[p].TypeOfDifference := dtSubstitution;
-              end;
-            3:
-              // Substitution with ommission
-              begin
-                Result[p].TypeOfDifference := dtSubstitution;
-                lNextSameCompareTo.TextStart := lNextSameText.TextStart;
-                lNextSameCompareTo.Size := lNextSameText.TextSize;
-                Result[p].TextSize := lNextSameText.TextStart + 1 - Tp;
-                Result[p].CompareToSize := lNextSameText.CompareStart + 1 - Cp;
-                Result[p].Size := Result[p].TextSize;
-              end;
-            4: // Different to end
-              begin
-                Result[p].TextSize := Tl + 1 - Tp;
-                Result[p].CompareToSize := Cl + 1 - Cp;
-                Result[p].Size := Result[p].TextSize;
-                if Result[p].TextSize < Result[p].CompareToSize then
-                  Result[p].Size := Result[p].CompareToSize;
-                Result[p].TypeOfDifference := dtSubstitution;
-                exit;
-              end;
-            5: // Addition
-              begin
-                Result[p].TypeOfDifference := dtCompareHasAddition;
-              end;
-            6: // Omission
-              begin
-                Result[p].TypeOfDifference := dtCompareHasOmission;
-              end;
-          else
-            begin
-              /// Just completely different
-              Result[p].TextSize := Tl + 1 - Tp;
-              Result[p].CompareToSize := Cl + 1 - Cp;
-              Result[p].Size := Result[p].TextSize;
-              if Result[p].TextSize < Result[p].CompareToSize then
-                Result[p].Size := Result[p].CompareToSize;
-            end;
-          end;
-          Tp := Tp + lNextSameText.TextStart + lNextSameText.Size - 1;
-          Cp := Cp + lNextSameCompareTo.TextStart + lNextSameCompareTo.Size - 1;
-        end;
-    end;
-    DoNext := (Cl >= Cp) and (Tl >= Tp);
-    if DoNext then
-    begin
-      p := length(Result);
-      SetLength(Result, p + 1);
-      Result[p].TypeOfDifference := dtDifferent;
-      Result[p].TextStart := Tp;
-      Result[p].CompareStart := Cp;
-    end;
-  until not DoNext;
-
+  // Now Assemble into a single result.
+  SetLength(Result, Length(lBeforeDifferences) + Length(lAfterDifferences) + 1);
+  p := 0;
+  for i := Low(lBeforeDifferences) to High(lBeforeDifferences) do
+  begin
+    Result[p] := lBeforeDifferences[i];
+    inc(p);
+  end;
+  Result[p] := lDiff;
+  inc(p);
+  for i := Low(lAfterDifferences) to High(lAfterDifferences) do
+  begin
+    Result[p] := lAfterDifferences[i];
+    inc(p);
+  end;
 end;
 
+
 procedure DisplayMessage(AMessage: String; AMessageColour: smallint;
-  ADataType: Integer);
+  ADataType: integer);
 var
   lExpected, lActual, lFormatStr: string;
-  lColTextSize: Integer;
-  lDifferences: TDifferences;
+  lColTextSize: integer;
   lLeftColumn, lRightColumn: TConsoleTextArray;
   lSingleRow: boolean;
 
-  i, p, lExpectedStart, lActualStart, lExpectedPos, lActualPos, lMaxSize, lSize,
-    lColumnWidth, lLeftFields, lRightFields, lDifferenceMax, lLeftPos,
-    lRightPos: Integer;
+  lStringDifference: TStringDifferences;
+  p,i, StartDiff, lExpectedStart, lActualStart, lColumnWidth: integer;
 
-  Function AddTrailingSpace(AText: String; ASize: Integer): string;
-  begin
-    Result := AText + stringofchar(' ', ASize - length(AText));
-  end;
-
-  Function SplitText(AText: String; ASize: Integer): string;
-  var
-    lt, pp, qq, ls: Integer;
-    lLine: string;
-  begin
-    Result := '';
-    pp := 1;
-    lt := length(AText);
-    while (pp <= lt) do
-    begin
-      if pp <> 1 then
-        Result := Result + #13#10;
-      lLine := copy(AText, pp, ASize);
-      ls := length(lLine);
-      qq := pos(#13, lLine);
-      if qq > 0 then
-      begin
-        lLine := copy(lLine, 1, qq - 1);
-        ls := qq;
-        if AText[qq + 1] = #10 then
-          ls := ls + 1;
-      end;
-      Result := Result + lLine;
-      pp := pp + ls;
-    end;
-  end;
-
-  Procedure AddTextToColumn(Var AColumn: TConsoleTextArray; AText: string;
-    AColour: Integer; var APos: Integer);
-  var
-    lText: TStringlist;
-    lCharsRemainingInColumn: Integer;
-    pp, ii, LineLength: Integer;
-    LineNum, LineMax: Integer;
-    lFirstLine: string;
-  begin
-    lText := TStringlist.create;
-    try
-      // we need to split the text up into rows that will fit into the column
-      if APos = 0 then
-        lCharsRemainingInColumn := lColumnWidth
-      else
-        lCharsRemainingInColumn := lColumnWidth - (APos Mod lColumnWidth);
-
-      // First line
-      pp := pos(#13, AText);
-      if (pp > 0) and (pp < lCharsRemainingInColumn) then
-        lCharsRemainingInColumn := pp;
-      lFirstLine := copy(AText, 1, lCharsRemainingInColumn);
-      lText.Text := SplitText(copy(AText, lCharsRemainingInColumn, MAXINT),
-        lColumnWidth);
-      lText.Insert(0, lFirstLine);
-      LineMax := lText.Count - 1;
-
-      // Now Add each new line to the column
-      for ii := 0 to LineMax do
-      begin
-        LineNum := length(AColumn);
-        LineLength := length(lText[ii]);
-        lCharsRemainingInColumn := lColumnWidth - (APos Mod lColumnWidth);
-        SetLength(AColumn, LineNum + 1);
-        AColumn[LineNum].Colour := AColour;
-        AColumn[LineNum].EOL := ii < LineMax;
-        if AColumn[LineNum].EOL then
-          AColumn[LineNum].Text := AddTrailingSpace(lText[ii],
-            lCharsRemainingInColumn)
-        else
-          AColumn[LineNum].Text := lText[ii];
-        APos := APos + length(AColumn[LineNum].Text);
-      end;
-    finally
-      freeandnil(lText);
-    end;
-  end;
 // remove tab and delete
   Procedure EscapeTabs;
   var
-    ii: Integer;
+    ii: integer;
     lPos: PChar;
   begin
     lPos := @AMessage[1];
-    for ii := 1 to length(AMessage) do
+    for ii := 1 to Length(AMessage) do
     begin
       case ord(lPos^) of
         9, 8, 127:
           lPos^ := #1;
       end;
       inc(lPos);
-    end;
-  end;
-
-// Output left column
-  procedure OutputLeftColumn;
-  begin
-    if (lLeftPos < lLeftFields) then
-    begin
-      lColTextSize := 0;
-      repeat
-        inc(lLeftPos);
-        lColTextSize := lColTextSize + length(lLeftColumn[lLeftPos].Text);
-        Print(lLeftColumn[lLeftPos].Text, lLeftColumn[lLeftPos].Colour)
-      until lLeftColumn[lLeftPos].EOL;
-    end
-    else
-    begin
-      lColTextSize := lColumnWidth;
-      Print(stringofchar('|', lColumnWidth), clDifferent);
-    end;
-    // Column Separator;
-    if lSingleRow then
-    begin
-      PrintLn('', clError);
-      Print(ACTUAL_FORMAT_MESSAGE, clError);
-    end
-    else
-    begin
-      // The last line needs some extra space.
-      if (lLeftPos = lLeftFields - 1) then
-        Print(stringofchar('|', lColumnWidth - lColTextSize), clError);
-      Print('|', clError);
-    end;
-  end;
-
-// Output Rigth Column
-  Procedure OutputRightColumn;
-  begin
-    lColTextSize := lColumnWidth;
-    if (lRightPos < lRightFields) then
-    begin
-      lColTextSize := 0;
-      repeat
-        inc(lRightPos);
-        lColTextSize := lColTextSize + length(lRightColumn[lRightPos].Text);
-        Print(lRightColumn[lRightPos].Text, lRightColumn[lRightPos].Colour)
-      until lRightColumn[lRightPos].EOL;
-    end
-    else
-      Print(stringofchar('|', lColumnWidth), clDifferent);
-    if lSingleRow then
-      PrintLn('', clError)
-    else
-    begin
-      if (lRightPos = lRightFields - 1) then
-        Print(stringofchar('|', lColumnWidth - lColTextSize), clError);
-      PrintLn('|', clError);
     end;
   end;
 
@@ -1374,9 +1007,6 @@ begin
     exit;
   end;
 
-  PrintLn(StringReplace(AMessage, #1, '', []), AMessageColour);
-  exit;
-
   /// Ok, we have errored - look for the reason.
   /// The idea is to do this:
   /// If the lines can be compared above and below each other
@@ -1396,17 +1026,17 @@ begin
 
   EscapeTabs;
   lExpectedStart := pos(EXPECTED_FORMAT_MESSAGE, AMessage) +
-    length(EXPECTED_FORMAT_MESSAGE);
-  lActualStart := p + length(ACTUAL_FORMAT_MESSAGE) +
-    length(EXPECTED_ACTUAL_SEPARATOR);
+    Length(EXPECTED_FORMAT_MESSAGE);
+  lActualStart := p + Length(ACTUAL_FORMAT_MESSAGE) +
+    Length(EXPECTED_ACTUAL_SEPARATOR);
 
   lExpected := copy(AMessage, lExpectedStart, p - lExpectedStart);
   lActual := copy(AMessage, lActualStart, MAXINT);
 
   // Does the difference require multiple columns, or will a single line do?
-  if (length(lExpected) < (ConsoleScreenWidth - length(EXPECTED_FORMAT_MESSAGE)
-    - 1)) and (length(lActual) < (ConsoleScreenWidth -
-    length(ACTUAL_FORMAT_MESSAGE) - 1)) then
+  if (Length(lExpected) < (ConsoleScreenWidth - Length(EXPECTED_FORMAT_MESSAGE)
+    - 1)) and (Length(lActual) < (ConsoleScreenWidth -
+    Length(ACTUAL_FORMAT_MESSAGE) - 1)) then
   begin
     lSingleRow := true;
     lColumnWidth := (ConsoleScreenWidth - 5)
@@ -1417,69 +1047,100 @@ begin
     lColumnWidth := (ConsoleScreenWidth - 5) div 2;
   end;
 
-  lDifferences := FindDifferences(lExpected, lActual);
-  DifferencesFound := length(lDifferences);
-  lDifferenceMax := DifferencesFound - 1;
-  lSize := 0;
-  lExpectedPos := 1;
-  lActualPos := 1;
-  SetLength(lLeftColumn, 0);
-  SetLength(lRightColumn, 0);
+  lStringDifference := LCSDifferences(lExpected, lActual);
 
-  // Add the Content to each column
-  for i := 0 to lDifferenceMax do
+  for i := Low(lStringDifference) to High(lStringDifference) do
   begin
+    StartDiff := lStringDifference[i].SecondPos - lStringDifference[i].FirstPos;
+    if Length(lStringDifference[i].Same) > 0 then
+    begin
+      if (StartDiff > 0) then
+        Print(stringofchar(' ', StartDiff), clOmission);
+      Print(lStringDifference[i].Same, clError)
+    end
+    else
+      Print(lStringDifference[i].FirstBefore, clTextDifferent);
+  end;
+  WriteLn;
+  for i := Low(lStringDifference) to High(lStringDifference) do
+  begin
+    StartDiff := lStringDifference[i].SecondPos - lStringDifference[i].FirstPos;
+    if Length(lStringDifference[i].Same) > 0 then
+    begin
+      if (StartDiff < 0) then
+        Print(stringofchar(' ', -1*StartDiff), clOmission);
+      Print(lStringDifference[i].Same, clError)
+    end
+    else
+    begin
+      Print(lStringDifference[i].SecondBefore, clTextDifferent);
+    end;
+  end;
+  WriteLn;
+
+  { lDifferences := FindDifferences(lExpected, lActual);
+    DifferencesFound := Length(lDifferences);
+    lDifferenceMax := DifferencesFound - 1;
+    lSize := 0;
+    lExpectedPos := 1;
+    lActualPos := 1;
+    SetLength(lLeftColumn, 0);
+    SetLength(lRightColumn, 0);
+
+    // Add the Content to each column
+    for i := 0 to lDifferenceMax do
+    begin
     // Left Column Text
     AddTextToColumn(lLeftColumn, copy(lExpected, lExpectedPos,
-      lDifferences[i].TextStart - lExpectedPos), clError, lLeftPos);
+    lDifferences[i].TextStart - lExpectedPos), clError, lLeftPos);
     AddTextToColumn(lLeftColumn, AddTrailingSpace(copy(lExpected,
-      lDifferences[i].TextStart, lDifferences[i].TextSize),
-      lDifferences[i].Size), clDifferent, lLeftPos);
+    lDifferences[i].TextStart, lDifferences[i].TextSize),
+    lDifferences[i].Size), clDifferent, lLeftPos);
     lExpectedPos := lDifferences[i].TextStart + lDifferences[i].TextSize;
     // Right Column text
     AddTextToColumn(lRightColumn, copy(lActual, lActualPos,
-      lDifferences[i].CompareStart - lActualPos), clError, lRightPos);
+    lDifferences[i].CompareStart - lActualPos), clError, lRightPos);
     AddTextToColumn(lRightColumn,
-      AddTrailingSpace(copy(lActual, lDifferences[i].CompareStart,
-      lDifferences[i].CompareToSize), lDifferences[i].Size), clDifferent,
-      lRightPos);
+    AddTrailingSpace(copy(lActual, lDifferences[i].CompareStart,
+    lDifferences[i].CompareToSize), lDifferences[i].Size), clDifferent,
+    lRightPos);
     lActualPos := lDifferences[i].CompareStart + lDifferences[i].CompareToSize;
-  end;
-  AddTextToColumn(lLeftColumn, copy(lExpected, lExpectedPos, MAXINT), clError,
+    end;
+    AddTextToColumn(lLeftColumn, copy(lExpected, lExpectedPos, MAXINT), clError,
     lLeftPos);
-  AddTextToColumn(lRightColumn, copy(lActual, lActualPos, MAXINT), clError,
+    AddTextToColumn(lRightColumn, copy(lActual, lActualPos, MAXINT), clError,
     lRightPos);
 
-  // Now output the columns
-  lLeftPos := -1;
-  lRightPos := -1;
-  lLeftFields := length(lLeftColumn);
-  lRightFields := length(lRightColumn);
-  // Ensure last field has EOL
-  lLeftColumn[lLeftFields - 1].EOL := true;
-  lRightColumn[lRightFields - 1].EOL := true;
+    // Now output the columns
+    lLeftPos := -1;
+    lRightPos := -1;
+    lLeftFields := Length(lLeftColumn);
+    lRightFields := Length(lRightColumn);
+    // Ensure last field has EOL
+    lLeftColumn[lLeftFields - 1].EOL := true;
+    lRightColumn[lRightFields - 1].EOL := true;
 
-  // Output the heading
-  if lSingleRow then
-  begin
+    // Output the heading
+    if lSingleRow then
+    begin
     Print(EXPECTED_FORMAT_MESSAGE, clError);
-  end
-  else
-  begin
+    end
+    else
+    begin
     PrintLn(Format('   %s|%s', [AddTrailingSpace(EXPECTED_FORMAT_MESSAGE,
-      lColumnWidth), AddTrailingSpace(ACTUAL_FORMAT_MESSAGE, lColumnWidth)]
-      ), clError);
-  end;
+    lColumnWidth), AddTrailingSpace(ACTUAL_FORMAT_MESSAGE, lColumnWidth)]
+    ), clError);
+    end;
 
-  while (lLeftPos < lLeftFields - 1) or (lRightPos < lRightFields - 1) do
-  begin
+    while (lLeftPos < lLeftFields - 1) or (lRightPos < lRightFields - 1) do
+    begin
     // Space at the beginning.
     if not lSingleRow then
-      Print('  |', clError);
+    Print('  |', clError);
     OutputLeftColumn;
     OutputRightColumn;
-  end;
-
+    end;
+  }
 end;
 
 function TestTypeFromSkip(ASkipped: TSkipType): TCheckTestType;
@@ -1600,7 +1261,7 @@ end;
 
 Procedure DeferTestCase(ATestName: string = '');
 begin
-  if length(ATestName) = 0 then
+  if Length(ATestName) = 0 then
     DeferredTestCaseLabel := CurrentTestCaseLabel
   else
     DeferredTestCaseLabel := ATestName;
@@ -1608,7 +1269,7 @@ end;
 
 Procedure ResumeTestCase;
 begin
-  if length(DeferredTestCaseLabel) > 0 then
+  if Length(DeferredTestCaseLabel) > 0 then
     NewTest(DeferredTestCaseLabel);
   DeferredTestCaseLabel := '';
 end;

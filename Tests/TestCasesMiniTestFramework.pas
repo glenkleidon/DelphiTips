@@ -27,11 +27,8 @@ procedure Test_Case_Level_skip_works_as_expected;
 
 procedure Test_LCS_returns_Correct_Result;
 procedure Test_LCSDiff_returns_Correct_Result;
-Procedure Test_Find_Differences_Substituted_works_as_expected;
-Procedure Test_Find_Differences_Omitted_Acutal_works_as_expected;
-Procedure Test_Find_Differences_Additions_Acutal_works_as_expected;
-Procedure Test_Find_multiple_Differences;
-Procedure Test_Complex_JSON_String;
+Procedure Test_LCSDiffences_returns_Correct_Result;
+Procedure Test_LCSDiffences_Handles_Complex_JSON_Difference;
 Procedure Test_Simple_Types_Compare_sensibly;
 
 Procedure Test_Difference_compare_easier_to_read;
@@ -248,357 +245,6 @@ begin
 
 end;
 
-Procedure Test_Find_Differences_Substituted_works_as_expected;
-var
-  lDifferences: TDifferences;
-begin
-  (* *)
-  NewTest('Text that is Empty, Length of result should be 0');
-  lDifferences := FindDifferences('', '');
-  checkIsEqual(0, length(lDifferences));
-
-  (* *)
-  NewTest('Text that is the same, Length of result should be 1');
-  lDifferences := FindDifferences('ABC', 'ABC');
-  checkIsEqual(1, length(lDifferences));
-  NewTest('Text that is the same, Should be dtNONE');
-  checkIsTrue(lDifferences[0].TypeOfDifference = dtNone);
-  NewTest('Check StartPos=0');
-  checkIsEqual(0, lDifferences[0].TextStart);
-  NewTest('Check Sizes are 0,0,0');
-  checkIsEqual(0, lDifferences[0].size);
-  checkIsEqual(0, lDifferences[0].TextSize);
-  checkIsEqual(0, lDifferences[0].CompareToSize);
-
-  (* *)
-  lDifferences := FindDifferences('ABC', 'ABD');
-  NewTest('ABC<->ABD, (Diff to end) Length of result should be 1');
-  checkIsEqual(1, length(lDifferences));
-  NewTest('ABC<->ABD, Should be dtSubstitution');
-  checkIsTrue(lDifferences[0].TypeOfDifference = dtSubstitution);
-  NewTest('ABC<->ABD, Should have Start=3');
-  checkIsEqual(3, lDifferences[0].TextStart);
-  NewTest('ABC<->ABD Check Sizes 1,1,1');
-  checkIsEqual(1, lDifferences[0].size);
-  checkIsEqual(1, lDifferences[0].TextSize);
-  checkIsEqual(1, lDifferences[0].CompareToSize);
-  (* *)
-  lDifferences := FindDifferences('ABC', 'ABDEFGH');
-  NewTest('ABC<->ABD, (Diff to end) Length of result should be 1');
-  checkIsEqual(1, length(lDifferences));
-  NewTest('ABC<->ABD, Should be dtSubstitution');
-  checkIsTrue(lDifferences[0].TypeOfDifference = dtSubstitution);
-  NewTest('ABC<->ABD, Should have Start=3');
-  checkIsEqual(3, lDifferences[0].TextStart);
-  NewTest('ABC<->ABD Check Sizes 5,1,5');
-  checkIsEqual(5, lDifferences[0].size);
-  checkIsEqual(1, lDifferences[0].TextSize);
-  checkIsEqual(5, lDifferences[0].CompareToSize);
-
-  (* *)
-  lDifferences := FindDifferences('ABCD', 'ABXD');
-  NewTest('ABCD<->ABXD, (Substitution) Length of result should be 1');
-  checkIsEqual(1, length(lDifferences));
-  NewTest('ABCD<->ABXD, Should be dtSubstitution');
-  checkIsTrue(lDifferences[0].TypeOfDifference = dtSubstitution);
-  NewTest('ABCD<->ABXD, Should have Start=3');
-  checkIsEqual(3, lDifferences[0].TextStart);
-  NewTest('ABCD<->ABXD Check Sizes 1,1,1');
-  checkIsEqual(1, lDifferences[0].size);
-  checkIsEqual(1, lDifferences[0].TextSize);
-  checkIsEqual(1, lDifferences[0].CompareToSize);
-
-  (* *)
-  lDifferences := FindDifferences('ABCDEF', 'ABXDEF');
-  NewTest('ABCDEF<->ABXDEF, (Substitution) Length of result should be 1');
-  checkIsEqual(1, length(lDifferences));
-  NewTest('ABCDEF<->ABXDEF, Should be dtSubstitution');
-  checkIsTrue(lDifferences[0].TypeOfDifference = dtSubstitution);
-  NewTest('ABCDEF<->ABXDEF, Should have Start=3');
-  checkIsEqual(3, lDifferences[0].TextStart);
-  NewTest('ABCDEF<->ABXDEF, Should have Size=1,1,1');
-  checkIsEqual(1, lDifferences[0].size);
-  checkIsEqual(1, lDifferences[0].TextSize);
-  checkIsEqual(1, lDifferences[0].CompareToSize);
-  (* *)
-
-  lDifferences := FindDifferences('ABCDEF', 'ABXXEF');
-  NewTest('ABCDEF<->ABXXEF, Should be dtSubstitution');
-  checkIsTrue(lDifferences[0].TypeOfDifference = dtSubstitution);
-  NewTest('ABCDEF<->ABXXEF, Should have Start=3');
-  checkIsEqual(3, lDifferences[0].TextStart);
-  NewTest('ABCDEF<->ABXXEF, Should have Size=2');
-  checkIsEqual(2, lDifferences[0].size);
-  checkIsEqual(2, lDifferences[0].TextSize);
-  checkIsEqual(2, lDifferences[0].CompareToSize);
-  (* *)
-
-end;
-
-Procedure Test_Find_Differences_Omitted_Acutal_works_as_expected;
-var
-  lDifferences: TDifferences;
-begin
-  (* *)
-  lDifferences := FindDifferences('ABC', 'AB');
-  NewTest('ABC<->AB, Length of result should be 1');
-  checkIsEqual(1, length(lDifferences));
-  NewTest('ABC<->AB, Should be dtCompareTooShort');
-  checkIsTrue(lDifferences[0].TypeOfDifference = dtCompareTooShort);
-  NewTest('ABC<->AB, Should have Start=3');
-  checkIsEqual(3, lDifferences[0].TextStart);
-  checkIsEqual(3, lDifferences[0].CompareStart);
-  NewTest('ABC<->AB, Should have Sizes=1,0,1');
-  checkIsEqual(1, lDifferences[0].size);
-  checkIsEqual(0, lDifferences[0].TextSize);
-  checkIsEqual(1, lDifferences[0].CompareToSize);
-  (* *)
-  lDifferences := FindDifferences('ABC', 'BC');
-  NewTest('ABC<->BC, Length of result should be 1');
-  checkIsEqual(1, length(lDifferences));
-  NewTest('ABC<->BC, Should be dtCompareHasOmission');
-  checkIsTrue(lDifferences[0].TypeOfDifference = dtCompareHasOmission);
-  NewTest('ABC<->BC, Should have Start=1');
-  checkIsEqual(1, lDifferences[0].TextStart);
-  checkIsEqual(1, lDifferences[0].CompareStart);
-  NewTest('ABCD<->BC, Should have Sizes=1,0,1');
-  checkIsEqual(1, lDifferences[0].size);
-  checkIsEqual(1, lDifferences[0].TextSize);
-  checkIsEqual(0, lDifferences[0].CompareToSize);
-  (* *)
-  lDifferences := FindDifferences('ABCD', 'ABD');
-  NewTest('ABCD<->ABD, Should be dtCompareHasOmission');
-  checkIsTrue(lDifferences[0].TypeOfDifference = dtCompareHasOmission);
-  NewTest('ABCD<->ABD, Length of result should be 1');
-  checkIsEqual(1, length(lDifferences));
-  NewTest('ABCD<->ABD, Should have Start=3');
-  checkIsEqual(3, lDifferences[0].TextStart);
-  NewTest('ABCD<->ABD, Should have Size=1,1,0');
-  checkIsEqual(1, lDifferences[0].size);
-  checkIsEqual(1, lDifferences[0].TextSize);
-  checkIsEqual(0, lDifferences[0].CompareToSize);
-  (* *)
-  lDifferences := FindDifferences('ABCDEF', 'ABDEF');
-  NewTest('ABCDEF<->ABDEF, Length of result should be 1');
-  checkIsEqual(1, length(lDifferences));
-  NewTest('ABCDEF<->ABDEF, Should be dtCompareHasOmission');
-  checkIsTrue(lDifferences[0].TypeOfDifference = dtCompareHasOmission);
-  NewTest('ABCDEF<->ABDEF, Should have Start=3');
-  checkIsEqual(3, lDifferences[0].TextStart);
-  checkIsEqual(3, lDifferences[0].CompareStart);
-  NewTest('ABCDEF<->ABDEF, Should have Size=1,1,0');
-  checkIsEqual(1, lDifferences[0].size);
-  checkIsEqual(1, lDifferences[0].TextSize);
-  checkIsEqual(0, lDifferences[0].CompareToSize);
-  (* *)
-  lDifferences := FindDifferences('ABCDEF', 'ADEF');
-  checkIsEqual(1, length(lDifferences));
-  NewTest('ABCDEF<->ABDEF, Should be dtCompareHasOmission');
-  NewTest('ABCDEF<->ABDEF, Should be dtCompareHasOmission');
-  checkIsTrue(lDifferences[0].TypeOfDifference = dtCompareHasOmission);
-  NewTest('ABCDEF<->ADEF, Should have Start=2');
-  checkIsEqual(2, lDifferences[0].TextStart);
-  checkIsEqual(2, lDifferences[0].CompareStart);
-  NewTest('ABCDEF<->ADEF, Should have Size=2,2,0');
-  checkIsEqual(2, lDifferences[0].size);
-  checkIsEqual(2, lDifferences[0].TextSize);
-  checkIsEqual(0, lDifferences[0].CompareToSize);
-  (* *)
-
-end;
-
-Procedure Test_Find_Differences_Additions_Acutal_works_as_expected;
-var
-  lDifferences: TDifferences;
-begin
-  (* *)
-  lDifferences := FindDifferences('ABC', 'ABCD');
-  NewTest('ABC<->ABCD, Length of result should be 1');
-  checkIsEqual(1, length(lDifferences));
-  NewTest('ABC<->ABCD, Should be dtCompareTooLong');
-  checkIsTrue(lDifferences[0].TypeOfDifference = dtCompareTooLong);
-  NewTest('ABC<->ABCD, Should have Start=4');
-  checkIsEqual(4, lDifferences[0].TextStart);
-  checkIsEqual(4, lDifferences[0].CompareStart);
-  NewTest('ABC<->ABCD, Should have Size=1,0,1');
-  checkIsEqual(1, lDifferences[0].size);
-  checkIsEqual(0, lDifferences[0].TextSize);
-  checkIsEqual(1, lDifferences[0].CompareToSize);
-  (* *)
-  lDifferences := FindDifferences('ABCDEF', 'ABCDEFGH');
-  NewTest('ABCDEF<->ABCDEFGH, Should be dtCompareTooLong');
-  checkIsTrue(lDifferences[0].TypeOfDifference = dtCompareTooLong);
-  NewTest('ABCDEF<->ABCDEFGH, Should have Start=7');
-  checkIsEqual(7, lDifferences[0].TextStart);
-  checkIsEqual(7, lDifferences[0].CompareStart);
-  NewTest('ABCDEF<->ABCDEFGH, Should have Size=1,0,1');
-  checkIsEqual(2, lDifferences[0].size);
-  checkIsEqual(0, lDifferences[0].TextSize);
-  checkIsEqual(2, lDifferences[0].CompareToSize);
-  (* *)
-  lDifferences := FindDifferences('ABC', 'ZABC');
-  NewTest('ABC<->ZABC, Length of result should be 1');
-  checkIsEqual(1, length(lDifferences));
-  NewTest('ABC<->ZABC, Should be dtCompareHasAddition');
-  checkIsTrue(lDifferences[0].TypeOfDifference = dtCompareHasAddition);
-  NewTest('ABC<->ZABC, Should have Start=1');
-  checkIsEqual(1, lDifferences[0].TextStart);
-  NewTest('ABCD<->ZABD, Should have Size=1,0,1');
-  checkIsEqual(1, lDifferences[0].size);
-  checkIsEqual(0, lDifferences[0].TextSize);
-  checkIsEqual(1, lDifferences[0].CompareToSize);
-  (* *)
-  lDifferences := FindDifferences('ABCDEF', 'ABCXXDEF');
-  NewTest('ABCDEF<->ABCXXDEF, Should be dtCompareHasAddition');
-  checkIsTrue(lDifferences[0].TypeOfDifference = dtCompareHasAddition);
-  NewTest('ABCDEF<->ABCXXDEF, Should have Start=4');
-  checkIsEqual(4, lDifferences[0].TextStart);
-  NewTest('ABCDEF<->ABCXXDEF, Should have Size=2,0,2');
-  checkIsEqual(2, lDifferences[0].size);
-  checkIsEqual(0, lDifferences[0].TextSize);
-  checkIsEqual(2, lDifferences[0].CompareToSize);
-  (* *)
-
-end;
-
-Procedure Test_Find_multiple_Differences;
-var
-  lDifferences: TDifferences;
-begin
-  (* *)
-  lDifferences := FindDifferences('ABC_ONE_TWO_Three', 'ABCD_ONE_2_Three');
-  NewTest('ABC_ONE_TWO_Three<->ABCD_ONE_2_Three, Length of result should be 2');
-  checkIsEqual(2, length(lDifferences));
-
-  NewTest('ABC_ONE_TWO_Three<->ABCD_ONE_2_Three, [0] Should be dtCompareHasAddition');
-  checkIsTrue(lDifferences[0].TypeOfDifference = dtCompareHasAddition);
-  NewTest('ABC_ONE_TWO_Three<->ABCD_ONE_2_Three, [0]  Should have Start=4');
-  checkIsEqual(4, lDifferences[0].TextStart);
-  checkIsEqual(4, lDifferences[0].CompareStart);
-  NewTest('ABC_ONE_TWO_Three<->ABCD_ONE_2_Three, [0]  Should have Size=1,3,1');
-  checkIsEqual(1, lDifferences[0].size);
-  checkIsEqual(0, lDifferences[0].TextSize);
-  checkIsEqual(1, lDifferences[0].CompareToSize);
-
-  NewTest('ABC_ONE_TWO_Three<->ABCD_ONE_2_Three, [1]  Should be dtCompareHasOmission');
-  checkIsTrue(lDifferences[1].TypeOfDifference = dtCompareHasOmission);
-  NewTest('ABC_ONE_TWO_Three<->ABCD_ONE_2_Three, [1]  Should have Start=9,10');
-  checkIsEqual(9, lDifferences[1].TextStart);
-  checkIsEqual(10, lDifferences[1].CompareStart);
-  NewTest('ABC_ONE_TWO_Three<->ABCD_ONE_2_Three, [1]  Should have Size=1');
-  checkIsEqual(3, lDifferences[1].size);
-  checkIsEqual(3, lDifferences[1].TextSize);
-  checkIsEqual(1, lDifferences[1].CompareToSize);
-  (* *)
-
-end;
-
-Procedure Test_Complex_JSON_String;
-var
-  lExpected, lResult: string;
-  lDifferences: TDifferences;
-begin
-
-  lExpected :=
-    '{"Authentication": {'#9'"Username": "USERX",'#9'"Password": "XXXXXX"},' +
-    '"CorrelationId": "30BA96DD-398A-4EED-8696-F9F6B0F88877","RequestStartTime":'
-    + '"1899-12-30T00:00:00.000Z","EntityTypeId": 2,"EntityId": ${#Project#ContractId},'
-    + '"InterfaceId": 100,"IPAddress": "127.0.0.1","CallerSystemId": 2,"DownloadDocumentInput":'
-    + '{'#9'"DocumentTypeCode": 101,'#9'"Version": 0,'#9'"RequestUsername":' +
-    ' "OOO000"}}';
-
-  lResult :=
-    '{"DownloadDocumentInput":{"DocumentTypeCode":101,"DocumentLocationId":0,"Version":'
-    + '0,"RequestUsername":"OOO000","RefCount":0},"Authentication":{"Username":'
-    + '"USERX","Password":"XXXXXX","Token":"","RefCount":0},"RequestStartTime"'
-    + ':"1899-12-30T00:00:00.000+11:00","CallerSystemId":2,"CorrelationId":' +
-    '"30BA96DD-398A-4EED-8696-F9F6B0F88877","EntityId":0,"EntityTypeId":0,' +
-    '"InterfaceId":100,"IPAddress":"127.0.0.1","RefCount":0}';
-  checkIsEqual(lExpected, lResult);
-
-  lDifferences := FindDifferences(lExpected, lResult);
-  NewTest('JSON Comparison, Length of result should be 7');
-  checkIsEqual(7, length(lDifferences));
-
-  NewTest('JSON Comparison, [0]  Should be dtDifferent');
-  checkIsTrue(lDifferences[0].TypeOfDifference = dtDifferent);
-  NewTest('JSON Comparison, [1]  Should be dtDifferent');
-  checkIsTrue(lDifferences[1].TypeOfDifference = dtDifferent);
-  NewTest('JSON Comparison, [2]  Should be dtCompareHasOmission');
-  checkIsTrue(lDifferences[2].TypeOfDifference = dtCompareHasOmission);
-  NewTest('JSON Comparison, [3]  Should be dtCompareHasOmission');
-  checkIsTrue(lDifferences[3].TypeOfDifference = dtCompareHasOmission);
-  NewTest('JSON Comparison, [4]  Should be dtDifferent');
-  checkIsTrue(lDifferences[4].TypeOfDifference = dtDifferent);
-  NewTest('JSON Comparison, [5]  Should be dtCompareHasOmission');
-  checkIsTrue(lDifferences[5].TypeOfDifference = dtCompareHasOmission);
-  NewTest('JSON Comparison, [6]  Should be dtCompareHasOmission');
-  checkIsTrue(lDifferences[6].TypeOfDifference = dtCompareHasOmission);
-
-  NewTest('JSON Comparison, [0]  Should have Start=3,3');
-  checkIsEqual(3, lDifferences[0].TextStart);
-  checkIsEqual(3, lDifferences[0].CompareStart);
-  NewTest('JSON Comparison, [0]  Should have Size=415,375,415');
-  checkIsEqual(415, lDifferences[0].size);
-  checkIsEqual(375, lDifferences[0].TextSize);
-  checkIsEqual(415, lDifferences[0].CompareToSize);
-
-  NewTest('JSON Comparison, [6]  Should have Start=3,3');
-  checkIsEqual(3, lDifferences[6].TextStart);
-  checkIsEqual(3, lDifferences[6].CompareStart);
-  NewTest('JSON Comparison, [6]  Should have Size=415,375,415');
-  checkIsEqual(415, lDifferences[6].size);
-  checkIsEqual(375, lDifferences[6].TextSize);
-  checkIsEqual(415, lDifferences[6].CompareToSize);
-
-end;
-
-Procedure Test_Difference_compare_easier_to_read;
-begin
-  (* *)
-  NewTest('Compare Short String');
-  checkIsEqual('ABC', 'DEF');
-
-  NewTest('Compare Lines without breaks String');
-  checkIsEqual('The quick brown fox jumps over the lazy dog',
-    'The quick brown fix jumps over the lazy dog');
-
-  NewTest('Compare Lines without breaks String and multiple differences');
-  checkIsEqual('The quick brown fox jumps over the lazy dog',
-    'The quoKC brown fix jumps iver the lzay dog');
-
-  NewTest('Compare Lines with omission ');
-  checkIsEqual('The quick brown fox jumps over the lazy dog',
-    'The brown fox jumps over the lazy dog');
-
-  NewTest('Compare Lines with Addition ');
-  checkIsEqual('The quick brown fox jumps over the lazy dog',
-    'The quick brown fox jumps jumps over the lazy dog');
-
-  NewTest('Compare Lines with omission at the front ');
-  checkIsEqual('The quick brown fox jumps over the lazy dog',
-    'brown fox jumps over the lazy dog');
-
-  NewTest('Compare Lines with omission at the end ');
-  checkIsEqual('The quick brown fox jumps over the lazy dog',
-    'The quick brown fox jumps over the');
-
-  NewTest('Compare Lines with multiple differences String');
-  checkIsEqual('The quick brown fox jumps over the lazy dog',
-    'The quick brown fix jumps over the lasy dog');
-  (* *)
-
-  NewTest('Compare MultiLines Results');
-  checkIsEqual('The quick brown fox jumps over the lazy dog and'#13#10 +
-    ' there are multiple lines to deal with'#13#10#13#10 +
-    '<1 Empty Line Above> But still works OK',
-    'The quick brown fix jumps over the lazy dog and'#13#10 +
-    ' there are multople lines to dwal with'#13#10#13#10 +
-    '<1 Empty Line Above> But still works alright');
-  (* *)
-
-end;
-
 Procedure Test_Simple_Types_Compare_sensibly;
 var
   lErrorCount: integer;
@@ -636,73 +282,73 @@ var
 begin
   lS1 := '';
   lS2 := '';
-  lResult := LCS(lS1, lS2);
+  lResult := LCSStr(lS1, lS2);
   lExpected := '';
   NewTest('Empty values return empty');
   checkIsEqual(lExpected, lResult);
 
   lS1 := 'A';
   lS2 := '';
-  lResult := LCS(lS1, lS2);
+  lResult := LCSStr(lS1, lS2);
   lExpected := '';
   NewTest('One Empty value return empty');
   checkIsEqual(lExpected, lResult);
 
   lS1 := 'A';
   lS2 := 'B';
-  lResult := LCS(lS1, lS2);
+  lResult := LCSStr(lS1, lS2);
   lExpected := '';
   NewTest('Two different chars return empty');
   checkIsEqual(lExpected, lResult);
 
   lS1 := 'ACD';
   lS2 := 'EFG';
-  lResult := LCS(lS1, lS2);
+  lResult := LCSStr(lS1, lS2);
   lExpected := '';
   NewTest('Two different strings of the same length return empty');
   checkIsEqual(lExpected, lResult);
 
   lS1 := 'ACDHIJKLMNOP';
   lS2 := 'EFG';
-  lResult := LCS(lS1, lS2);
+  lResult := LCSStr(lS1, lS2);
   lExpected := '';
   NewTest('Two strings of the different lengths return empty');
   checkIsEqual(lExpected, lResult);
 
   lS1 := 'B';
   lS2 := 'B';
-  lResult := LCS(lS1, lS2);
+  lResult := LCSStr(lS1, lS2);
   lExpected := 'B';
   NewTest('Two same chars return char');
   checkIsEqual(lExpected, lResult);
 
   lS1 := 'ACD';
   lS2 := 'ECG';
-  lResult := LCS(lS1, lS2);
+  lResult := LCSStr(lS1, lS2);
   lExpected := 'C';
   NewTest('Two strings of the same length 1 char same returns 1 char');
   checkIsEqual(lExpected, lResult);
 
   lS1 := 'ACDHEJKLMNOP';
   lS2 := 'EFG';
-  lResult := LCS(lS1, lS2);
+  lResult := LCSStr(lS1, lS2);
   lExpected := 'E';
   NewTest('Two strings of the differnent lengths with 1 char same returns 1 char');
   checkIsEqual(lExpected, lResult);
 
   lS2 := 'ACDHEJKLMNOP';
   lS1 := 'AFG';
-  lResult := LCS(lS1, lS2);
+  lResult := LCSStr(lS1, lS2);
   lExpected := 'A';
   NewTest('Two strings of the differnent lengths with 1 char same returns 1 char');
   checkIsEqual(lExpected, lResult);
 
-
 end;
+
 procedure Test_LCSDiff_returns_Correct_Result;
 var
   lS1, lS2: string;
-  lResult: TStringDifferences;
+  lResult: TStringDifference;
 begin
   lS1 := '';
   lS2 := '';
@@ -803,6 +449,188 @@ begin
   checkIsEqual('G', lResult.FirstAfter);
   checkIsEqual('123456', lResult.SecondBefore);
   checkIsEqual('8901234', lResult.SecondAfter);
+
+end;
+
+Procedure Test_LCSDiffences_returns_Correct_Result;
+var
+  i: integer;
+  lS1, lS2: string;
+  lRes: TStringDifference;
+  lResult: TStringDifferences;
+begin
+  (* *)
+  NewTest('Compare Short String');
+  lS1 := 'ABC';
+  lS2 := 'DEF';
+  lResult := LCSDifferences(lS1, lS2);
+  checkIsEqual(1, length(lResult));
+  checkIsEqual('', lResult[0].Same);
+  checkIsEqual('ABC', lResult[0].FirstBefore);
+  checkIsEqual('', lResult[0].FirstAfter);
+  checkIsEqual('DEF', lResult[0].SecondBefore);
+  checkIsEqual('', lResult[0].SecondAfter);
+  (* *)
+
+  lS1 := 'the fox';
+  lS2 := 'the fix';
+  lRes := LCSDiff(lS1, lS2);
+  checkIsEqual('the f', lRes.Same);
+  checkIsEqual('', lRes.FirstBefore);
+  checkIsEqual('ox', lRes.FirstAfter);
+  checkIsEqual('', lRes.SecondBefore);
+  checkIsEqual('ix', lRes.SecondAfter);
+  (* *)
+
+  lS1 := 'The quick brown fox jumps over the lazy dog';
+  lS2 := 'The quick brown fix jumps over the lazy dog';
+  lResult := LCSDifferences(lS1, lS2);
+  NewTest('Compare Lines without breaks String - returns 3 rows');
+  checkIsEqual(3, length(lResult));
+  NewTest('Compare Lines without breaks String[0]');
+  checkIsEqual('The quick brown f', lResult[0].Same);
+  NewTest('Compare Lines without breaks String[0]-First');
+  checkIsEqual('', lResult[0].FirstBefore);
+  checkIsEqual('o', lResult[0].FirstAfter);
+  checkIsEqual(1, lResult[0].FirstPos);
+  NewTest('Compare Lines without breaks String[0]-Second');
+  checkIsEqual('', lResult[0].SecondBefore);
+  checkIsEqual('i', lResult[0].SecondAfter);
+  checkIsEqual(1, lResult[0].SecondPos);
+
+  NewTest('Compare Lines without breaks String[1]');
+  checkIsEqual('', lResult[1].Same);
+  NewTest('Compare Lines without breaks String[1]-First');
+  checkIsEqual('o', lResult[1].FirstBefore);
+  checkIsEqual('', lResult[1].FirstAfter);
+  checkIsEqual(0, lResult[1].FirstPos);
+  NewTest('Compare Lines without breaks String[1]-Second');
+  checkIsEqual('i', lResult[1].SecondBefore);
+  checkIsEqual('', lResult[1].SecondAfter);
+  checkIsEqual(0, lResult[1].SecondPos);
+
+  NewTest('Compare Lines without breaks String[2]');
+  checkIsEqual('x jumps over the lazy dog', lResult[2].Same);
+  NewTest('Compare Lines without breaks String[2]-First');
+  checkIsEqual('The quick brown fo', lResult[2].FirstBefore);
+  checkIsEqual('', lResult[2].FirstAfter);
+  checkIsEqual(19, lResult[2].FirstPos);
+  NewTest('Compare Lines without breaks String[2]-Second');
+  checkIsEqual('The quick brown fi', lResult[2].SecondBefore);
+  checkIsEqual('', lResult[2].SecondAfter);
+  checkIsEqual(19, lResult[2].SecondPos);
+
+end;
+
+Procedure Test_LCSDiffences_Handles_Complex_JSON_Difference;
+var
+  lS1, lS2: string;
+  lResult: TStringDifferences;
+  i: integer;
+begin
+  (* *)
+  lS1 := '{"Authentication": {'#1'"Username": "USERX",'#1'"Password": "XXXXXX"},'
+    + '"CorrelationId": "30BA96DD-398A-4EED-8696-F9F6B0F88877","RequestStartTime":'
+    + '"1899-12-30T00:00:00.000Z","EntityTypeId": 2,"EntityId": ${#Project#ContractId},'
+    + '"InterfaceId": 100,"IPAddress": "127.0.0.1","CallerSystemId": 2,"DownloadDocumentInput":'
+    + '{'#1'"DocumentTypeCode": 101,'#1'"Version": 0,'#1'"RequestUsername":' +
+    ' "OOO000"}}';
+
+  lS2 := '{"DownloadDocumentInput":{"DocumentTypeCode":101,"DocumentLocationId":0,"Version":'
+    + '0,"RequestUsername":"OOO000","RefCount":0},"Authentication":{"Username":'
+    + '"USERX","Password":"XXXXXX","Token":"","RefCount":0},"RequestStartTime"'
+    + ':"1899-12-30T00:00:00.000+11:00","CallerSystemId":2,"CorrelationId":' +
+    '"30BA96DD-398A-4EED-8696-F9F6B0F88877","EntityId":0,"EntityTypeId":0,' +
+    '"InterfaceId":100,"IPAddress":"127.0.0.1","RefCount":0}';
+
+  checkIsEqual(ls1,ls2);
+  lResult := LCSDifferences(lS1, lS2);
+
+
+  NewTest('Complex JSON - returns 74 rows');
+  checkIsEqual(74, length(lResult));
+  NewTest('Complex JSON[0]');
+  checkIsEqual('{', lResult[0].Same);
+  NewTest('Complex JSON[0]-First');
+  checkIsEqual('', lResult[0].FirstBefore);
+  checkIsEqual('', lResult[0].FirstAfter);
+  checkIsEqual(1, lResult[0].FirstPos);
+  NewTest('Complex JSON[0]-Second');
+  checkIsEqual('', lResult[0].SecondBefore);
+
+  checkIsEqual( '"DownloadDocumentInput":{"DocumentTypeCode":101,"DocumentLocationId":0,"Versi'+
+ 'on":0,"RequestUsername":"OOO000","RefCount":0},', lResult[0].SecondAfter);
+  checkIsEqual(1, lResult[0].SecondPos);
+
+   NewTest('Complex JSON[68]');
+    checkIsEqual('', lResult[1].Same);
+    NewTest('Complex JSON[68]-First');
+    checkIsEqual('questUsername', lResult[68].FirstBefore);
+    checkIsEqual(' "OOO000"}}', lResult[68].FirstAfter);
+    checkIsEqual(0, lResult[68].FirstPos);
+    NewTest('Complex JSON[68]-Second');
+    checkIsEqual('i', lResult[68].SecondBefore);
+    checkIsEqual('', lResult[68].SecondAfter);
+    checkIsEqual(0, lResult[68].SecondPos);
+
+    NewTest('Complex JSON[2]');
+    checkIsEqual('x jumps over the lazy dog', lResult[2].Same);
+    NewTest('Complex JSON[2]-First');
+    checkIsEqual('o', lResult[2].FirstBefore);
+    checkIsEqual('', lResult[2].FirstAfter);
+    checkIsEqual(19, lResult[2].FirstPos);
+    NewTest('Complex JSON[2]-Second');
+    checkIsEqual('i', lResult[2].SecondBefore);
+    checkIsEqual('', lResult[2].SecondAfter);
+    checkIsEqual(19, lResult[2].SecondPos);
+
+
+end;
+
+Procedure Test_Difference_compare_easier_to_read;
+begin
+  (**)
+  NewTest('Compare Short String');
+  checkIsEqual('ABC', 'DEF');
+
+  NewTest('Compare Lines without breaks String');
+  checkIsEqual('The quick brown fox jumps over the lazy dog',
+    'The quick brown fix jumps over the lazy dog');
+
+  NewTest('Compare Lines without breaks String and multiple differences');
+  checkIsEqual('The quick brown fox jumps over the lazy dog',
+    'The quoKC brown fix jumps iver the lzay dog');
+ (**)
+
+  NewTest('Compare Lines with omission ');
+  checkIsEqual('The quick brown fox jumps over the lazy dog',
+    'The brown fox jumps over the lazy dog');
+  (**)
+  NewTest('Compare Lines with Addition ');
+  checkIsEqual('The quick brown fox jumps over the lazy dog',
+    'The quick brown fox jumps jumps over the lazy dog');
+  (**)
+  NewTest('Compare Lines with omission at the front ');
+  checkIsEqual('The quick brown fox jumps over the lazy dog',
+    'brown fox jumps over the lazy dog');
+
+  NewTest('Compare Lines with omission at the end ');
+  checkIsEqual('The quick brown fox jumps over the lazy dog',
+    'The quick brown fox jumps over the');
+
+  NewTest('Compare Lines with multiple differences String');
+  checkIsEqual('The quick brown fox jumps over the lazy dog',
+    'The quick brown fix jumps over the lasy dog');
+  (**)
+
+  NewTest('Compare MultiLines Results');
+  checkIsEqual('The quick brown fox jumps over the lazy dog and'#13#10 +
+    ' there are multiple lines to deal with'#13#10#13#10 +
+    '<1 Empty Line Above> But still works OK',
+    'The quick brown fix jumps over the lazy dog and'#13#10 +
+    ' there are multople lines to dwal with'#13#10#13#10 +
+    '<1 Empty Line Above> But still works alright');
+  (* *)
 
 end;
 
