@@ -37,12 +37,13 @@ begin
     (**)
     NewSet('Compare Result Display Improvements');
     PrepareSet(Nil);
-    (**)
+    (** )
     AddTestCase('LCS check', Test_LCS_returns_Correct_Result, skipcase);
     AddTestCase('LCSDiff check', Test_LCSDiff_returns_Correct_Result, skipcase);
     AddTestCase('LCSDifferences check', Test_LCSDiffences_returns_Correct_Result);
     AddTestCase('LCSDifferences With Complext JSON',Test_LCSDiffences_Handles_Complex_JSON_Difference);
-
+    (**)
+    AddTestCase('Console Column Testing', Test_Console_Column_Displays_Colums_as_Expected);
     (**)
     AddTestCase('Simple Types',
       Test_Simple_Types_Compare_sensibly);

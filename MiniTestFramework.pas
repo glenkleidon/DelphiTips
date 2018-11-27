@@ -86,49 +86,36 @@ Type
   TConsoleTextArray = Array of TConsoleText;
 
   IConsoleColumn = Interface
+    Function Lines: TConsoleTextArray;
     function GetColumnWidth: integer;
-    function GetLines: TConsoleTextArray;
-    Procedure Finalise;
+    Procedure Finalise(AColour: integer);
     Procedure AddText(AText: string; AColour: integer);
     Property ColumnWidth: integer read GetColumnWidth;
-    Property Lines: TConsoleTextArray read GetLines;
+
   End;
 
   TConsoleColumn = Class(TInterfacedObject, IConsoleColumn)
   private
-    fViewMode: TDifferenceViewMode;
+    fEscapeCRLF: boolean;
     fPos: integer;
     fLines: TConsoleTextArray;
     fColour: integer;
     FColumnWidth: integer;
-    FSameColour: integer;
-    FDifferentColour: integer;
-    FOmissionColour: integer;
     function GetColumnWidth: integer;
-    function GetLines: TConsoleTextArray;
     procedure SetColumnWidth(const Value: integer);
     Function AddTextReturningOverflow(AText: string; AColour: integer): string;
     function GetCharsRemaining: integer;
-    procedure SetDifferentColour(const Value: integer);
-    procedure SetOmissionColour(const Value: integer);
-    procedure SetSameColour(const Value: integer);
   public
-    Constructor Create(AWidth: integer; AColour: integer;
-      AViewMode: TDifferenceViewMode);
+    Constructor Create(AWidth: integer; AColour: integer; AEscapeCRLF: boolean);
+    Destructor Destroy; override;
     Procedure AddText(AText: string; AColour: integer);
-    Procedure Finalise;
-    constructor CreateAcutal;
-    constructor CreateExpected;
+    Procedure PadToEnd(AColour: integer);
+    Procedure Finalise(AColour: integer);
+    Function LineCount: integer;
+    Function Lines: TConsoleTextArray;
   published
     Property ColumnWidth: integer read GetColumnWidth;
-    Property Lines: TConsoleTextArray read GetLines;
     Property CharsRemaining: integer read GetCharsRemaining;
-    Property ViewMode: TDifferenceViewMode read fViewMode;
-    Property DifferentColour: integer read FDifferentColour
-      write SetDifferentColour;
-    Property SameColour: integer read FSameColour write SetSameColour;
-    Property OmissionColour: integer read FOmissionColour
-      write SetOmissionColour;
   End;
 
   TTestSet = Record
@@ -1024,103 +1011,147 @@ begin
 
 end;
 
+Function AlignResults(ALeftColumn, ARightColumn: TConsoleColumn;
+  ATwoColumn: boolean): TConsoleTextArray;
+var
+  lSize, i, p, lLeftLine, lRightLine: integer;
+  Procedure ExtraText(AMessage: string; var AIndex: integer);
+  begin
+    Result[AIndex].Text := AMessage;
+    REsult[AIndex].Colour := clError;
+    Result[AIndex].EOL := false;
+    inc(AIndex);
+  end;
+begin
+  lSize := ALeftColumn.LineCount;
+  if ARightColumn.LineCount > lSize then
+    lSize := ARightColumn.LineCount;
+
+  if not ATwoColumn then
+  begin
+    SetLength(Result, ARightColumn.LineCount + ALeftColumn.LineCount + (2*lSize));
+    p := 0;
+    ExtraText(EXPECTED_FORMAT_MESSAGE, p);
+    lSize := ALeftColumn.LineCount - 1;
+    for i := 0 to lSize do
+    begin
+      Result[p] := ALeftColumn.Lines[i];
+      if (i<>lSize) and (Result[p].EOL) then ExtraText(EXPECTED_FORMAT_MESSAGE, p);
+      inc(p);
+    end;
+
+    ExtraText(ACTUAL_FORMAT_MESSAGE, p);
+    lSize := ALeftColumn.LineCount - 1;
+    for i := 0 to lSize do
+    begin
+      inc(p);
+      Result[p] := ARightColumn.Lines[i];
+      if (i<>lSize) and (Result[p].EOL) then ExtraText(ACTUAL_FORMAT_MESSAGE, p);
+      inc(p);
+    end;
+    exit;
+  end;
+  // Two Column sort;
+  SetLength(Result, ARightColumn.LineCount + ALeftColumn.LineCount + lSize);
+  lLeftLine := 0;
+  lRightLine := 0;
+  i := -1;
+  while (lLeftLine < ALeftColumn.LineCount) or
+    (lRightLine < ARightColumn.LineCount) do
+  begin
+    inc(i);
+    repeat
+      Result[i] := ALeftColumn.Lines[lLeftLine];
+      Result[i].EOL := false;
+      inc(i);
+      inc(lLeftLine);
+    until (lLeftLine >= ALeftColumn.LineCount) or
+      (ALeftColumn.Lines[lLeftLine].EOL);
+
+    // Inter column space
+    inc(i);
+    Result[i].Text := ' ';
+    Result[i].Colour := clDefault;
+    Result[i].EOL := false;
+
+    inc(i);
+    repeat
+      Result[i] := ARightColumn.Lines[lRightLine];
+      inc(i);
+      inc(lRightLine);
+    until (lRightLine >= ARightColumn.LineCount) or
+      (ARightColumn.Lines[lRightLine].EOL);
+  end;
+end;
+
 Function DifferencesToConsoleArray(ADifferences: TStringDifferences)
   : TConsoleTextArray;
 var
-  lFinalLength, lColTextSize, lLeftColour, lRightColour, lColour: integer;
-  i, lSize, lStartDiff: integer;
-  lLeftText, lRightText: string;
-  lleftOverFlow, lRightOverflow: string;
-  lLeftColumn, lRightColumn: TConsoleTextArray;
-
-  Procedure NewRow(var AColumn: TConsoleTextArray; AText: string;
-    AColour: integer; AEOL: boolean);
-  begin
-    SetLength(lResult, lSize + 1);
-    AColumn[lSize].Text := AText;
-    AColumn[lSize].Colour := AColour;
-    AColumn[lSize].EOL := AEOL;
-    inc(lSize);
-  end;
-
-  Function NextLine(var AColumn: TConsoleTextArray; AText: String;
-    AColour: integer): string;
-  begin
-
-  end;
-
-  Function AtEndOfColumn: boolean;
-  begin
-    Result := false;
-    if lSize > 0 then
-      lResult := lResult[lSize - 1].EOL;
-  end;
-
+  i, lColumnWidth, lStartDiff: integer;
+  lLeftColumn, lRightColumn: TConsoleColumn;
+  lTwoColumn: boolean;
+  lLeftPadColour, lRightPadColour: integer;
 begin
-  lSize := 0;
-  SetLength(lResult, lSize);
-
-  lColTextSize := (ConsoleScreenWidth - 1);
-
+  lTwoColumn := false;
+  lColumnWidth := ConsoleScreenWidth - 12;
+  lLeftPadColour := clError;
+  lRightPadColour := clError;
   if dfTwoColumn in DifferenceDisplayMode then
   begin
-    lFinalLength := FinalLengthofDifferences(ADifferences);
-    if lFinalLength > (ConsoleScreenWidth - 1) then
-      lColTextSize := (ConsoleScreenWidth - 1) div 2;
+    if (not(dfRow in DifferenceDisplayMode)) or
+      (FinalLengthofDifferences(ADifferences) > (ConsoleScreenWidth - 3)) then
+    begin
+      lColumnWidth := (ConsoleScreenWidth - 3) Div 2;
+      lTwoColumn := true;
+    end;
   end;
-
-  lLeftText := '';
-  lRightText := '';
-  lleftOverFlow := '';
-  lRightOverflow := '';
-  lLeftColour := clExpectedText;
-  lRightColour := clActualText;
-
+  lLeftColumn := TConsoleColumn.Create(lColumnWidth, clExpectedText,
+    dfEscapeCRLF in DifferenceDisplayMode);
+  lRightColumn := TConsoleColumn.Create(lColumnWidth, clActualText,
+    dfEscapeCRLF in DifferenceDisplayMode);
   for i := Low(ADifferences) to High(ADifferences) do
   begin
+
     lStartDiff := ADifferences[i].SecondPos - ADifferences[i].FirstPos;
-
-    // Add any overflow from the previous line
-    if (Length(ADifferences[i].Same) > 0) then
-      lColour := clExpectedText
-    else
-      lColour := clTextDifferent;
-    lleftOverFlow := NextLine(lleftOverFlow, lLeftColour);
-
-    if AtEndOfColumn then
-      lRightOverflow := NextLine(lRightOverflow, lRightColour);
-
     if Length(ADifferences[i].Same) > 0 then
     begin
       if (lStartDiff > 0) then
-
-        Print(stringofchar(' ', lStartDiff), clOmission);
-      Print(ADifferences[i].Same, clActualText)
+        lLeftColumn.AddText(stringofchar(' ', lStartDiff), clOmission);
+      lLeftColumn.AddText(ADifferences[i].Same, clExpectedText);
     end
     else
-      Print(ADifferences[i].FirstBefore, clTextDifferent);
+      lLeftColumn.AddText(ADifferences[i].FirstBefore, clTextDifferent);
+
+    // Right Column (Actual)
     lStartDiff := ADifferences[i].SecondPos - ADifferences[i].FirstPos;
     if Length(ADifferences[i].Same) > 0 then
     begin
       if (lStartDiff < 0) then
-        Print(stringofchar(' ', -1 * lStartDiff), clOmission);
-      Print(ADifferences[i].Same, clActualText)
+        lRightColumn.AddText(stringofchar(' ', -1 * lStartDiff), clOmission);
+      lRightColumn.AddText(ADifferences[i].Same, clActualText);
     end
     else
-    begin
-      Print(ADifferences[i].SecondBefore, clTextDifferent);
-    end;
+      lRightColumn.AddText(ADifferences[i].SecondBefore, clTextDifferent);
   end;
 
+  if lTwoColumn then
+  begin
+    lLeftPadColour := clExpectedText;
+    lRightPadColour := clActualText;
+  end;
+
+  lLeftColumn.Finalise(lLeftPadColour);
+  lRightColumn.Finalise(lRightPadColour);
+  Result := AlignResults(lLeftColumn, lRightColumn, lTwoColumn);
 end;
 
 procedure DisplayMessage(AMessage: String; AMessageColour: smallint;
   ADataType: integer);
 var
   lExpected, lActual, lFormatStr: string;
-
+  p, i, lExpectedStart, lActualStart: integer;
   lStringDifference: TStringDifferences;
-  p, i, StartDiff, lExpectedStart, lActualStart, lColumnWidth: integer;
+  lScreenText: TConsoleTextArray;
 
   // remove tab and delete
   Procedure EscapeTabs;
@@ -1161,15 +1192,14 @@ begin
   end;
 
   /// Ok, we have errored - look for the reason.
-  /// The idea is to do this:
-  /// If the lines can be compared above and below each other
-  /// ie the width of each is less than the screen, just show
-  /// the result under each other, highlingting the difference
+  /// dfROW
+  /// When dfColumn Always Split into 2
+  /// When dfColumn and dfRow then split into 2 when too wide to fit.
+  ///
   /// Expected :<This is expected>
   /// Actual   :<this is Actual>
   /// ======
   ///
-  /// If they WONT fit then do it like this
   /// Expected                          Actual
   /// ================================= =====================================
   /// This is what I expected but this  This is what I EXPECTED but this is w
@@ -1183,102 +1213,20 @@ begin
   lActualStart := p + Length(ACTUAL_FORMAT_MESSAGE) +
     Length(EXPECTED_ACTUAL_SEPARATOR);
 
+  // Compare Differences
   lExpected := copy(AMessage, lExpectedStart, p - lExpectedStart);
   lActual := copy(AMessage, lActualStart, MAXINT);
   lStringDifference := LCSDifferences(lExpected, lActual);
 
-  for i := Low(lStringDifference) to High(lStringDifference) do
+  // Convert to Console Output
+  lScreenText := DifferencesToConsoleArray(lStringDifference);
+  for i := low(lScreenText) to High(lScreenText) do
   begin
-    StartDiff := lStringDifference[i].SecondPos - lStringDifference[i].FirstPos;
-    if Length(lStringDifference[i].Same) > 0 then
-    begin
-      if (StartDiff > 0) then
-        Print(stringofchar(' ', StartDiff), clOmission);
-      Print(lStringDifference[i].Same, clActualText)
-    end
-    else
-      Print(lStringDifference[i].FirstBefore, clTextDifferent);
+    Print(lScreenText[i].Text, lScreenText[i].Colour);
+    if lScreenText[i].EOL then
+      WriteLn;
   end;
-  WriteLn;
-  for i := Low(lStringDifference) to High(lStringDifference) do
-  begin
-    StartDiff := lStringDifference[i].SecondPos - lStringDifference[i].FirstPos;
-    if Length(lStringDifference[i].Same) > 0 then
-    begin
-      if (StartDiff < 0) then
-        Print(stringofchar(' ', -1 * StartDiff), clOmission);
-      Print(lStringDifference[i].Same, clActualText)
-    end
-    else
-    begin
-      Print(lStringDifference[i].SecondBefore, clTextDifferent);
-    end;
-  end;
-  WriteLn;
 
-  { lDifferences := FindDifferences(lExpected, lActual);
-    DifferencesFound := Length(lDifferences);
-    lDifferenceMax := DifferencesFound - 1;
-    lSize := 0;
-    lExpectedPos := 1;
-    lActualPos := 1;
-    SetLength(lLeftColumn, 0);
-    SetLength(lRightColumn, 0);
-
-    // Add the Content to each column
-    for i := 0 to lDifferenceMax do
-    begin
-    // Left Column Text
-    AddTextToColumn(lLeftColumn, copy(lExpected, lExpectedPos,
-    lDifferences[i].TextStart - lExpectedPos), clError, lLeftPos);
-    AddTextToColumn(lLeftColumn, AddTrailingSpace(copy(lExpected,
-    lDifferences[i].TextStart, lDifferences[i].TextSize),
-    lDifferences[i].Size), clDifferent, lLeftPos);
-    lExpectedPos := lDifferences[i].TextStart + lDifferences[i].TextSize;
-    // Right Column text
-    AddTextToColumn(lRightColumn, copy(lActual, lActualPos,
-    lDifferences[i].CompareStart - lActualPos), clError, lRightPos);
-    AddTextToColumn(lRightColumn,
-    AddTrailingSpace(copy(lActual, lDifferences[i].CompareStart,
-    lDifferences[i].CompareToSize), lDifferences[i].Size), clDifferent,
-    lRightPos);
-    lActualPos := lDifferences[i].CompareStart + lDifferences[i].CompareToSize;
-    end;
-    AddTextToColumn(lLeftColumn, copy(lExpected, lExpectedPos, MAXINT), clError,
-    lLeftPos);
-    AddTextToColumn(lRightColumn, copy(lActual, lActualPos, MAXINT), clError,
-    lRightPos);
-
-    // Now output the columns
-    lLeftPos := -1;
-    lRightPos := -1;
-    lLeftFields := Length(lLeftColumn);
-    lRightFields := Length(lRightColumn);
-    // Ensure last field has EOL
-    lLeftColumn[lLeftFields - 1].EOL := true;
-    lRightColumn[lRightFields - 1].EOL := true;
-
-    // Output the heading
-    if lSingleRow then
-    begin
-    Print(EXPECTED_FORMAT_MESSAGE, clError);
-    end
-    else
-    begin
-    PrintLn(Format('   %s|%s', [AddTrailingSpace(EXPECTED_FORMAT_MESSAGE,
-    lColumnWidth), AddTrailingSpace(ACTUAL_FORMAT_MESSAGE, lColumnWidth)]
-    ), clError);
-    end;
-
-    while (lLeftPos < lLeftFields - 1) or (lRightPos < lRightFields - 1) do
-    begin
-    // Space at the beginning.
-    if not lSingleRow then
-    Print('  |', clError);
-    OutputLeftColumn;
-    OutputRightColumn;
-    end;
-  }
 end;
 
 function TestTypeFromSkip(ASkipped: TSkipType): TCheckTestType;
@@ -1440,7 +1388,7 @@ var
 begin
   lList := TStringlist.Create;
   try
-    if dfEscapeCRLF in self.ViewMode then
+    if self.fEscapeCRLF then
       lList.Text := StringReplace(StringReplace(AText, #10, #17, [rfReplaceAll]
         ), #13, #20, [rfReplaceAll])
     Else
@@ -1452,6 +1400,11 @@ begin
       repeat
         lOverflow := AddTextReturningOverflow(lOverflow, AColour);
       until Length(lOverflow) = 0;
+      if (not(self.fEscapeCRLF)) and (i < lList.Count - 1) then
+      begin
+        PadToEnd(AColour);
+        self.fLines[self.LineCount - 1].EOL := true;
+      end;
     end;
 
   finally
@@ -1470,7 +1423,7 @@ begin
     exit;
 
   lText := copy(AText, 1, self.CharsRemaining);
-  Result := copy(AText, self.CharsRemaining, MAXINT);
+  Result := copy(AText, self.CharsRemaining + 1, MAXINT);
   lSize := Length(lText);
   self.fPos := self.fPos + lSize;
 
@@ -1488,22 +1441,26 @@ begin
 end;
 
 constructor TConsoleColumn.Create(AWidth: integer; AColour: integer;
-  AViewMode: TDifferenceViewMode); overload;
+  AEscapeCRLF: boolean);
 begin
   self.FColumnWidth := AWidth;
   self.fColour := -1;
   SetLength(fLines, 0);
   self.fPos := 0;
-  self.fViewMode := AViewMode;
-  Self.SameColour := AColour;
-  self.DifferentColour := clTextDifferent;
+  self.fEscapeCRLF := AEscapeCRLF;
 end;
 
-procedure TConsoleColumn.Finalise;
+destructor TConsoleColumn.Destroy;
 begin
-  if self.fPos = 0 then
+  SetLength(self.fLines, 0);
+  inherited;
+end;
+
+procedure TConsoleColumn.Finalise(AColour: integer);
+begin
+  if self.fPos = 1 then
     exit;
-  self.AddText(#127, cl);
+  PadToEnd(AColour);
 end;
 
 function TConsoleColumn.GetCharsRemaining: integer;
@@ -1516,29 +1473,25 @@ begin
   Result := self.FColumnWidth;
 end;
 
-function TConsoleColumn.GetLines: TConsoleTextArray;
+function TConsoleColumn.LineCount: integer;
 begin
+  Result := Length(self.fLines);
+end;
 
+function TConsoleColumn.Lines: TConsoleTextArray;
+begin
+  Result := self.fLines;
+end;
+
+procedure TConsoleColumn.PadToEnd(AColour: integer);
+begin
+  self.AddTextReturningOverflow(stringofchar(' ', self.CharsRemaining),
+    AColour);
 end;
 
 procedure TConsoleColumn.SetColumnWidth(const Value: integer);
 begin
   FColumnWidth := Value;
-end;
-
-procedure TConsoleColumn.SetDifferentColour(const Value: integer);
-begin
-  FDifferentColour := Value;
-end;
-
-procedure TConsoleColumn.SetOmissionColour(const Value: integer);
-begin
-  FOmissionColour := Value;
-end;
-
-procedure TConsoleColumn.SetSameColour(const Value: integer);
-begin
-  FSameColour := Value;
 end;
 
 initialization

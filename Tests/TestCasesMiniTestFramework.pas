@@ -32,6 +32,7 @@ Procedure Test_LCSDiffences_Handles_Complex_JSON_Difference;
 Procedure Test_Simple_Types_Compare_sensibly;
 
 Procedure Test_Difference_compare_easier_to_read;
+Procedure Test_Console_Column_Displays_Colums_as_Expected;
 
 implementation
 
@@ -599,7 +600,7 @@ begin
 
   NewTest('Compare Lines without breaks String and multiple differences');
   checkIsEqual('The quick brown fox jumps over the lazy dog',
-    'The quoKC brown fix jumps iver the lzay dog');
+               'The quoKC brown fix jumps iver the lzay dog');
  (**)
 
   NewTest('Compare Lines with omission ');
@@ -632,6 +633,23 @@ begin
     '<1 Empty Line Above> But still works alright');
   (* *)
 
+end;
+
+Procedure Test_Console_Column_Displays_Colums_as_Expected;
+var lResult : TConsoleColumn;
+  i: Integer;
+begin
+    lResult := TConsoleColumn.Create(40, clExpectedText, False);
+    lResult.AddText('1234567890123456789012345678901234567890',clActualText);
+    lResult.AddText('Text ok'#13#10'And Another',clExpectedText);
+    lResult.AddText('more text',clTextDifferent);
+    lResult.Finalise(clExpectedText);
+    for i := 0 to lResult.LineCount-1 do
+    begin
+       Print(lResult.Lines[i].Text,lResult.Lines[i].Colour);
+       if lResult.Lines[i].EOL then Writeln;
+    end;
+    Writeln;
 end;
 
 end.
