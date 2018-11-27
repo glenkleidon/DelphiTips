@@ -1011,62 +1011,91 @@ begin
 
 end;
 
-Function AlignResults(ALeftColumn, ARightColumn: TConsoleColumn;
-  ATwoColumn: boolean): TConsoleTextArray;
+Function AlignDifferencesByRow(ALeftColumn, ARightColumn: TConsoleColumn)
+  : TConsoleTextArray;
 var
   lSize, i, p, lLeftLine, lRightLine: integer;
   Procedure ExtraText(AMessage: string; var AIndex: integer);
   begin
     Result[AIndex].Text := AMessage;
-    REsult[AIndex].Colour := clError;
+    Result[AIndex].Colour := clError;
     Result[AIndex].EOL := false;
     inc(AIndex);
   end;
+
 begin
   lSize := ALeftColumn.LineCount;
   if ARightColumn.LineCount > lSize then
     lSize := ARightColumn.LineCount;
 
-  if not ATwoColumn then
+  SetLength(Result, (4 * lSize));
+  p := 0;
+  ExtraText(EXPECTED_FORMAT_MESSAGE, p);
+  lSize := ALeftColumn.LineCount - 1;
+  for i := 0 to lSize do
   begin
-    SetLength(Result, ARightColumn.LineCount + ALeftColumn.LineCount + (2*lSize));
-    p := 0;
-    ExtraText(EXPECTED_FORMAT_MESSAGE, p);
-    lSize := ALeftColumn.LineCount - 1;
-    for i := 0 to lSize do
-    begin
-      Result[p] := ALeftColumn.Lines[i];
-      if (i<>lSize) and (Result[p].EOL) then ExtraText(EXPECTED_FORMAT_MESSAGE, p);
-      inc(p);
-    end;
-
-    ExtraText(ACTUAL_FORMAT_MESSAGE, p);
-    lSize := ALeftColumn.LineCount - 1;
-    for i := 0 to lSize do
-    begin
-      inc(p);
-      Result[p] := ARightColumn.Lines[i];
-      if (i<>lSize) and (Result[p].EOL) then ExtraText(ACTUAL_FORMAT_MESSAGE, p);
-      inc(p);
-    end;
-    exit;
+    Result[p] := ALeftColumn.Lines[i];
+    if (i <> lSize) and (Result[p].EOL) then
+      ExtraText(EXPECTED_FORMAT_MESSAGE, p);
+    inc(p);
   end;
-  // Two Column sort;
-  SetLength(Result, ARightColumn.LineCount + ALeftColumn.LineCount + lSize);
+
+  ExtraText(ACTUAL_FORMAT_MESSAGE, p);
+  lSize := ALeftColumn.LineCount - 1;
+  for i := 0 to lSize do
+  begin
+    inc(p);
+    Result[p] := ARightColumn.Lines[i];
+    if (i <> lSize) and (Result[p].EOL) then
+      ExtraText(ACTUAL_FORMAT_MESSAGE, p);
+    inc(p);
+  end;
+  setlength(result,p);
+end;
+
+Function AlignDifferencesByColumn(ALeftColumn, ARightColumn: TConsoleColumn)
+  : TConsoleTextArray;
+var
+  lSize, i, p, lLeftLine, lRightLine: integer;
+
+  Procedure AddEmptyLine;
+  begin
+    Result[i].Text := stringofchar(' ', ALeftColumn.ColumnWidth);
+    Result[i].Colour := clOmission;
+    Result[i].EOL := true;
+  end;
+
+begin
+  lSize := ALeftColumn.LineCount;
+  if ARightColumn.LineCount > lSize then
+    lSize := ARightColumn.LineCount;
+  SetLength(Result, 4 * lSize);
   lLeftLine := 0;
   lRightLine := 0;
   i := -1;
   while (lLeftLine < ALeftColumn.LineCount) or
     (lRightLine < ARightColumn.LineCount) do
   begin
+    // Leading space
     inc(i);
-    repeat
-      Result[i] := ALeftColumn.Lines[lLeftLine];
-      Result[i].EOL := false;
-      inc(i);
-      inc(lLeftLine);
-    until (lLeftLine >= ALeftColumn.LineCount) or
-      (ALeftColumn.Lines[lLeftLine].EOL);
+    Result[i].Text := '  ';
+    Result[i].Colour := clError;
+    Result[i].EOL := false;
+
+    // Left Column
+    inc(i);
+    if lLeftLine >= ALeftColumn.LineCount then
+      AddEmptyLine
+    else
+    begin
+      repeat
+        Result[i] := ALeftColumn.Lines[lLeftLine];
+        Result[i].EOL := false;
+        inc(i);
+        inc(lLeftLine);
+      until (lLeftLine >= ALeftColumn.LineCount) or
+        (ALeftColumn.Lines[lLeftLine - 1].EOL);
+    end;
 
     // Inter column space
     inc(i);
@@ -1074,14 +1103,21 @@ begin
     Result[i].Colour := clDefault;
     Result[i].EOL := false;
 
+    // Right Column
     inc(i);
-    repeat
-      Result[i] := ARightColumn.Lines[lRightLine];
-      inc(i);
-      inc(lRightLine);
-    until (lRightLine >= ARightColumn.LineCount) or
-      (ARightColumn.Lines[lRightLine].EOL);
+    if lRightLine >= ARightColumn.LineCount then
+      AddEmptyLine
+    else
+    begin
+      repeat
+        Result[i] := ARightColumn.Lines[lRightLine];
+        inc(i);
+        inc(lRightLine);
+      until (lRightLine >= ARightColumn.LineCount) or
+        (ARightColumn.Lines[lRightLine - 1].EOL);
+    end;
   end;
+  SetLength(Result, i + 1);
 end;
 
 Function DifferencesToConsoleArray(ADifferences: TStringDifferences)
@@ -1127,7 +1163,11 @@ begin
     if Length(ADifferences[i].Same) > 0 then
     begin
       if (lStartDiff < 0) then
+      begin
         lRightColumn.AddText(stringofchar(' ', -1 * lStartDiff), clOmission);
+        if (i < High(ADifferences)) then
+          lLeftColumn.AddText(stringofchar(' ', -1 * lStartDiff), clOmission);
+      end;
       lRightColumn.AddText(ADifferences[i].Same, clActualText);
     end
     else
@@ -1142,7 +1182,10 @@ begin
 
   lLeftColumn.Finalise(lLeftPadColour);
   lRightColumn.Finalise(lRightPadColour);
-  Result := AlignResults(lLeftColumn, lRightColumn, lTwoColumn);
+  if lTwoColumn then
+    Result := AlignDifferencesByColumn(lLeftColumn, lRightColumn)
+  else
+    Result := AlignDifferencesByRow(lLeftColumn, lRightColumn);
 end;
 
 procedure DisplayMessage(AMessage: String; AMessageColour: smallint;
