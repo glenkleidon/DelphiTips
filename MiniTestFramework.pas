@@ -1219,7 +1219,7 @@ begin
     ((p < 1) OR (pos(EXPECTED_FORMAT_MESSAGE, AMessage) < 1) OR
     (pos(ACTUAL_FORMAT_MESSAGE, AMessage) < 1)) then
   begin
-    PrintLn(AMessage, AMessageColour);
+    PrintLn(StringReplace(AMessage,#1,'',[rfReplaceAll]), AMessageColour);
     exit;
   end;
 
