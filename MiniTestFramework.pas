@@ -12,7 +12,7 @@ uses SysUtils, windows
     ;
 
 Const
-  FRAMEWORK_VERSION = '2.0.0.1';
+  FRAMEWORK_VERSION = '2.0.0.2';
   DEFAULT_TOTALS_FORMAT =
     'Run>Sets:%-3d Cases:%-3d Tests:%-4d Passed:%-4d Failed:%-3d Skipped:%-3d Errors:%-3d';
   DEFAULT_SET_FORMAT =
@@ -118,6 +118,11 @@ Type
     Property CharsRemaining: integer read GetCharsRemaining;
   End;
 
+  TCursorPosition = Record
+     x : smallint;
+     y : SmallInt;
+  end;
+
   TTestSet = Record
     SetName: string;
     Execute: TTestCaseProcedure;
@@ -195,6 +200,7 @@ Function TotalTests: integer;
 Procedure TestSummary;
 procedure CaseResults;
 Function ConsoleScreenWidth: integer;
+Function ConsoleCursorPosition: TCursorPosition;
 Procedure Print(AText: String; AColour: smallint = FOREGROUND_DEFAULT);
 Procedure PrintLn(AText: String; AColour: smallint = FOREGROUND_DEFAULT);
 Procedure PrintLnCentred(AText: string; AChar: char;
@@ -283,14 +289,26 @@ var
 begin
   if Screen_width = -1 then
   begin
-    try
-      GetConsoleScreenBufferInfo(ConsoleHandle, lScreenInfo);
-      Screen_width := lScreenInfo.dwSize.X - 2;
-    except
+    if GetConsoleScreenBufferInfo(ConsoleHandle, lScreenInfo) then
+      Screen_width := lScreenInfo.dwSize.X - 2
+    else
       Screen_width := DEFAULT_SCREEN_WIDTH;
-    end;
   end;
   Result := Screen_width;
+end;
+
+Function ConsoleCursorPosition: TCursorPosition;
+var
+  lScreenInfo: TConsoleScreenBufferInfo;
+begin
+  Result.X := 0;
+  Result.Y := 0;
+  if GetConsoleScreenBufferInfo(ConsoleHandle, lScreenInfo) then
+  begin
+    Result.X := lScreenInfo.dwCursorPosition.X;
+    Result.Y := lScreenInfo.dwCursorPosition.Y;
+    Screen_width := lScreenInfo.dwSize.X - 2;
+  end;
 end;
 
 Procedure Print(AText: String; AColour: smallint = FOREGROUND_DEFAULT);
@@ -1015,12 +1033,11 @@ Function AlignDifferencesByRow(ALeftColumn, ARightColumn: TConsoleColumn)
   : TConsoleTextArray;
 var
   lSize, i, p, lLeftLine, lRightLine: integer;
-  Procedure ExtraText(AMessage: string; var AIndex: integer);
+  Procedure ExtraText(AMessage: string; AIndex: integer);
   begin
     Result[AIndex].Text := AMessage;
     Result[AIndex].Colour := clError;
     Result[AIndex].EOL := false;
-    inc(AIndex);
   end;
 
 begin
@@ -1031,26 +1048,33 @@ begin
   SetLength(Result, (4 * lSize));
   p := 0;
   ExtraText(EXPECTED_FORMAT_MESSAGE, p);
+  inc(p);
   lSize := ALeftColumn.LineCount - 1;
   for i := 0 to lSize do
   begin
     Result[p] := ALeftColumn.Lines[i];
     if (i <> lSize) and (Result[p].EOL) then
+    begin
+      inc(p);
       ExtraText(EXPECTED_FORMAT_MESSAGE, p);
+    end;
     inc(p);
   end;
 
   ExtraText(ACTUAL_FORMAT_MESSAGE, p);
-  lSize := ALeftColumn.LineCount - 1;
+  inc(p);
+  lSize := ARightColumn.LineCount - 1;
   for i := 0 to lSize do
   begin
-    inc(p);
     Result[p] := ARightColumn.Lines[i];
     if (i <> lSize) and (Result[p].EOL) then
+    begin
+      inc(p);
       ExtraText(ACTUAL_FORMAT_MESSAGE, p);
+    end;
     inc(p);
   end;
-  setlength(result,p);
+  SetLength(Result, p);
 end;
 
 Function AlignDifferencesByColumn(ALeftColumn, ARightColumn: TConsoleColumn)
@@ -1219,7 +1243,8 @@ begin
     ((p < 1) OR (pos(EXPECTED_FORMAT_MESSAGE, AMessage) < 1) OR
     (pos(ACTUAL_FORMAT_MESSAGE, AMessage) < 1)) then
   begin
-    PrintLn(StringReplace(AMessage,#1,'',[rfReplaceAll]), AMessageColour);
+    DifferencesFound := 1;
+    PrintLn(StringReplace(AMessage, #1, '', [rfReplaceAll]), AMessageColour);
     exit;
   end;
 
@@ -1260,6 +1285,7 @@ begin
   lExpected := copy(AMessage, lExpectedStart, p - lExpectedStart);
   lActual := copy(AMessage, lActualStart, MAXINT);
   lStringDifference := LCSDifferences(lExpected, lActual);
+  DifferencesFound := Length(lStringDifference);
 
   // Convert to Console Output
   lScreenText := DifferencesToConsoleArray(lStringDifference);

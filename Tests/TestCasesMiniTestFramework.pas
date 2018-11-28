@@ -33,6 +33,7 @@ Procedure Test_Simple_Types_Compare_sensibly;
 
 Procedure Test_Difference_compare_easier_to_read;
 Procedure Test_Console_Column_Displays_Colums_as_Expected;
+Procedure Test_Difference_compare_uses_correct_mode;
 
 implementation
 
@@ -525,6 +526,7 @@ end;
 Procedure Test_LCSDiffences_Handles_Complex_JSON_Difference;
 var
   lS1, lS2: string;
+  lErrorCount: integer;
   lResult: TStringDifferences;
 begin
   (* *)
@@ -541,11 +543,12 @@ begin
     + ':"1899-12-30T00:00:00.000+11:00","CallerSystemId":2,"CorrelationId":' +
     '"30BA96DD-398A-4EED-8696-F9F6B0F88877","EntityId":0,"EntityTypeId":0,' +
     '"InterfaceId":100,"IPAddress":"127.0.0.1","RefCount":0}';
-
-//  checkIsEqual(ls1,ls2);
+  lErrorCount := CaseFailedTests;
+  checkIsEqual(lS1, lS2);
   lResult := LCSDifferences(lS1, lS2);
+  checkIsEqual(73, DifferencesFound);
 
-(** )
+  (* *)
 
   NewTest('Complex JSON - returns 74 rows');
   checkIsEqual(74, length(lResult));
@@ -558,38 +561,57 @@ begin
   NewTest('Complex JSON[0]-Second');
   checkIsEqual('', lResult[0].SecondBefore);
 
-  checkIsEqual( '"DownloadDocumentInput":{"DocumentTypeCode":101,"DocumentLocationId":0,"Versi'+
- 'on":0,"RequestUsername":"OOO000","RefCount":0},', lResult[0].SecondAfter);
+  checkIsEqual
+    ('"DownloadDocumentInput":{"DocumentTypeCode":101,"DocumentLocationId":0,"Versi'
+    + 'on":0,"RequestUsername":"OOO000","RefCount":0},',
+    lResult[0].SecondAfter);
   checkIsEqual(1, lResult[0].SecondPos);
-(**)
-   NewTest('Complex JSON[68]');
-    checkIsEqual('', lResult[1].Same);
-    NewTest('Complex JSON[68]-First');
-    checkIsEqual('questUsername', lResult[68].FirstBefore);
-    checkIsEqual(' "OOO000"}}', lResult[68].FirstAfter);
-    checkIsEqual(0, lResult[68].FirstPos);
-    NewTest('Complex JSON[68]-Second');
-    checkIsEqual('i', lResult[68].SecondBefore);
-    checkIsEqual('', lResult[68].SecondAfter);
-    checkIsEqual(0, lResult[68].SecondPos);
+  (* *)
+  NewTest('Complex JSON[68]');
+  checkIsEqual('', lResult[1].Same);
+  NewTest('Complex JSON[68]-First');
+  checkIsEqual('questUsername', lResult[68].FirstBefore);
+  checkIsEqual(' "OOO000"}}', lResult[68].FirstAfter);
+  checkIsEqual(14, lResult[68].FirstPos);
+  NewTest('Complex JSON[68]-Second');
+  checkIsEqual('fCount', lResult[68].SecondBefore);
+  checkIsEqual('0}', lResult[68].SecondAfter);
+  checkIsEqual(7, lResult[68].SecondPos);
 
-    NewTest('Complex JSON[2]');
-    checkIsEqual('x jumps over the lazy dog', lResult[2].Same);
-    NewTest('Complex JSON[2]-First');
-    checkIsEqual('o', lResult[2].FirstBefore);
-    checkIsEqual('', lResult[2].FirstAfter);
-    checkIsEqual(19, lResult[2].FirstPos);
-    NewTest('Complex JSON[2]-Second');
-    checkIsEqual('i', lResult[2].SecondBefore);
-    checkIsEqual('', lResult[2].SecondAfter);
-    checkIsEqual(19, lResult[2].SecondPos);
+  NewTest('Complex JSON[2]');
+  checkIsEqual('"Authentication":', lResult[2].Same);
+  NewTest('Complex JSON[2]-First');
+  checkIsEqual('{', lResult[2].FirstBefore);
+  checkIsEqual
+    (' {'#1'"Username": "USERX",'#1'"Password": "XXXXXX"},"CorrelationId": "30BA96DD-398A-4EED-8696-F9F6B0F88877"',
+    lResult[2].FirstAfter);
+  checkIsEqual(2, lResult[2].FirstPos);
+  NewTest('Complex JSON[2]-Second');
+  checkIsEqual
+    ('{"DownloadDocumentInput":{"DocumentTypeCode":101,"DocumentLocationId":0,"Version":0,"RequestUsername":"OOO000","RefCount":0},',
+    lResult[2].SecondBefore);
+  checkIsEqual
+    ('{"Username":"USERX","Password":"XXXXXX","Token":"","RefCount":0}',
+    lResult[2].SecondAfter);
+  checkIsEqual(126, lResult[2].SecondPos);
 
-
+  if (CaseFailedTests = lErrorCount + 1) then
+  begin
+    Println('   The Error in the set is planned so that "passes"', clMessage);
+    CaseFailedTests := 0;
+    Inc(CasePassedTests, lErrorCount);
+  end
+  else
+  begin
+    Println('   Wrong Number of errors, 1 expected!', FOREGROUND_YELLOW);
+  end;
 end;
 
 Procedure Test_Difference_compare_easier_to_read;
 begin
-  (**)
+  UpdateCounters;
+
+  (* *)
   NewTest('Compare Short String');
   checkIsEqual('ABC', 'DEF');
 
@@ -597,20 +619,20 @@ begin
   checkIsEqual('The quick brown fox jumps over the lazy dog',
     'The quick brown fix jumps over the lazy dog');
 
- (**)
+  (* *)
   NewTest('Compare Lines without breaks String and multiple differences');
   checkIsEqual('The quick brown fox jumps over the lazy dog',
-               'The quoKC brown fix jumps iver the lzay dog');
- (**)
+    'The quoKC brown fix jumps iver the lzay dog');
+  (* *)
 
   NewTest('Compare Lines with omission ');
   checkIsEqual('The quick brown fox jumps over the lazy dog',
     'The brown fox jumps over the lazy dog');
-  (**)
+  (* *)
   NewTest('Compare Lines with Addition ');
   checkIsEqual('The quick brown fox jumps over the lazy dog',
     'The quick brown fox jumps jumps over the lazy dog');
-  (**)
+  (* *)
   NewTest('Compare Lines with omission at the front ');
   checkIsEqual('The quick brown fox jumps over the lazy dog',
     'brown fox jumps over the lazy dog');
@@ -622,7 +644,7 @@ begin
   NewTest('Compare Lines with multiple differences String');
   checkIsEqual('The quick brown fox jumps over the lazy dog',
     'The quick brown fix jumps over the lasy dog');
-  (**)
+  (* *)
 
   NewTest('Compare MultiLines Results');
   checkIsEqual('The quick brown fox jumps over the lazy dog and'#13#10 +
@@ -632,24 +654,89 @@ begin
     ' there are multople lines to dwal with'#13#10#13#10 +
     '<1 Empty Line Above> But still works alright');
   (* *)
+  // now adjust the counts manually, to "Pass" the expected failure
+  UpdateCounters;
+
+  if (TestingFails = 9) then
+  begin
+    Println('   The failure above is expected, so that "passes"', clMessage);
+    CaseFailedTests := 0;
+    Inc(CasePassedTests, 9);
+  end
+  else
+  begin
+    Println('   Wrong number of failures, 9 expected!', FOREGROUND_YELLOW);
+  end;
 
 end;
 
 Procedure Test_Console_Column_Displays_Colums_as_Expected;
-var lResult : TConsoleColumn;
-  i: Integer;
+var
+  lResult: TConsoleColumn;
+  i: integer;
 begin
-    lResult := TConsoleColumn.Create(40, clExpectedText, False);
-    lResult.AddText('1234567890123456789012345678901234567890',clActualText);
-    lResult.AddText('Text ok'#13#10'And Another',clExpectedText);
-    lResult.AddText('more text',clTextDifferent);
-    lResult.Finalise(clExpectedText);
-    for i := 0 to lResult.LineCount-1 do
+  lResult := TConsoleColumn.create(40, clExpectedText, false);
+  lResult.AddText('1234567890123456789012345678901234567890', clActualText);
+  lResult.AddText('Text ok'#13#10'And Another', clExpectedText);
+  lResult.AddText('more text', clTextDifferent);
+  lResult.Finalise(clExpectedText);
+  Print('  ', clError);
+  for i := 0 to lResult.LineCount - 1 do
+  begin
+    Print(lResult.Lines[i].Text, lResult.Lines[i].Colour);
+    if lResult.Lines[i].EOL then
     begin
-       Print(lResult.Lines[i].Text,lResult.Lines[i].Colour);
-       if lResult.Lines[i].EOL then Writeln;
+      Print(#13#10'  ', clError);
     end;
-    Writeln;
+  end;
+  Writeln;
+end;
+
+Procedure Test_Difference_compare_uses_correct_mode;
+var
+  lStartCursorPos, lEndCursorPos: TCursorPosition;
+  lExpected, lActual: string;
+begin
+  lExpected := 'Line1'+
+  '........................................................................' +
+    #13#10'Line2'#13#10'Line3';
+  lActual :=
+  'LINE1...................................................................' +
+    #13#10'LINE2'#13#10'LINE3';
+
+  UpdateCounters;
+
+  DifferenceDisplayMode := [dfRow, dfTwoColumn];
+  lStartCursorPos := ConsoleCursorPosition;
+  checkIsEqual(lExpected, lActual);
+  lEndCursorPos := ConsoleCursorPosition;
+  checkIsEqual(6, lEndCursorPos.y - lStartCursorPos.y);
+
+  DifferenceDisplayMode := [dfRow];
+  lStartCursorPos := ConsoleCursorPosition;
+  checkIsEqual(lExpected, lActual);
+  lEndCursorPos := ConsoleCursorPosition;
+  checkIsEqual(5, lEndCursorPos.y - lStartCursorPos.y);
+
+  DifferenceDisplayMode := [dfRow, dfTwoColumn, dfEscapeCRLF];
+  lStartCursorPos := ConsoleCursorPosition;
+  checkIsEqual(lExpected, lActual);
+  lEndCursorPos := ConsoleCursorPosition;
+  checkIsEqual(7, lEndCursorPos.y - lStartCursorPos.y);
+  // now adjust the counts manually, to "Pass" the expected failure
+  UpdateCounters;
+
+  if (TestingFails = 3) then
+  begin
+    Println('   The failure above is expected, so that "passes"', clMessage);
+    CaseFailedTests := 0;
+    Inc(CasePassedTests, 3);
+  end
+  else
+  begin
+    Println('   Wrong number of failures, 3 expected!', FOREGROUND_YELLOW);
+  end;
+
 end;
 
 end.
