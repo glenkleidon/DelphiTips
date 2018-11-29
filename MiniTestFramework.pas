@@ -118,7 +118,7 @@ Type
     Property CharsRemaining: integer read GetCharsRemaining;
   End;
 
-  TCursorPosition = Record
+  TScreenCoordinate = Record
      x : smallint;
      y : SmallInt;
   end;
@@ -200,7 +200,11 @@ Function TotalTests: integer;
 Procedure TestSummary;
 procedure CaseResults;
 Function ConsoleScreenWidth: integer;
-Function ConsoleCursorPosition: TCursorPosition;
+Function ConsoleCursorPosition: TScreenCoordinate;
+Function SetConsoleBufferLength(Rows: smallInt): boolean;
+Procedure DisplayModeDefault(AEscapeCRLF: boolean=false);
+Procedure DisplayModeRows(AEscapeCRLF: boolean=false);
+Procedure DisplayModeColumns(AEscapeCRLF: boolean=false);
 Procedure Print(AText: String; AColour: smallint = FOREGROUND_DEFAULT);
 Procedure PrintLn(AText: String; AColour: smallint = FOREGROUND_DEFAULT);
 Procedure PrintLnCentred(AText: string; AChar: char;
@@ -297,7 +301,16 @@ begin
   Result := Screen_width;
 end;
 
-Function ConsoleCursorPosition: TCursorPosition;
+Function SetConsoleBufferLength(Rows: smallInt): boolean;
+var
+  lSize: COORD;
+begin
+  lSize.x := ConsoleScreenWidth+2;
+  lSize.Y := Rows;
+  result := SetConsoleScreenBufferSize(GetStdHandle(STD_OUTPUT_HANDLE),lSize);
+end;
+
+Function ConsoleCursorPosition: TScreenCoordinate;
 var
   lScreenInfo: TConsoleScreenBufferInfo;
 begin
@@ -336,6 +349,36 @@ begin
   Print('  ' + AText + '  ', AColour);
   PrintLn(stringofchar(AChar, PostSpace));
 end;
+
+Procedure SetDisplayMode(ARow, AColumn: boolean; AEscapeCRLF: Boolean=false);
+var lMode: TDifferenceViewMode;
+begin
+ lMode := [];
+ if ARow then lMode := lMode + [dfRow];
+ if AColumn then lMode := lMOde + [dfTwoColumn];
+ if AEscapeCRLF then lMode := lMOde + [dfEscapeCRLF];
+ DifferenceDisplayMode := lMode;
+end;
+
+Procedure DisplayModeDefault(AEscapeCRLF: boolean=false);
+var lMode: TDifferenceViewMode;
+begin
+ SetDisplayMode(true,true,AEscapeCRLF);
+end;
+
+Procedure DisplayModeRows(AEscapeCRLF: boolean=false);
+var lMode: TDifferenceViewMode;
+begin
+ SetDisplayMode(true,false,AEscapeCRLF);
+end;
+
+Procedure DisplayModeColumns(AEscapeCRLF: boolean=false);
+var lMode: TDifferenceViewMode;
+begin
+ SetDisplayMode(False,True,AEscapeCRLF);
+end;
+
+/// TEST FUNCTIONS
 
 Procedure AddTestSet(ATestCaseName: string; AProcedure: TTestCaseProcedure;
   ASkipped: TSkipType; AExpectedException: string);

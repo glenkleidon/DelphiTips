@@ -53,7 +53,6 @@ begin
       Test_Difference_compare_easier_to_read);
     AddTestCase('Compare Outputs result in correct mode',
       Test_Difference_compare_uses_correct_mode);
-
     (**)
     FinaliseSet(Nil);
     RunTestSets;
