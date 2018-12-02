@@ -2,8 +2,23 @@ unit MiniTestFramework;
 
 interface
 
-{$IFDEF VER120} {$DEFINE BEFOREVARIANTS} {$ENDIF}
-{$IFDEF VER130} {$DEFINE BEFOREVARIANTS} {$ENDIF}
+{$IFDEF VER120} {$DEFINE BEFOREVARIANTS} {$DEFINE BEFORE_INLINE} {$ENDIF}
+{$IFDEF VER130} {$DEFINE BEFOREVARIANTS} {$DEFINE BEFORE_INLINE} {$ENDIF}
+{$IFNDEF BEFOREVARIANTS}
+ {$IFDEF VER140} {$DEFINE BEFORE_INLINE} {$ENDIF}
+ {$IFDEF VER150} {$DEFINE BEFORE_INLINE} {$ENDIF}
+ {$IFDEF VER160} {$DEFINE BEFORE_INLINE} {$ENDIF}
+ {$IFDEF VER170} {$DEFINE BEFORE_INLINE} {$ENDIF}
+ {$IF CompilerVersion >= 17.0}
+      {$DEFINE HAS_INLINE}
+ {$IFEND}
+ {$IF CompilerVersion >= 20.0}
+      {$DEFINE HAS_VARUSTRING}
+ {$IFEND}
+ {$IF CompilerVersion >= 23.0}
+      {$DEFINE HAS_VARUSTRARG}
+ {$IFEND}
+{$ENDIF}
 
 uses SysUtils, windows
 {$IFNDEF BEFOREVARIANTS}
@@ -691,8 +706,9 @@ begin
       :
       Result := IntToStr(AValue);
 
-{$IFDEF UNICODE}
+{$IFDEF HAS_VARUSTRING}
     varUString,
+    {$IFDEF HAS_VARSTRARG}varUStrArg,{$ENDIF}
 {$ENDIF}
     varOleStr, varStrArg, varString:
       Result := AValue;
@@ -1293,8 +1309,11 @@ begin
 
   // Only do the test on string data types
   if NOT((ADataType = varString) OR
-{$IFNDEF BEFOREVARIANTS}
-    (ADataType = varUString) or (ADataType = varUStrArg) or
+{$IFNDEF BEFORE_INLINE}
+  {$IFDEF HAS_VARUSTRING}
+    (ADataType = varUString) OR
+    {$IFDEF HAS_VARUSTRARG } (ADataType = varUStrArg) OR {$ENDIF}
+  {$ENDIF}
 {$ENDIF}
     (ADataType in [varStrArg, varOleStr])) then
   begin
@@ -1618,3 +1637,4 @@ SetOutputFormat := DEFAULT_SET_FORMAT;
 CaseOutputFormat := DEFAULT_CASE_FORMAT;
 
 end.
+
