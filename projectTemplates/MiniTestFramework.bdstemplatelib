@@ -1,4 +1,4 @@
-﻿ <TemplateLibrary Version="1.0" id="DVCProjectBundles">
+﻿ <TemplateLibrary Version="2.0" id="DVCProjectBundles">
     <Name>MINITestFramework</Name>
     <Description>MiniTest Unit Test Project </Description>
     <Items>
@@ -7,7 +7,7 @@
         <Description>A MiniTest Unit Test Project</Description>
         <Author></Author>
         <Icon>MiniTest\MiniTest.ico</Icon>
-        <ProjectFile>MiniTestProject.dproj</ProjectFile>
+        <ProjectFile>MiniTestProject.dpr</ProjectFile>
         <DefaultProjectName>MiniTestProject</DefaultProjectName>
         <FilePath>MiniTest</FilePath>
         <Identities>RadStudio</Identities>

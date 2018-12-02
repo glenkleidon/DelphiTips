@@ -9,7 +9,7 @@ There are currently 3 units available:
 ## DUnitm - Mini Test Framework
 The [Mini Test framework](https://github.com/glenkleidon/DelphiTips/wiki/DUnitm---Mini-Test-Framework) is a light-weight unit testing framework which simply requires that you
 include the single MiniTestFrameWork.pas in a console app, and start testing your code.
-Check out the [Blog here](https://glenkleidon.blogspot.com.au/2017/07/new-mini-test-framework-for-delphi.html)
+Check out the [Blog here](https://glenkleidon.blogspot.com.au/2017/07/new-mini-test-framework-for-delphi.html) and the [YouTube](https://www.youtube.com/playlist?list=PL42y13vA83auEzqLTzmkwnQuC6pyOxlQE) playlist.
 
 ### Added Features: Release 1 
   + Test Run support
@@ -22,6 +22,10 @@ Check out the [Blog here](https://glenkleidon.blogspot.com.au/2017/07/new-mini-t
   + Case level skipping stops cases from actually being evaluated. **
 ### Breaking changes Release 1 to 2
 The _Skip_ parameter type in AddTestCase and Assertions has been changed from _boolean_ to a custom Enum _TSkipType_.  This was required to support case level skipping.  Using the Frameworks _**SKIP**_ or _**SKIPPED**_ constants will continue to work as normal, however this is a breaking change for existing cases where the _Skip_ parameter has been implemented using a BOOLEAN expression.  You need to change to _skipTrue_ or _skipFalse_ in this case.
+
+### Added Features: Release 3
+  + Deferred test cases
+  + Powerful Difference viewer functions
   
 See the updated wiki!
 
