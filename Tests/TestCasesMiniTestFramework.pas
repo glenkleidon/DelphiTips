@@ -697,14 +697,11 @@ var
   lStartCursorPos, lEndCursorPos: TScreenCoordinate;
   lExpected, lActual: string;
 begin
-  Println('Warning, this test may fail if the screen buffer is too small!',clMessage);
   NewTest('Change Screen Buffer size to 500');
   checkIsTrue(SetConsoleBufferLength(500));
-  lExpected := 'Line1'+
-  '........................................................................' +
+  lExpected := 'Line1' + stringofchar('.', ConsoleScreenWidth - 5) +
     #13#10'Line2'#13#10'Line3';
-  lActual :=
-  'LINE1...................................................................' +
+  lActual := 'LINE1' + stringofchar('.', ConsoleScreenWidth - 5) +
     #13#10'LINE2'#13#10'LINE3';
 
   NewTest('Check Mode - Columns if needed');
@@ -724,7 +721,7 @@ begin
   checkIsEqual(9, lEndCursorPos.y - lStartCursorPos.y);
 
   NewTest('Check Mode - Rows Escape CRLF and Column if Needed');
-  DisplayModeColumns(True);
+  DisplayModeColumns(true);
   lStartCursorPos := ConsoleCursorPosition;
   checkIsEqual(lExpected, lActual);
   lEndCursorPos := ConsoleCursorPosition;
