@@ -1155,12 +1155,11 @@ begin
   SetLength(Result, 4 * lSize);
   lLeftLine := 0;
   lRightLine := 0;
-  i := -1;
+  i := 0;
   while (lLeftLine < ALeftColumn.LineCount) or
     (lRightLine < ARightColumn.LineCount) do
   begin
     // Leading space
-    inc(i);
     Result[i].Text := '  ';
     Result[i].Colour := clError;
     Result[i].EOL := false;
@@ -1168,7 +1167,10 @@ begin
     // Left Column
     inc(i);
     if lLeftLine >= ALeftColumn.LineCount then
-      AddEmptyLine
+    begin
+      AddEmptyLine;
+      inc(i);
+    end
     else
     begin
       repeat
@@ -1181,7 +1183,6 @@ begin
     end;
 
     // Inter column space
-    inc(i);
     Result[i].Text := ' ';
     Result[i].Colour := clDefault;
     Result[i].EOL := false;
@@ -1189,7 +1190,10 @@ begin
     // Right Column
     inc(i);
     if lRightLine >= ARightColumn.LineCount then
-      AddEmptyLine
+    begin
+      AddEmptyLine;
+      inc(i);
+    end
     else
     begin
       repeat
@@ -1199,6 +1203,8 @@ begin
       until (lRightLine >= ARightColumn.LineCount) or
         (ARightColumn.Lines[lRightLine - 1].EOL);
     end;
+    // check for enough working space: probably not needed.
+    if length(Result)-i<lSize then setlength(result,length(Result)+lSize);
   end;
   SetLength(Result, i + 1);
 end;
