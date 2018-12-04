@@ -34,6 +34,7 @@ Procedure Test_Simple_Types_Compare_sensibly;
 Procedure Test_Difference_compare_easier_to_read;
 Procedure Test_Console_Column_Displays_Colums_as_Expected;
 Procedure Test_Difference_compare_uses_correct_mode;
+Procedure Test_Difference_text_same_but_Type_different;
 
 implementation
 
@@ -738,6 +739,39 @@ begin
   else
   begin
     Println('   Wrong number of failures, 3 expected!', FOREGROUND_YELLOW);
+  end;
+
+end;
+
+Procedure Test_Difference_text_same_but_Type_different;
+var
+  lutfstr : UTF8String;
+  lstr    : String;
+begin
+  UpdateCounters;
+  lstr := 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. '+
+  'Curabitur ullamcorper a leo vitae gravida. Nulla nec elit velit.'+
+  ' Ut consequat mattis sem id lobortis. Cras ligula nunc, luctus'+
+  ' sed orci sit amet, rhoncus aliquet nisi. Integer pulvinar a '+
+  'massa eget cursus. Ut mattis metus id elit tempus, at tempus '+
+  'tellus finibus. Donec magna metus, molestie non lorem vitae, '+
+  'sodales aliquet tortor. Cras elementum, justo sed tincidunt fringilla, '+
+  'tellus mi aliquam lacus, quis posuere ex lacus vel nunc. Sed at '+
+  'quam quis neque ultricies aliquet.';
+
+  lutfstr := lstr;
+  checkisequal(lutfstr, lstr);
+  UpdateCounters;
+
+  if (TestingFails = 1) then
+  begin
+    Println('   The failure above is expected, so that "passes"', clMessage);
+    CaseFailedTests := 0;
+    Inc(CasePassedTests, 1);
+  end
+  else
+  begin
+    Println('   Wrong number of failures, 1 expected!', FOREGROUND_YELLOW);
   end;
 
 end;

@@ -53,6 +53,9 @@ begin
     AddTestCase('Compare Outputs result in correct mode',
       Test_Difference_compare_uses_correct_mode);
     (**)
+    AddTestCase('Compare Outputs when types are different',
+      Test_Difference_text_same_but_Type_different);
+    (**)
     FinaliseSet(Nil);
     RunTestSets;
     TestSummary;
