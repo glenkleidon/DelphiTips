@@ -859,7 +859,7 @@ begin
                   [#13#10, ValueAsString(AExpected), ValueAsString(AResult)])
               else
                 lMessage :=
-                  Format('%s   Expected outcomes to differ, but both returned %s',
+                  Format('%s   Expected outcomes to differ, but both returned <%s>',
                   [#13#10, ValueAsString(AExpected)]);
             end
             else
