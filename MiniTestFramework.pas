@@ -117,7 +117,6 @@ Type
     fColour: integer;
     FColumnWidth: integer;
     function GetColumnWidth: integer;
-    procedure SetColumnWidth(const Value: integer);
     Function AddTextReturningOverflow(AText: string; AColour: integer): string;
     function GetCharsRemaining: integer;
   public
@@ -220,6 +219,8 @@ Function SetConsoleBufferLength(Rows: smallInt): boolean;
 Procedure DisplayModeDefault(AEscapeCRLF: boolean=false);
 Procedure DisplayModeRows(AEscapeCRLF: boolean=false);
 Procedure DisplayModeColumns(AEscapeCRLF: boolean=false);
+Procedure DisplayModeNone(AEscapeCRLF: boolean=false);
+
 Procedure Print(AText: String; AColour: smallint = FOREGROUND_DEFAULT);
 Procedure PrintLn(AText: String; AColour: smallint = FOREGROUND_DEFAULT);
 Procedure PrintLnCentred(AText: string; AChar: char;
@@ -376,22 +377,25 @@ begin
 end;
 
 Procedure DisplayModeDefault(AEscapeCRLF: boolean=false);
-var lMode: TDifferenceViewMode;
 begin
  SetDisplayMode(true,true,AEscapeCRLF);
 end;
 
 Procedure DisplayModeRows(AEscapeCRLF: boolean=false);
-var lMode: TDifferenceViewMode;
 begin
  SetDisplayMode(true,false,AEscapeCRLF);
 end;
 
 Procedure DisplayModeColumns(AEscapeCRLF: boolean=false);
-var lMode: TDifferenceViewMode;
 begin
  SetDisplayMode(False,True,AEscapeCRLF);
 end;
+
+Procedure DisplayModeNone(AEscapeCRLF: boolean=false);
+begin
+  SetDisplayMode(False,False,AEscapeCRLF);
+end;
+
 
 /// TEST FUNCTIONS
 
@@ -579,13 +583,13 @@ begin
     Try
       if not assigned(MiniTestCases[i].Execute) then
         continue;
-
       if MiniTestCases[i].Skip = skipCase then
       begin
         SkipTestCases(i);
         continue;
       end;
 
+      DisplayModeDefault;
       CurrentSetName := MiniTestCases[i].SetName;
       if MiniTestCases[i].TestCaseName <> '' then
         NextTestCase(MiniTestCases[i].TestCaseName, MiniTestCases[i].Skip);
@@ -929,7 +933,7 @@ end;
 
 Function lcs(X, Y: string): TLCSParams;
 var
-  lSize, lBestSize, pF, pS, lx, ly, lr, i, j, k: integer;
+  lSize, pF, pS, lx, ly, i, j, k: integer;
   procedure SetBest;
   begin
     if (lSize > Result.Length) OR
@@ -1091,7 +1095,7 @@ end;
 Function AlignDifferencesByRow(ALeftColumn, ARightColumn: TConsoleColumn)
   : TConsoleTextArray;
 var
-  lSize, i, p, lLeftLine, lRightLine: integer;
+  lSize, i, p: integer;
   Procedure ExtraText(AMessage: string; AIndex: integer);
   begin
     Result[AIndex].Text := AMessage;
@@ -1139,7 +1143,7 @@ end;
 Function AlignDifferencesByColumn(ALeftColumn, ARightColumn: TConsoleColumn)
   : TConsoleTextArray;
 var
-  lSize, i, p, lLeftLine, lRightLine: integer;
+  lSize, i, lLeftLine, lRightLine: integer;
 
   Procedure AddEmptyLine;
   begin
@@ -1280,7 +1284,7 @@ end;
 procedure DisplayMessage(AMessage: String; AMessageColour: smallint;
   ADataType: integer);
 var
-  lExpected, lActual, lFormatStr: string;
+  lExpected, lActual: string;
   p, i, lExpectedStart, lActualStart: integer;
   lStringDifference: TStringDifferences;
   lScreenText: TConsoleTextArray;
@@ -1305,6 +1309,8 @@ var
 begin
   p := pos(EXPECTED_ACTUAL_SEPARATOR, AMessage);
   if (AMessageColour <> clError) OR
+     (DifferenceDisplayMode = []) OR
+     (DifferenceDisplayMode=[dfEscapeCRLF]) OR
     ((p < 1) OR (pos(EXPECTED_FORMAT_MESSAGE, AMessage) < 1) OR
     (pos(ACTUAL_FORMAT_MESSAGE, AMessage) < 1)) then
   begin
@@ -1624,11 +1630,6 @@ procedure TConsoleColumn.PadToEnd(AColour: integer);
 begin
   self.AddTextReturningOverflow(stringofchar(' ', self.CharsRemaining),
     AColour);
-end;
-
-procedure TConsoleColumn.SetColumnWidth(const Value: integer);
-begin
-  FColumnWidth := Value;
 end;
 
 initialization
