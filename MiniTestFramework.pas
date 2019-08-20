@@ -48,10 +48,26 @@ Const
   DEFAULT_SCREEN_WIDTH = 80;
   FOREGROUND_CYAN = 3;
   FOREGROUND_YELLOW = 6;
+  FOREGROUND_ROSE = 12;
+  FOREGROUND_CANARY = 14;
   FOREGROUND_PURPLE = 5;
+  FOREGROUNG_BLUE = 9;
   BACKGROUND_YELLOW = $60;
   BACKGROUND_WHITE = BACKGROUND_BLUE OR BACKGROUND_GREEN OR BACKGROUND_RED;
 
+{$IFDEF RG_COLOUR_BLIND}
+  clTitle = FOREGROUND_CYAN;
+  clError =   FOREGROUND_RED or FOREGROUND_INTENSITY;
+  clPass = FOREGROUND_YELLOW;
+  clMessage = FOREGROUND_CYAN;
+  clDefault = FOREGROUND_DEFAULT;
+  clSkipped = FOREGROUND_PURPLE;
+  // Difference Colours
+  clTextDifferent = BACKGROUND_WHITE OR FOREGROUND_RED or FOREGROUND_INTENSITY;
+  clExpectedText = FOREGROUND_RED OR BACKGROUND_WHITE;
+  clActualText = FOREGROUND_GREEN OR BACKGROUND_WHITE;
+  clOmission = BACKGROUND_YELLOW;
+{$ELSE}
   clTitle = FOREGROUND_YELLOW;
   clError = FOREGROUND_RED or FOREGROUND_INTENSITY;
   clPass = FOREGROUND_GREEN;
@@ -63,6 +79,7 @@ Const
   clExpectedText = FOREGROUND_GREEN OR BACKGROUND_WHITE;
   clActualText = FOREGROUND_BLUE OR BACKGROUND_WHITE;
   clOmission = BACKGROUND_YELLOW;
+{$ENDIF}
 
 Type
   TComparitorType = Variant;
@@ -156,7 +173,8 @@ var
   CreatingSets: boolean = false;
 
   ExpectedException, ExpectedSetException, LastSetName, CurrentSetName,
-    CurrentTestCaseName, CurrentTestCaseLabel, DeferredTestCaseLabel: string;
+    CurrentTestCaseName, CurrentTestCaseLabel, DeferredExpectedException,
+    DeferredTestCaseLabel: string;
   TotalPassedTests: integer = 0;
   TotalFailedTests: integer = 0;
   TotalSkippedTests: integer = 0;
@@ -170,6 +188,8 @@ var
 
   TotalOutputFormat, SetOutputFormat, CaseOutputFormat: string;
   DifferenceDisplayMode: TDifferenceViewMode = [dfRow, dfTwoColumn];
+
+  CurrentCaseIndex : integer;
 
 Procedure Title(AText: string);
 
@@ -201,6 +221,7 @@ Function CheckIsFalse(AResult: boolean; AMessage: string = '';
 Function CheckNotEqual(AResult1, AResult2: TComparitorType;
   AMessage: string = ''; ASkipped: TSkipType = skipFalse): boolean;
 Procedure DeferTestCase(ATestName: string = '');
+Procedure DeferExpectedException(AExceptionClassName: string);
 Procedure DeferredTestSuccess;
 Procedure DeferredTestFail;
 Procedure DeferredTestException(E: Exception);
@@ -581,6 +602,7 @@ begin
   SetCases := 0;
   for i := 0 to l - 1 do
     Try
+      CurrentCaseIndex := i;
       if not assigned(MiniTestCases[i].Execute) then
         continue;
       if MiniTestCases[i].Skip = skipCase then
@@ -1038,6 +1060,9 @@ var
   ls, i, p: integer;
   lBeforeDifferences, lAfterDifferences: TStringDifferences;
 begin
+  lBeforeDifferences := nil;
+  lAfterDifferences := nil;
+  
   if Length(AText) + Length(ACompareTo) = 0 then
     exit;
   lDiff := LCSDiff(AText, ACompareTo);
@@ -1221,64 +1246,71 @@ var
   lTwoColumn: boolean;
   lLeftPadColour, lRightPadColour: integer;
 begin
-  lTwoColumn := false;
-  lColumnWidth := ConsoleScreenWidth - 12;
-  lLeftPadColour := clError;
-  lRightPadColour := clError;
-  if dfTwoColumn in DifferenceDisplayMode then
-  begin
-    if (not(dfRow in DifferenceDisplayMode)) or
-      (FinalLengthofDifferences(ADifferences) > (ConsoleScreenWidth - 3)) then
+  lLeftColumn := nil;
+  lRightColumn := nil;
+  try
+    lTwoColumn := false;
+    lColumnWidth := ConsoleScreenWidth - 12;
+    lLeftPadColour := clError;
+    lRightPadColour := clError;
+    if dfTwoColumn in DifferenceDisplayMode then
     begin
-      lColumnWidth := (ConsoleScreenWidth - 3) Div 2;
-      lTwoColumn := true;
-    end;
-  end;
-  lLeftColumn := TConsoleColumn.Create(lColumnWidth, clExpectedText,
-    dfEscapeCRLF in DifferenceDisplayMode);
-  lRightColumn := TConsoleColumn.Create(lColumnWidth, clActualText,
-    dfEscapeCRLF in DifferenceDisplayMode);
-  for i := Low(ADifferences) to High(ADifferences) do
-  begin
-
-    lStartDiff := ADifferences[i].SecondPos - ADifferences[i].FirstPos;
-    if Length(ADifferences[i].Same) > 0 then
-    begin
-      if (lStartDiff > 0) then
-        lLeftColumn.AddText(stringofchar(' ', lStartDiff), clOmission);
-      lLeftColumn.AddText(ADifferences[i].Same, clExpectedText);
-    end
-    else
-      lLeftColumn.AddText(ADifferences[i].FirstBefore, clTextDifferent);
-
-    // Right Column (Actual)
-    lStartDiff := ADifferences[i].SecondPos - ADifferences[i].FirstPos;
-    if Length(ADifferences[i].Same) > 0 then
-    begin
-      if (lStartDiff < 0) then
+      if (not(dfRow in DifferenceDisplayMode)) or
+        (FinalLengthofDifferences(ADifferences) > (ConsoleScreenWidth - 3)) then
       begin
-        lRightColumn.AddText(stringofchar(' ', -1 * lStartDiff), clOmission);
-        if (i < High(ADifferences)) then
-          lLeftColumn.AddText(stringofchar(' ', -1 * lStartDiff), clOmission);
+        lColumnWidth := (ConsoleScreenWidth - 3) Div 2;
+        lTwoColumn := true;
       end;
-      lRightColumn.AddText(ADifferences[i].Same, clActualText);
-    end
+    end;
+    lLeftColumn := TConsoleColumn.Create(lColumnWidth, clExpectedText,
+      dfEscapeCRLF in DifferenceDisplayMode);
+    lRightColumn := TConsoleColumn.Create(lColumnWidth, clActualText,
+      dfEscapeCRLF in DifferenceDisplayMode);
+    for i := Low(ADifferences) to High(ADifferences) do
+    begin
+
+      lStartDiff := ADifferences[i].SecondPos - ADifferences[i].FirstPos;
+      if Length(ADifferences[i].Same) > 0 then
+      begin
+        if (lStartDiff > 0) then
+          lLeftColumn.AddText(stringofchar(' ', lStartDiff), clOmission);
+        lLeftColumn.AddText(ADifferences[i].Same, clExpectedText);
+      end
+      else
+        lLeftColumn.AddText(ADifferences[i].FirstBefore, clTextDifferent);
+
+      // Right Column (Actual)
+      lStartDiff := ADifferences[i].SecondPos - ADifferences[i].FirstPos;
+      if Length(ADifferences[i].Same) > 0 then
+      begin
+        if (lStartDiff < 0) then
+        begin
+          lRightColumn.AddText(stringofchar(' ', -1 * lStartDiff), clOmission);
+          if (i < High(ADifferences)) then
+            lLeftColumn.AddText(stringofchar(' ', -1 * lStartDiff), clOmission);
+        end;
+        lRightColumn.AddText(ADifferences[i].Same, clActualText);
+      end
+      else
+        lRightColumn.AddText(ADifferences[i].SecondBefore, clTextDifferent);
+    end;
+
+    if lTwoColumn then
+    begin
+      lLeftPadColour := clExpectedText;
+      lRightPadColour := clActualText;
+    end;
+
+    lLeftColumn.Finalise(lLeftPadColour);
+    lRightColumn.Finalise(lRightPadColour);
+    if lTwoColumn then
+      Result := AlignDifferencesByColumn(lLeftColumn, lRightColumn)
     else
-      lRightColumn.AddText(ADifferences[i].SecondBefore, clTextDifferent);
+      Result := AlignDifferencesByRow(lLeftColumn, lRightColumn);
+  finally
+    freeandnil(lLeftColumn);
+    freeandnil(lRightColumn);
   end;
-
-  if lTwoColumn then
-  begin
-    lLeftPadColour := clExpectedText;
-    lRightPadColour := clActualText;
-  end;
-
-  lLeftColumn.Finalise(lLeftPadColour);
-  lRightColumn.Finalise(lRightPadColour);
-  if lTwoColumn then
-    Result := AlignDifferencesByColumn(lLeftColumn, lRightColumn)
-  else
-    Result := AlignDifferencesByRow(lLeftColumn, lRightColumn);
 end;
 
 procedure DisplayMessage(AMessage: String; AMessageColour: smallint;
@@ -1496,10 +1528,18 @@ begin
     DeferredTestCaseLabel := ATestName;
 end;
 
+Procedure DeferExpectedException(AExceptionClassName: string);
+begin
+  DeferredExpectedException := AExceptionClassName;
+end;
+
 Procedure ResumeTestCase;
 begin
   if Length(DeferredTestCaseLabel) > 0 then
     NewTest(DeferredTestCaseLabel);
+  if Length(DeferredExpectedException) > 0 then
+    ExpectException(DeferredExpectedException);
+  DeferredExpectedException := '';
   DeferredTestCaseLabel := '';
 end;
 
@@ -1644,4 +1684,5 @@ SetOutputFormat := DEFAULT_SET_FORMAT;
 CaseOutputFormat := DEFAULT_CASE_FORMAT;
 
 end.
+
 
