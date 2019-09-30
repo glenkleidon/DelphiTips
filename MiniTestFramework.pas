@@ -190,6 +190,10 @@ var
   DifferenceDisplayMode: TDifferenceViewMode = [dfRow, dfTwoColumn];
 
   CurrentCaseIndex : integer;
+  DryRun : boolean = false;
+  HasCaseList : boolean = false;
+  CaseList: string = '';
+  TestProgramName: string='';
 
 Procedure Title(AText: string);
 
@@ -286,7 +290,7 @@ var
 
 Function CanDisplayCaseName(ACaseName: string): boolean;
 begin
-  Result := (ACaseName <> '') and (not(CreatingSets));
+  Result := (ACaseName <> '') and (not(CreatingSets)) and (not DryRun);
 end;
 
 Function NextSetName: string;
@@ -465,6 +469,11 @@ Procedure Title(AText: string);
 var
   lText: string;
 begin
+  if DryRun then
+  begin
+    Writeln('DUnitm',#9,'V-',FRAMEWORK_VERSION,#9,lText);
+    exit;
+  end;
   lText := 'DUnitm V-' + FRAMEWORK_VERSION;
   PrintLnCentred(lText, '=', clDefault);
   PrintLnCentred(AText, '=', clTitle);
@@ -531,7 +540,7 @@ end;
 procedure CaseResults;
 begin
 
-  if CaseIsEmpty then
+  if CaseIsEmpty or DryRun then
     exit;
 
   PrintLn(Format(CaseOutputFormat, [CasePassedTests, CaseFailedTests,
@@ -547,7 +556,8 @@ end;
 
 procedure SetResults;
 begin
-
+  if DryRun then exit;
+  
   if (SetIsEmpty) or (Length(CurrentSetName) = 0) then
     exit;
 
@@ -560,6 +570,8 @@ end;
 
 Procedure TestSummary;
 begin
+  if DryRun then exit;
+
   NextTestCase('');
   DoubleLine;
   PrintLn(Format(TotalOutputFormat, [TotalSets, TotalCases, TotalTests,
@@ -572,9 +584,10 @@ Procedure SetHeading(ASetName: string);
 var
   lHeading: string;
 begin
-  if Length(ASetName) = 0 then
+  if (Length(ASetName) = 0) or DryRun then
     exit;
   lHeading := 'Test Set:' + ASetName;
+
   PrintLn(lHeading, clTitle);
 end;
 
@@ -582,11 +595,53 @@ end;
 
 /// //////// TEST CASES  \\\\\\\\\\\\\\\\\
 
+// Return a Unique(ish) Identifier for the specific test case
+Function GenerateID(ACaseID: integer): string;
+var i,l,p: integer;
+    lHash, lTestName: string;
+    lIdentifierInit : string;
+begin
+ if length(TestProgramName)=0 then
+   TestProgramName := ChangeFileExt(ExtractFileName(Paramstr(0)),'');
+ lHash := copy(TestProgramName+')(*&^%$#@!',1,10);
+ lTestName := MiniTestCases[ACaseId].SetName+'/'+MiniTestCases[ACaseId].TestCaseName;
+ l := length(lTestName);
+ for i := 1 to l do
+ begin
+   p := 1+ (i mod 10);
+   lHash[p] := char(ord(lHash[p]) XOR ord(lTestName[i]) XOR (i mod 256));
+ end;
+
+ for i := 1 to 10 do
+   result := Result + format('%.2x',[ord(lHash[i])]);
+end;
+
 Procedure SkipTestCases(ACaseId: integer);
 begin
   NewTest(MiniTestCases[ACaseId].TestCaseName);
   CheckIsTrue(false, 'Case Skipped', Skip);
 end;
+
+Procedure DryRunTestCase(ACaseID: integer);
+var
+   lId: string;
+   lSkippedChar: string;
+   lCaseRow : string;
+begin
+  if (MiniTestCases[ACaseId].Skip=skipFalse) then
+   lSkippedChar := ' ' else lSkippedChar := 'X';
+  lID := GenerateID(ACaseId);
+  lCaseRow := Format('[%s]'#9'%s'#9'%s'#9'%s'#9'%s', [
+     lSkippedChar,TestProgramName,MiniTestCases[ACaseId].SetName,
+       MiniTestCases[ACaseId].TestCaseName,lId]);
+  Writeln(lCaseRow);
+end;
+
+Function TestInCaseList(ACaseId: integer) : boolean;
+begin
+  result := pos(GenerateID(ACaseId),CaseList)>0;
+end;
+
 
 Procedure RunTestSets;
 var
@@ -605,6 +660,15 @@ begin
       CurrentCaseIndex := i;
       if not assigned(MiniTestCases[i].Execute) then
         continue;
+
+      if DryRun then
+      begin
+        DryRunTestCase(i);
+        Continue;
+      end;
+
+      if HasCaseList and (not TestInCaseList(i)) then continue;
+
       if MiniTestCases[i].Skip = skipCase then
       begin
         SkipTestCases(i);
@@ -613,6 +677,7 @@ begin
 
       DisplayModeDefault;
       CurrentSetName := MiniTestCases[i].SetName;
+
       if MiniTestCases[i].TestCaseName <> '' then
         NextTestCase(MiniTestCases[i].TestCaseName, MiniTestCases[i].Skip);
       ExpectException(MiniTestCases[i].ExpectedException, true);
@@ -1672,6 +1737,19 @@ begin
     AColour);
 end;
 
+procedure SetCaseList;
+var i: integer;
+    lParam: string;
+begin
+  for i := 1 to ParamCount do
+  begin
+   lParam := Paramstr(i);
+   if pos(copy(lParam,1,1),'/-')>0 then continue;
+   CaseList := CaseList + ' ' + lParam;
+  end;
+  HasCaseList := length(CaseList)>0;
+end;
+
 initialization
 
 {$IFDEF CompilerVersion}
@@ -1682,6 +1760,9 @@ initialization
 TotalOutputFormat := DEFAULT_TOTALS_FORMAT;
 SetOutputFormat := DEFAULT_SET_FORMAT;
 CaseOutputFormat := DEFAULT_CASE_FORMAT;
+DryRun := FindCmdLineSwitch('D',['-','/'],true);
+SetCaseList;
+
 
 end.
 
