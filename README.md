@@ -27,6 +27,11 @@ The _Skip_ parameter type in AddTestCase and Assertions has been changed from _b
   + Deferred test cases
   + Powerful Difference viewer functions
   
+#### Bugfixes and Features
+  + Fixed bug for memory leak in the difference viewer 
+  + Added support for Red/Green Colour blindness (Changes default colours from Red/Green) 
+  + (Added GITFlow branches)
+  
 See the updated wiki!
 
 ### Updated Support
