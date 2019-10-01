@@ -27,13 +27,14 @@ uses SysUtils, windows
     ;
 
 Const
-  FRAMEWORK_VERSION = '2.0.0.3';
+  FRAMEWORK_VERSION = '2.0.0.4';
   DEFAULT_TOTALS_FORMAT =
     'Run>Sets:%-3d Cases:%-3d Tests:%-4d Passed:%-4d Failed:%-3d Skipped:%-3d Errors:%-3d';
   DEFAULT_SET_FORMAT =
     'Set>Cases:%-4d Tests:%-4d Passed:%-4d Failed:%-4d Skipped:%-4d Errors:%-4d';
   DEFAULT_CASE_FORMAT =
     '  Results> Passed:%-5d Failed:%-5d Skipped:%-5d Errors:%-5d';
+  METADATA_FORMAT = '%s'#9'%s'#9'%s'#9'%s'#9'%s';
   DEFAULT_SET_NAME = 'SET';
   FINAL_SET_NAME = '__';
   EXPECTED_FORMAT_MESSAGE = '   Expected:';
@@ -190,8 +191,11 @@ var
   DifferenceDisplayMode: TDifferenceViewMode = [dfRow, dfTwoColumn];
 
   CurrentCaseIndex : integer;
-  DryRun : boolean = false;
+  TestMetaData : boolean = false;
   HasCaseList : boolean = false;
+  TitleInCaseList : boolean = false;
+  ProjectInCaseList: boolean = false;
+
   CaseList: string = '';
   TestProgramName: string='';
 
@@ -290,7 +294,7 @@ var
 
 Function CanDisplayCaseName(ACaseName: string): boolean;
 begin
-  Result := (ACaseName <> '') and (not(CreatingSets)) and (not DryRun);
+  Result := (ACaseName <> '') and (not(CreatingSets)) and (not TestMetaData);
 end;
 
 Function NextSetName: string;
@@ -465,19 +469,141 @@ begin
   FinaliseSet(AProcedure);
 end;
 
+Function GetProjectName: string;
+begin
+  if length(TestProgramName)=0 then
+   TestProgramName := ChangeFileExt(ExtractFileName(Paramstr(0)),'');
+  result := TestProgramName;
+end;
+
+// Return a Unique(ish) Identifier for the specific test case
+Function GenerateID(ASet: TTestSet): string;
+var i,l,p: integer;
+    lHash, lTestName: string;
+    lIdentifierInit : string;
+begin
+ lHash := copy(GetProjectName+')(*&^%$#@!',1,10);
+ lTestName := ASet.SetName+'/'+ASet.TestCaseName;
+ l := length(lTestName);
+ for i := 1 to l do
+ begin
+   p := 1+ (i mod 10);
+   lHash[p] := char(ord(lHash[p]) XOR ord(lTestName[i]) XOR (i mod 256));
+ end;
+
+ for i := 1 to 10 do
+   result := Result + format('%.2x',[ord(lHash[i])]);
+end;
+
+Function GenerateCaseID(ACaseID: integer): string;
+begin
+  result := GenerateID(MiniTestCases[ACaseId]);
+end;
+
+Function GenerateSetID(ACaseID: integer): string;
+var
+  ASet: TTestSet;
+begin
+  ASet := MiniTestCases[ACaseId];
+  ASet.TestCaseName := '-';
+  result := GenerateID(ASet);
+end;
+
+function GenerateTitleId(ATitle: String): string;
+var
+  lTitleSet : TTestSet;
+begin
+  lTitleSet.SetName := ATitle;
+  lTitleSet.TestCaseName := '-';
+  result := GenerateID(lTitleSet);
+end;
+
+Function GenerateProjectID(): string;
+var
+  lProjectSet : TTestSet;
+begin
+  lProjectSet.SetName := GetProjectName;
+  lProjectSet.TestCaseName := '[]';
+  result := GenerateID(lProjectSet);
+end;
+
+
+Procedure OutputMetaData(AId: string; ACase: TTestSet; AStatusChar: string='');
+var
+   lStatusChar: string;
+   lCaseRow : string;
+begin
+  case ACase.Skip of
+    skipFalse: lStatusChar:='E';
+    skipTrue:  lStatusChar:='S';
+    skipCase:  lStatusChar:='C';
+  end;
+  if length(AStatusChar)>0 then lStatusChar := AStatusChar;
+  lCaseRow := Format(METADATA_FORMAT, [
+     lStatusChar,TestProgramName, ACase.SetName, ACase.TestCaseName, AId]);
+  Writeln(lCaseRow);
+end;
+
+Procedure OutputCaseMetaData(ACaseID: integer);
+var
+   lId: string;
+begin
+  // probably Init or Finalise
+  if length(MiniTestCases[ACaseId].TestCaseName)=0 then exit;
+  lID := GenerateCaseID(ACaseId);
+  OutputMetaData(lId,MiniTestCases[ACaseId]);
+end;
+
+Procedure OutputSetMetaData(ACaseID: integer);
+var
+   lId: string;
+   lSet: TTestSet;
+begin
+  lID := GenerateSetID(ACaseId);
+  lSet := MiniTestCases[ACaseId];
+  lSet.TestCaseName := '-';
+  OutputMetaData(lId, lSet);
+end;
+
+Procedure OutputTitleMetaData(ATitle: String);
+var
+  lTitleSet : TTestSet;
+  lId: string;
+begin
+  lTitleSet.SetName := ATitle;
+  lTitleSet.TestCaseName := '-';
+  lTitleSet.Skip := skipFalse;
+  lID := GenerateID(lTitleSet);
+  lTitleSet.TestCaseName := '';
+  OutputMetaData(lId, lTitleSet,'T');
+end;
+
+Procedure OutputProjectMetaData();
+var
+   lId: string;
+   lSet: TTestSet;
+begin
+  lID := GenerateProjectID();
+  lSet.Skip := skipFalse;
+  lSet.SetName := '';
+  lSet.TestCaseName := '';
+  OutputMetaData(lId, lSet,'P');
+end;
+
 Procedure Title(AText: string);
 var
   lText: string;
 begin
-  if DryRun then
+  if TestMetaData then
   begin
-    Writeln('DUnitm',#9,'V-',FRAMEWORK_VERSION,#9,lText);
+    OutputTitleMetaData(AText);
     exit;
   end;
   lText := 'DUnitm V-' + FRAMEWORK_VERSION;
   PrintLnCentred(lText, '=', clDefault);
   PrintLnCentred(AText, '=', clTitle);
   DoubleLine;
+  TitleInCaseList := pos(GenerateTitleId(AText),CaseList)>0;
 end;
 
 function CaseHasErrors: smallint;
@@ -540,7 +666,7 @@ end;
 procedure CaseResults;
 begin
 
-  if CaseIsEmpty or DryRun then
+  if CaseIsEmpty or TestMetaData then
     exit;
 
   PrintLn(Format(CaseOutputFormat, [CasePassedTests, CaseFailedTests,
@@ -556,7 +682,7 @@ end;
 
 procedure SetResults;
 begin
-  if DryRun then exit;
+  if TestMetaData then exit;
   
   if (SetIsEmpty) or (Length(CurrentSetName) = 0) then
     exit;
@@ -570,7 +696,7 @@ end;
 
 Procedure TestSummary;
 begin
-  if DryRun then exit;
+  if TestMetaData then exit;
 
   NextTestCase('');
   DoubleLine;
@@ -584,7 +710,7 @@ Procedure SetHeading(ASetName: string);
 var
   lHeading: string;
 begin
-  if (Length(ASetName) = 0) or DryRun then
+  if (Length(ASetName) = 0) or TestMetaData then
     exit;
   lHeading := 'Test Set:' + ASetName;
 
@@ -595,26 +721,6 @@ end;
 
 /// //////// TEST CASES  \\\\\\\\\\\\\\\\\
 
-// Return a Unique(ish) Identifier for the specific test case
-Function GenerateID(ACaseID: integer): string;
-var i,l,p: integer;
-    lHash, lTestName: string;
-    lIdentifierInit : string;
-begin
- if length(TestProgramName)=0 then
-   TestProgramName := ChangeFileExt(ExtractFileName(Paramstr(0)),'');
- lHash := copy(TestProgramName+')(*&^%$#@!',1,10);
- lTestName := MiniTestCases[ACaseId].SetName+'/'+MiniTestCases[ACaseId].TestCaseName;
- l := length(lTestName);
- for i := 1 to l do
- begin
-   p := 1+ (i mod 10);
-   lHash[p] := char(ord(lHash[p]) XOR ord(lTestName[i]) XOR (i mod 256));
- end;
-
- for i := 1 to 10 do
-   result := Result + format('%.2x',[ord(lHash[i])]);
-end;
 
 Procedure SkipTestCases(ACaseId: integer);
 begin
@@ -622,30 +728,21 @@ begin
   CheckIsTrue(false, 'Case Skipped', Skip);
 end;
 
-Procedure DryRunTestCase(ACaseID: integer);
-var
-   lId: string;
-   lSkippedChar: string;
-   lCaseRow : string;
+
+Function CaseInCaseList(ACaseId: integer) : boolean;
 begin
-  if (MiniTestCases[ACaseId].Skip=skipFalse) then
-   lSkippedChar := ' ' else lSkippedChar := 'X';
-  lID := GenerateID(ACaseId);
-  lCaseRow := Format('[%s]'#9'%s'#9'%s'#9'%s'#9'%s', [
-     lSkippedChar,TestProgramName,MiniTestCases[ACaseId].SetName,
-       MiniTestCases[ACaseId].TestCaseName,lId]);
-  Writeln(lCaseRow);
+  result := pos(GenerateCaseID(ACaseId),CaseList)>0;
 end;
 
-Function TestInCaseList(ACaseId: integer) : boolean;
+Function SetInCaseList(ACaseId: integer) : boolean;
 begin
-  result := pos(GenerateID(ACaseId),CaseList)>0;
+  result := pos(GenerateSetID(ACaseId),CaseList)>0;
 end;
-
 
 Procedure RunTestSets;
 var
   i, l: integer;
+  lWholeCaseInList: boolean;
 begin
   CreatingSets := false;
   l := Length(MiniTestCases);
@@ -653,6 +750,7 @@ begin
   begin
     LastSetName := MiniTestCases[0].SetName;
     NextTestSet(LastSetName);
+    lWholeCaseInList := ProjectInCaseList or (Not HasCaseList) or (SetInCaseList(0));
   end;
   SetCases := 0;
   for i := 0 to l - 1 do
@@ -661,13 +759,16 @@ begin
       if not assigned(MiniTestCases[i].Execute) then
         continue;
 
-      if DryRun then
+      if TestMetaData then
       begin
-        DryRunTestCase(i);
+        OutputCaseMetaData(i);
         Continue;
       end;
 
-      if HasCaseList and (not TestInCaseList(i)) then continue;
+      if LastSetName<>CurrentSetName then
+           lWholeCaseInList := ProjectInCaseList or (Not HasCaseList) or (SetInCaseList(i));
+
+      if not (lWholeCaseInList) or (HasCaseList and (not CaseInCaseList(i))) then continue;
 
       if MiniTestCases[i].Skip = skipCase then
       begin
@@ -1737,7 +1838,7 @@ begin
     AColour);
 end;
 
-procedure SetCaseList;
+procedure AssignCaseList;
 var i: integer;
     lParam: string;
 begin
@@ -1748,6 +1849,13 @@ begin
    CaseList := CaseList + ' ' + lParam;
   end;
   HasCaseList := length(CaseList)>0;
+  ProjectInCaseList := pos(GenerateProjectID(),CaseList)>0;
+end;
+
+Procedure AssignTestMetaData;
+begin
+  TestMetaData := FindCmdLineSwitch('M',['-','/'],true);
+  if TestMetaData then OutputProjectMetadata;
 end;
 
 initialization
@@ -1760,8 +1868,8 @@ initialization
 TotalOutputFormat := DEFAULT_TOTALS_FORMAT;
 SetOutputFormat := DEFAULT_SET_FORMAT;
 CaseOutputFormat := DEFAULT_CASE_FORMAT;
-DryRun := FindCmdLineSwitch('D',['-','/'],true);
-SetCaseList;
+AssignCaseList;
+AssignTestMetaData;
 
 
 end.
