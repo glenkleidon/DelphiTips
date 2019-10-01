@@ -745,6 +745,7 @@ var
   lWholeCaseInList: boolean;
 begin
   CreatingSets := false;
+  lWholeCaseInList := false;
   l := Length(MiniTestCases);
   if l > 0 then
   begin
