@@ -1048,7 +1048,6 @@ var
   Outcome: boolean;
   lMessageColour: smallint;
 begin
-  Result := false;
   lMessageColour := clDefault;
   lResult := 0;
   DifferencesFound := 0;
