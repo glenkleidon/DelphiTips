@@ -27,6 +27,11 @@ The _Skip_ parameter type in AddTestCase and Assertions has been changed from _b
   + Deferred test cases
   + Powerful Difference viewer functions
   
+#### Bugfixes and Features
+  + Fixed bug for memory leak in the difference viewer 
+  + Added support for Red/Green Colour blindness (Changes default colours from Red/Green) 
+  + (Added GITFlow branches)
+  
 See the updated wiki!
 
 ### Updated Support
@@ -37,7 +42,7 @@ Now Supports All versions of Delphi back to Delphi 7 (and probably 4).  This has
 |4 &#9744;|2005 &#9744;|XE  &#9745;|XE6 &#9744;|10.0 Seattle|&#9744;|
 |5 &#9745;|2006 &#9744;|XE2 &#9745;|XE7 &#9744;|10.1 Berlin |&#9745;|
 |6 &#9744;|2007 &#9745;|XE3 &#9744;|XE8 &#9744;|10.2 Tokyo  |&#9745;|
-|7 &#9745;|2009 &#9745;|XE4 &#9744;|           |            |       |
+|7 &#9745;|2009 &#9745;|XE4 &#9744;|           |10.3 Rio    |&#9745;|
 |8 &#9744;|2010 &#9745;|XE5 &#9745;|           |            |       |
 
 If using versions of Delphi 2005 or 2006, You may have trouble with the 
