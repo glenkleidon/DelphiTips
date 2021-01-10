@@ -5,19 +5,19 @@ interface
 {$IFDEF VER120} {$DEFINE BEFOREVARIANTS} {$DEFINE BEFORE_INLINE} {$ENDIF}
 {$IFDEF VER130} {$DEFINE BEFOREVARIANTS} {$DEFINE BEFORE_INLINE} {$ENDIF}
 {$IFNDEF BEFOREVARIANTS}
- {$IFDEF VER140} {$DEFINE BEFORE_INLINE} {$ENDIF}
- {$IFDEF VER150} {$DEFINE BEFORE_INLINE} {$ENDIF}
- {$IFDEF VER160} {$DEFINE BEFORE_INLINE} {$ENDIF}
- {$IFDEF VER170} {$DEFINE BEFORE_INLINE} {$ENDIF}
- {$IF CompilerVersion >= 17.0}
-      {$DEFINE HAS_INLINE}
- {$IFEND}
- {$IF CompilerVersion >= 20.0}
-      {$DEFINE HAS_VARUSTRING}
- {$IFEND}
- {$IF CompilerVersion >= 23.0}
-      {$DEFINE HAS_VARUSTRARG}
- {$IFEND}
+{$IFDEF VER140} {$DEFINE BEFORE_INLINE} {$ENDIF}
+{$IFDEF VER150} {$DEFINE BEFORE_INLINE} {$ENDIF}
+{$IFDEF VER160} {$DEFINE BEFORE_INLINE} {$ENDIF}
+{$IFDEF VER170} {$DEFINE BEFORE_INLINE} {$ENDIF}
+{$IF CompilerVersion >= 17.0}
+{$DEFINE HAS_INLINE}
+{$IFEND}
+{$IF CompilerVersion >= 20.0}
+{$DEFINE HAS_VARUSTRING}
+{$IFEND}
+{$IF CompilerVersion >= 23.0}
+{$DEFINE HAS_VARUSTRARG}
+{$IFEND}
 {$ENDIF}
 
 uses SysUtils, windows
@@ -57,7 +57,7 @@ Const
 
 {$IFDEF RG_COLOUR_BLIND}
   clTitle = FOREGROUND_CYAN;
-  clError =   FOREGROUND_RED or FOREGROUND_INTENSITY;
+  clError = FOREGROUND_RED or FOREGROUND_INTENSITY;
   clPass = FOREGROUND_YELLOW;
   clMessage = FOREGROUND_CYAN;
   clDefault = FOREGROUND_DEFAULT;
@@ -87,6 +87,7 @@ Type
   TTestCaseProcedure = Procedure();
 
   TSkipType = (skipFalse, skipTrue, skipCase);
+  TCheckTestType = (cttComparison, cttSkip, cttException);
 
   TDifferenceViewOptions = (dfRow, dfTwoColumn, dfEscapeCRLF);
   TDifferenceViewMode = Set of TDifferenceViewOptions;
@@ -123,7 +124,6 @@ Type
     Procedure Finalise(AColour: integer);
     Procedure AddText(AText: string; AColour: integer);
     Property ColumnWidth: integer read GetColumnWidth;
-
   End;
 
   TConsoleColumn = Class(TInterfacedObject, IConsoleColumn)
@@ -150,8 +150,46 @@ Type
   End;
 
   TScreenCoordinate = Record
-     x : smallint;
-     y : SmallInt;
+    x: smallint;
+    y: smallint;
+  end;
+
+  PTestCounts = ^TTestCounts;
+
+  TTestCounts = Record
+    Errored: integer;
+    Failed: integer;
+    Passed: integer;
+    Skipped: integer;
+  end;
+
+  PTestCaseState = ^TTestCaseState;
+
+  TTestCaseState = Record
+    TestsExecuted: integer;
+    ExpectedException: string;
+    ExpectedSetException: string;
+    DeferredExpectedException: string;
+    DeferredCaseLabel: string;
+    CurrentCaseName: string;
+    CurrentCaseLabel: string;
+    OutputFormat: string;
+    SameTestCounter: integer;
+    LastCaseLabel: string;
+  end;
+
+  PTestSetState = ^TTestSetState;
+
+  TTestSetState = Record
+    LastSetName: string;
+    CurrentSetName: string;
+    DifferencesFound: integer;
+    CasesExecuted: integer;
+    CaseCounts: TTestCounts;
+    SetCounts: TTestCounts;
+    OutputFormat: string;
+    DifferenceDisplayMode: TDifferenceViewMode;
+    CurrentCaseIndex: integer;
   end;
 
   TTestSet = Record
@@ -162,34 +200,235 @@ Type
     ExpectedException: string;
   end;
 
+  PTestSetArray = ^TTestSetArray;
+  TTestSetArray = Array of TTestSet;
+
+  ITestRun = Interface
+    // Getters and Setters
+    procedure SetTotalCases(const Value: integer);
+    procedure SetTotalErroredTests(const Value: integer);
+    procedure SetTotalFailedTests(const Value: integer);
+    procedure SetTotalPassedTests(const Value: integer);
+    procedure SetTotalSets(const Value: integer);
+    procedure SetTotalSkippedTests(const Value: integer);
+    procedure SetSetCounter(const Value: integer);
+    procedure SetDefaultCaseOutputFormat(const Value: string);
+    procedure SetDefaultSetOutputFormat(const Value: string);
+
+    function GetTotalCases: integer;
+    function GetTotalErroredTests: integer;
+    function GetTotalFailedTests: integer;
+    function GetTotalPassedTests: integer;
+    function GetTotalSets: integer;
+    function GetTotalSkippedTests: integer;
+    function GetCurrentCase: integer;
+    function GetTestSets: TTestSetArray;
+    function GetCaseOutputFormat: String;
+    function GetCurrentCaseRef: PTestCaseState;
+    function GetCurrentSetName: string;
+    function GetSetCounter: integer;
+    function GetDefaultCaseOutputFormat: string;
+    function GetDefaultSetOutputFormat: string;
+
+    // Property Definitions.
+    property CurrentCase: integer read GetCurrentCase;
+    property TotalPassedTests: integer read GetTotalPassedTests
+      write SetTotalPassedTests;
+    property TotalFailedTests: integer read GetTotalFailedTests
+      write SetTotalFailedTests;
+    property TotalSkippedTests: integer read GetTotalSkippedTests
+      write SetTotalSkippedTests;
+    property TotalErroredTests: integer read GetTotalErroredTests
+      write SetTotalErroredTests;
+    property TotalCases: integer read GetTotalCases write SetTotalCases;
+    property TotalSets: integer read GetTotalSets write SetTotalSets;
+    property TestSets: TTestSetArray read GetTestSets;
+    property CaseOutputFormat: String read GetCaseOutputFormat;
+    property CurrentCaseRef: PTestCaseState read GetCurrentCaseRef;
+    property CurrentSetName: string read GetCurrentSetName;
+    property SetCounter: integer read GetSetCounter write SetSetCounter;
+    property DefaultCaseOutputFormat: string read GetDefaultCaseOutputFormat write SetDefaultCaseOutputFormat;
+    property DefaultSetOutputFormat: string read GetDefaultSetOutputFormat write SetDefaultSetOutputFormat;
+
+    // Methods
+    procedure ExpectException(AExceptionClassName: string;
+      AExpectForSet: boolean = false);
+    function Check(IsEqual: boolean; AExpected, AResult: TComparitorType;
+      AMessage: string; ATestType: TCheckTestType): boolean;
+    Function CheckIsEqual(AExpected, AResult: TComparitorType;
+  AMessage: string = ''; ASkipped: TSkipType = skipFalse): boolean;
+    function CheckNotEqual(AResult1, AResult2: TComparitorType;
+      AMessage: string; ASkipped: TSkipType): boolean;
+    function CheckIsTrue(AResult: boolean; AMessage: string = '';
+      ASkipped: TSkipType = skipFalse): boolean;
+    function CheckIsFalse(AResult: boolean; AMessage: string = '';
+      ASkipped: TSkipType = skipFalse): boolean;
+    procedure CheckException(AException: Exception);
+    Function NotImplemented(AMessage: string = ''): boolean;
+    procedure NewSet(ASetName: string);
+    procedure NewCase(ATestCaseName: string);
+    procedure NewTestCase(ACase, ATestCaseName: string);
+    procedure NewTest(ACase: string; ATestCaseName: string = '');
+    procedure DeferExpectedException(AExceptionClassName: string);
+    Procedure DeferTestCase(ATestName: string = '');
+    procedure ResumeTestCase;
+    procedure DeferredTestSuccess;
+    procedure DeferredTestException(E: Exception);
+    procedure DeferredTestFail;
+    procedure RunTestSets;
+    function NextSetName: string;
+    procedure NextTestSet(ASetName: string);
+    procedure NextTestCase(ACaseName: string;
+      ASkipped: TSkipType = TSkipType.skipFalse);
+    procedure SkipTestCases(ACaseId: integer);
+    function TotalTests: integer;
+    procedure SetDisplayMode(ARow, AColumn: boolean;
+      AEscapeCRLF: boolean = false);
+    Procedure DisplayModeDefault(AEscapeCRLF: boolean = false);
+    Procedure DisplayModeRows(AEscapeCRLF: boolean = false);
+    Procedure DisplayModeColumns(AEscapeCRLF: boolean = false);
+    Procedure DisplayModeNone(AEscapeCRLF: boolean = false);
+    function CaseHasErrors: smallint;
+    function CaseIsEmpty: boolean;
+    procedure CaseResults;
+    procedure FinaliseSet(AProcedure: TTestCaseProcedure);
+    procedure FinalizeSet(AProcedure: TTestCaseProcedure);
+    procedure PrepareSet(AProcedure: TTestCaseProcedure);
+    function RunHasErrors: smallint;
+    function SetHasErrors: smallint;
+    procedure SetHeading(ASetName: string);
+    function SetIsEmpty: boolean;
+    procedure SetResults;
+    procedure Title(AText: string);
+    Procedure AddTestCase(ATestCaseName: string; AProcedure: TTestCaseProcedure;
+      ASkipped: TSkipType = TSkipType.skipFalse;
+      AExpectedException: string = '');
+  end;
+
+  TTestRun = class(TInterfacedObject, ITestRun)
+  private
+    FCounts: TTestCounts;
+    FMiniTestCases: TTestSetArray;
+    FSetState: TTestSetState;
+    FSetCounter: integer;
+    FCasesExecuted: integer;
+    FSetsExecuted: integer;
+    FSetOutputFormat: string;
+    FCaseOutputFormat: string;
+    FDefaultCaseOutputFormat: string;
+    FDefaultSetOutputFormat: string;
+    procedure SetTotalCases(const Value: integer);
+    procedure SetTotalErroredTests(const Value: integer);
+    procedure SetTotalFailedTests(const Value: integer);
+    procedure SetTotalPassedTests(const Value: integer);
+    procedure SetTotalSets(const Value: integer);
+    procedure SetTotalSkippedTests(const Value: integer);
+    procedure SetSetCounter(const Value: integer);
+    procedure SetDefaultCaseOutputFormat(const Value: string);
+    procedure SetDefaultSetOutputFormat(const Value: string);
+
+    function GetTotalCases: integer;
+    function GetTotalErroredTests: integer;
+    function GetTotalFailedTests: integer;
+    function GetTotalPassedTests: integer;
+    function GetTotalSets: integer;
+    function GetTotalSkippedTests: integer;
+    function GetCurrentCase: integer;
+    function GetTestSets: TTestSetArray;
+    function GetCaseOutputFormat: String;
+    function GetCurrentCaseRef: PTestCaseState;
+    function GetCurrentSetName: string;
+    function GetSetCounter: integer;
+    function GetDefaultCaseOutputFormat: string;
+    function GetDefaultSetOutputFormat: string;
+  public
+    procedure ExpectException(AExceptionClassName: string;
+      AExpectForSet: boolean = false);
+    function Check(IsEqual: boolean; AExpected, AResult: TComparitorType;
+      AMessage: string; ATestType: TCheckTestType): boolean;
+    Function CheckIsEqual(AExpected, AResult: TComparitorType;
+  AMessage: string = ''; ASkipped: TSkipType = skipFalse): boolean;
+    function CheckNotEqual(AResult1, AResult2: TComparitorType;
+      AMessage: string; ASkipped: TSkipType): boolean;
+    function CheckIsTrue(AResult: boolean; AMessage: string = '';
+      ASkipped: TSkipType = skipFalse): boolean;
+    function CheckIsFalse(AResult: boolean; AMessage: string = '';
+      ASkipped: TSkipType = skipFalse): boolean;
+    procedure CheckException(AException: Exception);
+    Function NotImplemented(AMessage: string = ''): boolean;
+    procedure NewSet(ASetName: string);
+    procedure NewCase(ATestCaseName: string);
+    procedure NewTestCase(ACase, ATestCaseName: string);
+    procedure NewTest(ACase: string; ATestCaseName: string = '');
+    procedure DeferExpectedException(AExceptionClassName: string);
+    Procedure DeferTestCase(ATestName: string = '');
+    procedure ResumeTestCase;
+    procedure DeferredTestSuccess;
+    procedure DeferredTestException(E: Exception);
+    procedure DeferredTestFail;
+    procedure RunTestSets;
+    function NextSetName: string;
+    procedure NextTestSet(ASetName: string);
+    procedure NextTestCase(ACaseName: string;
+      ASkipped: TSkipType = TSkipType.skipFalse);
+    procedure SkipTestCases(ACaseId: integer);
+    function TotalTests: integer;
+    procedure SetDisplayMode(ARow, AColumn: boolean;
+      AEscapeCRLF: boolean = false);
+    Procedure DisplayModeDefault(AEscapeCRLF: boolean = false);
+    Procedure DisplayModeRows(AEscapeCRLF: boolean = false);
+    Procedure DisplayModeColumns(AEscapeCRLF: boolean = false);
+    Procedure DisplayModeNone(AEscapeCRLF: boolean = false);
+    function CaseHasErrors: smallint;
+    function CaseIsEmpty: boolean;
+    procedure CaseResults;
+    procedure FinaliseSet(AProcedure: TTestCaseProcedure);
+    procedure FinalizeSet(AProcedure: TTestCaseProcedure);
+    procedure PrepareSet(AProcedure: TTestCaseProcedure);
+    function RunHasErrors: smallint;
+    function SetHasErrors: smallint;
+    procedure SetHeading(ASetName: string);
+    function SetIsEmpty: boolean;
+    procedure SetResults;
+    procedure Title(AText: string);
+    Procedure AddTestCase(ATestCaseName: string; AProcedure: TTestCaseProcedure;
+      ASkipped: TSkipType = TSkipType.skipFalse;
+      AExpectedException: string = '');
+    property CurrentCase: integer read GetCurrentCase;
+    property TotalPassedTests: integer read GetTotalPassedTests
+      write SetTotalPassedTests;
+    property TotalFailedTests: integer read GetTotalFailedTests
+      write SetTotalFailedTests;
+    property TotalSkippedTests: integer read GetTotalSkippedTests
+      write SetTotalSkippedTests;
+    property TotalErroredTests: integer read GetTotalErroredTests
+      write SetTotalErroredTests;
+    property TotalCases: integer read GetTotalCases write SetTotalCases;
+    property TotalSets: integer read GetTotalSets write SetTotalSets;
+    property TestSets: TTestSetArray read GetTestSets;
+    property CaseOutputFormat: String read GetCaseOutputFormat;
+    property CurrentCaseRef: PTestCaseState read GetCurrentCaseRef;
+    property CurrentSetName: string read GetCurrentSetName;
+    property SetCounter: integer read GetSetCounter write SetSetCounter;
+    property DefaultCaseOutputFormat: string read GetDefaultCaseOutputFormat write SetDefaultCaseOutputFormat;
+    property DefaultSetOutputFormat: string read GetDefaultSetOutputFormat write SetDefaultSetOutputFormat;
+  end;
+
 const
-  SKIPPED = skipTrue;
+  Skipped = skipTrue;
   Skip = skipTrue; // alternate
 
 var
-  MiniTestCases: Array of TTestSet;
+  MiniTestCases: TTestSetArray;
 
   SkippingSet, IgnoreSkip: boolean;
   CreatingSets: boolean = false;
+  TotalOutputFormat: string;
+  DefaultDifferenceDisplayMode: TDifferenceViewMode = [dfRow, dfTwoColumn];
 
-  ExpectedException, ExpectedSetException, LastSetName, CurrentSetName,
-    CurrentTestCaseName, CurrentTestCaseLabel, DeferredExpectedException,
-    DeferredTestCaseLabel: string;
-  TotalPassedTests: integer = 0;
-  TotalFailedTests: integer = 0;
-  TotalSkippedTests: integer = 0;
-  TotalErroredTests: integer = 0;
-  TotalCases: integer = 0;
-  TotalSets: integer = 0;
-  DifferencesFound: integer;
+  DefaultRun: ITestRun;
 
-  CasePassedTests, CaseFailedTests, CaseErrors, CaseSkippedTests: integer;
-  SetCases, SetPassedTests, SetFailedTests, SetErrors, SetSkippedTests: integer;
-
-  TotalOutputFormat, SetOutputFormat, CaseOutputFormat: string;
-  DifferenceDisplayMode: TDifferenceViewMode = [dfRow, dfTwoColumn];
-
-  CurrentCaseIndex : integer;
+Procedure InitTestCounts(var ACounts: TTestCounts);
 
 Procedure Title(AText: string);
 
@@ -231,16 +470,16 @@ Procedure ExpectException(AExceptionClassName: string;
 Procedure CheckException(AException: Exception);
 Function NotImplemented(AMessage: string = ''): boolean;
 Function DontSkip: TSkipType;
-Function TotalTests: integer;
-Procedure TestSummary;
+Function TotalTests(ARun: ITestRun = nil): integer;
+Procedure TestSummary(ARun: ITestRun = nil);
 procedure CaseResults;
 Function ConsoleScreenWidth: integer;
 Function ConsoleCursorPosition: TScreenCoordinate;
-Function SetConsoleBufferLength(Rows: smallInt): boolean;
-Procedure DisplayModeDefault(AEscapeCRLF: boolean=false);
-Procedure DisplayModeRows(AEscapeCRLF: boolean=false);
-Procedure DisplayModeColumns(AEscapeCRLF: boolean=false);
-Procedure DisplayModeNone(AEscapeCRLF: boolean=false);
+Function SetConsoleBufferLength(Rows: smallint): boolean;
+Procedure DisplayModeDefault(AEscapeCRLF: boolean = false);
+Procedure DisplayModeRows(AEscapeCRLF: boolean = false);
+Procedure DisplayModeColumns(AEscapeCRLF: boolean = false);
+Procedure DisplayModeNone(AEscapeCRLF: boolean = false);
 
 Procedure Print(AText: String; AColour: smallint = FOREGROUND_DEFAULT);
 Procedure PrintLn(AText: String; AColour: smallint = FOREGROUND_DEFAULT);
@@ -253,8 +492,8 @@ function LCSDiff(AText, ACompareTo: string): TStringDifference;
 function LCSDifferences(AText, ACompareTo: string): TStringDifferences;
 function lcsStr(a, b: string): string;
 Procedure ResetStringDifference(var ADiff: TStringDifference);
-procedure DisplayMessage(AMessage: String; AMessageColour: smallint;
-  ADataType: integer);
+function DisplayMessage(AMessage: String; AMessageColour: smallint;
+  ADataType: integer; ADifferenceDisplayMode: TDifferenceViewMode): integer;
 
 implementation
 
@@ -265,41 +504,46 @@ Const
   NO_EXCEPTION_EXPECTED = 'No Exceptions';
 
 Type
-  TCheckTestType = (cttComparison, cttSkip, cttException);
   TIntArray = array of integer;
   TIntArrayArray = array of TIntArray;
 
 {$IFDEF BEFOREVARIANTS}
   TvarType = integer;
 {$ENDIF}
-
-var
-  SameTestCounter: integer = 0;
-  LastTestCaseLabel: string;
-  SetCounter: integer = 0;
-
   /// ////////  SCREEN MANAGEMENT \\\\\\\\\\\\\\\\\
 
 var
   Screen_width: integer = -1;
   Console_Handle: THandle = 0;
 
+Procedure InitTestCounts(var ACounts: TTestCounts);
+begin
+  with ACounts do
+  begin
+    Errored := 0;
+    Failed := 0;
+    Passed := 0;
+    Skipped := 0;
+  end;
+end;
+
 Function CanDisplayCaseName(ACaseName: string): boolean;
 begin
   Result := (ACaseName <> '') and (not(CreatingSets));
 end;
 
-Function NextSetName: string;
+Function TTestRun.NextSetName: string;
 begin
-  inc(SetCounter);
+  SetCounter := SetCounter + 1;
   Result := Format(DEFAULT_SET_NAME + ' %u', [SetCounter]);
 end;
 
-Function TotalTests: integer;
+Function TTestRun.TotalTests: integer;
 begin
   Result := TotalPassedTests + TotalFailedTests + TotalSkippedTests +
-    TotalErroredTests + CasePassedTests + CaseFailedTests + CaseSkippedTests +
-    CaseErrors;
+    TotalErroredTests + FSetState.CaseCounts.Passed +
+    FSetState.CaseCounts.Failed + FSetState.CaseCounts.Skipped +
+    FSetState.CaseCounts.Errored;
 end;
 
 Function ConsoleHandle: THandle;
@@ -309,14 +553,24 @@ begin
   Result := Console_Handle;
 end;
 
+function DoubleLineText: string;
+begin
+  Result := stringofchar('=', ConsoleScreenWidth);
+end;
+
 procedure DoubleLine;
 begin
-  PrintLn(stringofchar('=', ConsoleScreenWidth));
+  PrintLn(DoubleLineText);
+end;
+
+function SingleLineText: string;
+begin
+  Result := stringofchar('-', ConsoleScreenWidth);
 end;
 
 procedure SingleLine;
 begin
-  PrintLn(stringofchar('-', ConsoleScreenWidth));
+  PrintLn(SingleLineText);
 end;
 
 Procedure SetTextColour(AColour: smallint);
@@ -331,33 +585,33 @@ begin
   if Screen_width = -1 then
   begin
     if GetConsoleScreenBufferInfo(ConsoleHandle, lScreenInfo) then
-      Screen_width := lScreenInfo.dwSize.X - 2
+      Screen_width := lScreenInfo.dwSize.x - 2
     else
       Screen_width := DEFAULT_SCREEN_WIDTH;
   end;
   Result := Screen_width;
 end;
 
-Function SetConsoleBufferLength(Rows: smallInt): boolean;
+Function SetConsoleBufferLength(Rows: smallint): boolean;
 var
   lSize: COORD;
 begin
-  lSize.x := ConsoleScreenWidth+2;
-  lSize.Y := Rows;
-  result := SetConsoleScreenBufferSize(GetStdHandle(STD_OUTPUT_HANDLE),lSize);
+  lSize.x := ConsoleScreenWidth + 2;
+  lSize.y := Rows;
+  Result := SetConsoleScreenBufferSize(GetStdHandle(STD_OUTPUT_HANDLE), lSize);
 end;
 
 Function ConsoleCursorPosition: TScreenCoordinate;
 var
   lScreenInfo: TConsoleScreenBufferInfo;
 begin
-  Result.X := 0;
-  Result.Y := 0;
+  Result.x := 0;
+  Result.y := 0;
   if GetConsoleScreenBufferInfo(ConsoleHandle, lScreenInfo) then
   begin
-    Result.X := lScreenInfo.dwCursorPosition.X;
-    Result.Y := lScreenInfo.dwCursorPosition.Y;
-    Screen_width := lScreenInfo.dwSize.X - 2;
+    Result.x := lScreenInfo.dwCursorPosition.x;
+    Result.y := lScreenInfo.dwCursorPosition.y;
+    Screen_width := lScreenInfo.dwSize.x - 2;
   end;
 end;
 
@@ -374,49 +628,80 @@ begin
   Print(AText + #13#10, AColour);
 end;
 
+Procedure CentredLineDimensions(AText: string; var ATitleSpace: integer;
+  var APreSpace: integer; var APostSpace: integer);
+begin
+  ATitleSpace := ConsoleScreenWidth - 4;
+  APreSpace := trunc((ATitleSpace - Length(AText)) / 2);
+  APostSpace := ATitleSpace - APreSpace - Length(AText);
+end;
+
+Function LnCentredText(AText: string; AChar: char;
+  AColour: smallint = FOREGROUND_DEFAULT): string;
+var
+  PreSpace, PostSpace, TitleSpace: integer;
+begin
+  CentredLineDimensions(AText, TitleSpace, PreSpace, PostSpace);
+
+  Result := stringofchar(AChar, PreSpace) + '  ' + AText + '  ' +
+    stringofchar(AChar, PostSpace) + #13#10;
+end;
+
 Procedure PrintLnCentred(AText: string; AChar: char;
   AColour: smallint = FOREGROUND_DEFAULT);
 var
   PreSpace, PostSpace, TitleSpace: integer;
 begin
-  TitleSpace := ConsoleScreenWidth - 4;
-  PreSpace := trunc((TitleSpace - Length(AText)) / 2);
-  PostSpace := TitleSpace - PreSpace - Length(AText);
+  CentredLineDimensions(AText, TitleSpace, PreSpace, PostSpace);
   Print(stringofchar(AChar, PreSpace));
   Print('  ' + AText + '  ', AColour);
   PrintLn(stringofchar(AChar, PostSpace));
 end;
 
-Procedure SetDisplayMode(ARow, AColumn: boolean; AEscapeCRLF: Boolean=false);
-var lMode: TDifferenceViewMode;
+procedure TTestRun.SetDefaultCaseOutputFormat(const Value: string);
 begin
- lMode := [];
- if ARow then lMode := lMode + [dfRow];
- if AColumn then lMode := lMOde + [dfTwoColumn];
- if AEscapeCRLF then lMode := lMOde + [dfEscapeCRLF];
- DifferenceDisplayMode := lMode;
+  FDefaultCaseOutputFormat := Value;
 end;
 
-Procedure DisplayModeDefault(AEscapeCRLF: boolean=false);
+procedure TTestRun.SetDefaultSetOutputFormat(const Value: string);
 begin
- SetDisplayMode(true,true,AEscapeCRLF);
+  FDefaultSetOutputFormat := Value;
 end;
 
-Procedure DisplayModeRows(AEscapeCRLF: boolean=false);
+Procedure TTestRun.SetDisplayMode(ARow, AColumn: boolean;
+  AEscapeCRLF: boolean = false);
+var
+  lMode: TDifferenceViewMode;
 begin
- SetDisplayMode(true,false,AEscapeCRLF);
+  lMode := [];
+  if ARow then
+    lMode := lMode + [dfRow];
+  if AColumn then
+    lMode := lMode + [dfTwoColumn];
+  if AEscapeCRLF then
+    lMode := lMode + [dfEscapeCRLF];
+  self.FSetState.DifferenceDisplayMode := lMode;
 end;
 
-Procedure DisplayModeColumns(AEscapeCRLF: boolean=false);
+Procedure TTestRun.DisplayModeDefault(AEscapeCRLF: boolean = false);
 begin
- SetDisplayMode(False,True,AEscapeCRLF);
+  SetDisplayMode(true, true, AEscapeCRLF);
 end;
 
-Procedure DisplayModeNone(AEscapeCRLF: boolean=false);
+Procedure TTestRun.DisplayModeRows(AEscapeCRLF: boolean = false);
 begin
-  SetDisplayMode(False,False,AEscapeCRLF);
+  SetDisplayMode(true, false, AEscapeCRLF);
 end;
 
+Procedure TTestRun.DisplayModeColumns(AEscapeCRLF: boolean = false);
+begin
+  SetDisplayMode(false, true, AEscapeCRLF);
+end;
+
+Procedure TTestRun.DisplayModeNone(AEscapeCRLF: boolean = false);
+begin
+  SetDisplayMode(false, false, AEscapeCRLF);
+end;
 
 /// TEST FUNCTIONS
 
@@ -428,19 +713,9 @@ end;
 
 Procedure AddTestCase(ATestCaseName: string; AProcedure: TTestCaseProcedure;
   ASkipped: TSkipType; AExpectedException: string);
-var
-  l: integer;
 begin
-  if Length(CurrentSetName) = 0 then
-    CurrentSetName := NextSetName;
-
-  l := Length(MiniTestCases);
-  SetLength(MiniTestCases, l + 1);
-  MiniTestCases[l].SetName := CurrentSetName;
-  MiniTestCases[l].Execute := AProcedure;
-  MiniTestCases[l].TestCaseName := ATestCaseName;
-  MiniTestCases[l].Skip := ASkipped;
-  MiniTestCases[l].ExpectedException := AExpectedException;
+  DefaultRun.AddTestCase(ATestCaseName, AProcedure, ASkipped,
+    AExpectedException);
 end;
 
 Procedure PrepareSet(AProcedure: TTestCaseProcedure);
@@ -448,20 +723,20 @@ begin
   AddTestCase('', AProcedure);
 end;
 
-Procedure FinaliseSet(AProcedure: TTestCaseProcedure);
+Procedure TTestRun.FinaliseSet(AProcedure: TTestCaseProcedure);
 begin
   AddTestCase('', AProcedure);
-  CurrentSetName := '';
+  FSetState.CurrentSetName := '';
   CreatingSets := false;
 end;
 
-Procedure FinalizeSet(AProcedure: TTestCaseProcedure);
+Procedure TTestRun.FinalizeSet(AProcedure: TTestCaseProcedure);
 begin
   // Americaniz(s)ed form
   FinaliseSet(AProcedure);
 end;
 
-Procedure Title(AText: string);
+Procedure TTestRun.Title(AText: string);
 var
   lText: string;
 begin
@@ -471,25 +746,25 @@ begin
   DoubleLine;
 end;
 
-function CaseHasErrors: smallint;
+function TTestRun.CaseHasErrors: smallint;
 begin
   Result := 0;
-  if CaseFailedTests + CaseErrors > 0 then
+  if FSetState.CaseCounts.Failed + FSetState.CaseCounts.Errored > 0 then
     Result := 2
-  else if CaseSkippedTests > 0 then
+  else if FSetState.CaseCounts.Skipped > 0 then
     Result := 1;
 end;
 
-function SetHasErrors: smallint;
+function TTestRun.SetHasErrors: smallint;
 begin
   Result := 0;
-  if SetFailedTests + SetErrors > 0 then
+  if FSetState.SetCounts.Failed + FSetState.SetCounts.Errored > 0 then
     Result := 2
-  else if SetSkippedTests > 0 then
+  else if FSetState.SetCounts.Skipped > 0 then
     Result := 1;
 end;
 
-function RunHasErrors: smallint;
+function TTestRun.RunHasErrors: smallint;
 var
   lSetResult: smallint;
 begin
@@ -522,53 +797,67 @@ begin
   Result := Result or lIntesity;
 end;
 
-Function CaseIsEmpty: boolean;
+Function TTestRun.CaseIsEmpty: boolean;
 begin
-  Result := (CasePassedTests = 0) and (CaseFailedTests = 0) and
-    (CaseSkippedTests = 0) and (CaseErrors = 0);
+  Result := (FSetState.CaseCounts.Passed = 0) and
+    (FSetState.CaseCounts.Failed = 0) and (FSetState.CaseCounts.Skipped = 0) and
+    (FSetState.CaseCounts.Errored = 0);
 end;
 
-procedure CaseResults;
+procedure TTestRun.CaseResults;
 begin
 
   if CaseIsEmpty then
     exit;
 
-  PrintLn(Format(CaseOutputFormat, [CasePassedTests, CaseFailedTests,
-    CaseSkippedTests, CaseErrors]), ResultColour(CaseHasErrors));
+  PrintLn(Format(CaseOutputFormat, [FSetState.CaseCounts.Passed,
+    FSetState.CaseCounts.Failed, FSetState.CaseCounts.Skipped,
+    FSetState.CaseCounts.Errored]), ResultColour(CaseHasErrors));
 
 end;
 
-Function SetIsEmpty: boolean;
+Function TTestRun.SetIsEmpty: boolean;
 begin
-  Result := (SetPassedTests = 0) and (SetFailedTests = 0) and
-    (SetSkippedTests = 0) and (SetErrors = 0);
+  Result := (FSetState.SetCounts.Passed = 0) and
+    (FSetState.SetCounts.Failed = 0) and (FSetState.SetCounts.Skipped = 0) and
+    (FSetState.SetCounts.Errored = 0);
 end;
 
-procedure SetResults;
+procedure TTestRun.SetResults;
 begin
 
   if (SetIsEmpty) or (Length(CurrentSetName) = 0) then
     exit;
 
-  PrintLn(Format(SetOutputFormat, [SetCases, SetPassedTests + SetFailedTests +
-    SetSkippedTests + SetErrors, SetPassedTests, SetFailedTests,
-    SetSkippedTests, SetErrors]), ResultColour(SetHasErrors));
+  PrintLn(Format(FSetState.OutputFormat, [FSetState.CasesExecuted,
+    FSetState.SetCounts.Passed + FSetState.SetCounts.Failed +
+    FSetState.SetCounts.Skipped + FSetState.SetCounts.Errored,
+    FSetState.SetCounts.Passed, FSetState.SetCounts.Failed,
+    FSetState.SetCounts.Skipped, FSetState.SetCounts.Errored]),
+    ResultColour(SetHasErrors));
 
   SingleLine;
 end;
 
-Procedure TestSummary;
+procedure TTestRun.SetSetCounter(const Value: integer);
 begin
-  NextTestCase('');
+  FSetCounter := Value;
+end;
+
+Procedure TestSummary(ARun: ITestRun = nil);
+begin
+  if ARun = nil then
+    ARun := DefaultRun;
+  ARun.NextTestCase('');
   DoubleLine;
-  PrintLn(Format(TotalOutputFormat, [TotalSets, TotalCases, TotalTests,
-    TotalPassedTests, TotalFailedTests, TotalSkippedTests, TotalErroredTests]),
-    ResultColour(RunHasErrors or FOREGROUND_INTENSITY));
+  PrintLn(Format(TotalOutputFormat, [ARun.TotalSets, ARun.TotalCases,
+    ARun.TotalTests, ARun.TotalPassedTests, ARun.TotalFailedTests,
+    ARun.TotalSkippedTests, ARun.TotalErroredTests]),
+    ResultColour(ARun.RunHasErrors or FOREGROUND_INTENSITY));
   WriteLn('');
 end;
 
-Procedure SetHeading(ASetName: string);
+Procedure TTestRun.SetHeading(ASetName: string);
 var
   lHeading: string;
 begin
@@ -582,57 +871,57 @@ end;
 
 /// //////// TEST CASES  \\\\\\\\\\\\\\\\\
 
-Procedure SkipTestCases(ACaseId: integer);
+Procedure TTestRun.SkipTestCases(ACaseId: integer);
 begin
-  NewTest(MiniTestCases[ACaseId].TestCaseName);
+  NewTest(FMiniTestCases[ACaseId].TestCaseName);
   CheckIsTrue(false, 'Case Skipped', Skip);
 end;
 
-Procedure RunTestSets;
+Procedure TTestRun.RunTestSets;
 var
   i, l: integer;
 begin
   CreatingSets := false;
-  l := Length(MiniTestCases);
+  l := Length(FMiniTestCases);
   if l > 0 then
   begin
-    LastSetName := MiniTestCases[0].SetName;
-    NextTestSet(LastSetName);
+    FSetState.LastSetName := FMiniTestCases[0].SetName;
+    NextTestSet(FSetState.LastSetName);
   end;
-  SetCases := 0;
+
   for i := 0 to l - 1 do
     Try
-      CurrentCaseIndex := i;
-      if not assigned(MiniTestCases[i].Execute) then
+      FSetState.CurrentCaseIndex := i;
+      if not assigned(FMiniTestCases[i].Execute) then
         continue;
-      if MiniTestCases[i].Skip = skipCase then
+      if FMiniTestCases[i].Skip = skipCase then
       begin
         SkipTestCases(i);
         continue;
       end;
 
       DisplayModeDefault;
-      CurrentSetName := MiniTestCases[i].SetName;
-      if MiniTestCases[i].TestCaseName <> '' then
-        NextTestCase(MiniTestCases[i].TestCaseName, MiniTestCases[i].Skip);
-      ExpectException(MiniTestCases[i].ExpectedException, true);
-      MiniTestCases[i].Execute;
-      LastSetName := CurrentSetName;
+      FSetState.CurrentSetName := FMiniTestCases[i].SetName;
+      if FMiniTestCases[i].TestCaseName <> '' then
+        NextTestCase(FMiniTestCases[i].TestCaseName, FMiniTestCases[i].Skip);
+      ExpectException(FMiniTestCases[i].ExpectedException, true);
+      FMiniTestCases[i].Execute;
+      FSetState.LastSetName := FSetState.CurrentSetName;
     except
       on E: Exception do
         CheckException(E);
     end;
   // Last Case is done, Need to Update the Final Set Results.
-  CurrentSetName := FINAL_SET_NAME;
+  FSetState.CurrentSetName := FINAL_SET_NAME;
   NextTestCase('');
 
   // Destroy the Cases.
-  SetLength(MiniTestCases, 0);
-  LastSetName := '';
-  CurrentSetName := '';
+  SetLength(FMiniTestCases, 0);
+  FSetState.LastSetName := '';
+  FSetState.CurrentSetName := '';
 end;
 
-Procedure NextTestSet(ASetName: string);
+Procedure TTestRun.NextTestSet(ASetName: string);
 begin
 
   SetResults;
@@ -643,63 +932,66 @@ begin
   if Length(ASetName) > 0 then
   begin
     SetHeading(ASetName);
-    inc(TotalSets);
+    TotalSets := TotalSets + 1;
   end;
 
-  SetPassedTests := 0;
-  SetFailedTests := 0;
-  SetSkippedTests := 0;
-  SetErrors := 0;
-  SetCases := 0;
+  InitTestCounts(self.FSetState.SetCounts);
 
 end;
 
-Procedure NextTestCase(ACaseName: string; ASkipped: TSkipType);
+Procedure TTestRun.NextTestCase(ACaseName: string; ASkipped: TSkipType);
 var
   lHeading: string;
+  lStateOfCurrentCase: PTestCaseState;
 begin
+  lStateOfCurrentCase := lStateOfCurrentCase;
+  if lStateOfCurrentCase <> Nil then
+    lStateOfCurrentCase.ExpectedSetException := '';
+
   CaseResults;
+  FSetState.SetCounts.Passed := FSetState.SetCounts.Passed +
+    FSetState.CaseCounts.Passed;
+  FSetState.SetCounts.Failed := FSetState.SetCounts.Failed +
+    FSetState.CaseCounts.Failed;
+  FSetState.SetCounts.Skipped := FSetState.SetCounts.Skipped +
+    FSetState.CaseCounts.Skipped;
+  FSetState.SetCounts.Errored := FSetState.SetCounts.Errored +
+    FSetState.CaseCounts.Errored;
 
-  inc(SetPassedTests, CasePassedTests);
-  inc(SetFailedTests, CaseFailedTests);
-  inc(SetSkippedTests, CaseSkippedTests);
-  inc(SetErrors, CaseErrors);
-
-  if LastSetName <> CurrentSetName then
-    NextTestSet(CurrentSetName);
+  if FSetState.LastSetName <> FSetState.CurrentSetName then
+    NextTestSet(FSetState.CurrentSetName);
 
   if CanDisplayCaseName(ACaseName) then
   begin
     lHeading := ' Test Case:' + ACaseName;
     PrintLn(lHeading, clTitle);
-    inc(SetCases);
-    inc(TotalCases);
+    inc(self.FSetState.CasesExecuted);
+    TotalCases := TotalCases + 1;
   end;
 
-  inc(TotalPassedTests, CasePassedTests);
-  inc(TotalFailedTests, CaseFailedTests);
-  inc(TotalSkippedTests, CaseSkippedTests);
-  inc(TotalErroredTests, CaseErrors);
+  TotalPassedTests := TotalPassedTests + FSetState.CaseCounts.Passed;
+  TotalFailedTests := TotalFailedTests + FSetState.CaseCounts.Failed;
+  TotalSkippedTests := TotalSkippedTests + FSetState.CaseCounts.Skipped;
+  TotalErroredTests := TotalErroredTests + FSetState.CaseCounts.Errored;
   SkippingSet := ASkipped <> skipFalse;
   IgnoreSkip := false;
-  ExpectedSetException := '';
-  CasePassedTests := 0;
-  CaseFailedTests := 0;
-  CaseSkippedTests := 0;
-  CaseErrors := 0;
-  SameTestCounter := 0;
-  LastTestCaseLabel := '';
-  CurrentTestCaseLabel := '';
-  CurrentTestCaseName := ACaseName;
-  ExpectedException := '';
+
+  InitTestCounts(FSetState.CaseCounts);
+  lStateOfCurrentCase.SameTestCounter := 0;
+  lStateOfCurrentCase.LastCaseLabel := '';
+  lStateOfCurrentCase.CurrentCaseLabel := '';
+  lStateOfCurrentCase.CurrentCaseName := ACaseName;
+  lStateOfCurrentCase.ExpectedException := '';
 end;
 
-Procedure ExpectException(AExceptionClassName: string;
+Procedure TTestRun.ExpectException(AExceptionClassName: string;
   AExpectForSet: boolean = false);
 begin
-  ExpectedException := AExceptionClassName;
+  if CurrentCaseRef = nil then
+    exit;
+  CurrentCaseRef.ExpectedException := AExceptionClassName;
   if AExpectForSet then
-    ExpectedSetException := ExpectedException;
+    CurrentCaseRef.ExpectedSetException := CurrentCaseRef.ExpectedException;
 end;
 
 function ValueAsString(AValue: TComparitorType): string;
@@ -734,7 +1026,7 @@ begin
 
 {$IFDEF HAS_VARUSTRING}
     varUString,
-    {$IFDEF HAS_VARSTRARG}varUStrArg,{$ENDIF}
+{$IFDEF HAS_VARSTRARG}varUStrArg, {$ENDIF}
 {$ENDIF}
     varOleStr, varStrArg, varString:
       Result := AValue;
@@ -821,18 +1113,19 @@ begin
   end;
 end;
 
-Function Check(IsEqual: boolean; AExpected, AResult: TComparitorType;
+Function TTestRun.Check(IsEqual: boolean; AExpected, AResult: TComparitorType;
   AMessage: string; ATestType: TCheckTestType): boolean;
 var
   lMessage, lCounter: string;
   lResult: integer;
   Outcome: boolean;
   lMessageColour: smallint;
+  lDifferencesFound: integer;
 begin
   Result := false;
   lMessageColour := clDefault;
   lResult := 0;
-  DifferencesFound := 0;
+  FSetState.DifferencesFound := 0;
   try
     case ATestType Of
       cttSkip:
@@ -843,7 +1136,7 @@ begin
           else
             lMessage := ' ' + AMessage;
           lMessageColour := clSkipped;
-          inc(CaseSkippedTests);
+          inc(FSetState.CaseCounts.Skipped);
           exit;
         end;
       cttException:
@@ -856,12 +1149,12 @@ begin
           if IsEqual then
           begin
             lResult := 0;
-            inc(CasePassedTests);
+            inc(FSetState.CaseCounts.Passed);
           end
           else
           begin
             lResult := 3;
-            inc(CaseErrors);
+            inc(FSetState.CaseCounts.Errored);
             lMessageColour := clMessage;
             lMessage := Format(EXPECTED_ACTUAL_FORMAT,
               [#13#10, ValueAsString(AExpected), ValueAsString(AResult)])
@@ -877,7 +1170,7 @@ begin
           begin
             lResult := 2;
             lMessageColour := clError;
-            inc(CaseFailedTests);
+            inc(FSetState.CaseCounts.Failed);
             if AMessage = '' then
             begin
               if IsEqual then
@@ -892,16 +1185,16 @@ begin
               lMessage := #13#10'   ' + AMessage;
             exit;
           end;
-          inc(CasePassedTests);
+          inc(FSetState.CaseCounts.Passed);
         except
           on E: Exception do
           begin
-            if (E.ClassName = ExpectedException) then
+            if (E.ClassName = CurrentCaseRef.ExpectedException) then
             begin
               // At this level, it will only be exceptions
               // for Variant type comparisons
               lResult := 0;
-              inc(CasePassedTests);
+              inc(FSetState.CaseCounts.Passed);
             end
             else
             begin
@@ -909,38 +1202,42 @@ begin
               lMessageColour := clMessage;
               lMessage := #13#10'   Illegal Comparison Test Framework: ' +
                 E.Message;
-              inc(CaseErrors);
+              inc(FSetState.CaseCounts.Errored);
             end;
           end;
         end;
       end; // case else
     end; // case
   finally
-    if LastTestCaseLabel = CurrentTestCaseLabel then
-      inc(SameTestCounter)
+    if CurrentCaseRef.LastCaseLabel = CurrentCaseRef.CurrentCaseLabel then
+      inc(CurrentCaseRef.SameTestCounter)
     else
-      SameTestCounter := 1;
-    LastTestCaseLabel := CurrentTestCaseLabel;
-    if SameTestCounter = 1 then
+      CurrentCaseRef.SameTestCounter := 1;
+    CurrentCaseRef.LastCaseLabel := CurrentCaseRef.CurrentCaseLabel;
+    if CurrentCaseRef.SameTestCounter = 1 then
       lCounter := ''
     else
-      lCounter := '-' + IntToStr(SameTestCounter);
-    if CurrentTestCaseLabel = '' then
+      lCounter := '-' + IntToStr(CurrentCaseRef.SameTestCounter);
+    if CurrentCaseRef.CurrentCaseLabel = '' then
     begin
-      CurrentTestCaseLabel := copy('Test for ' + CurrentTestCaseName, 1,
+      CurrentCaseRef.CurrentCaseLabel :=
+        copy('Test for ' + CurrentCaseRef.CurrentCaseName, 1,
         ConsoleScreenWidth - 4);
       if lCounter = '' then
       begin
         lCounter := '-1';
-        LastTestCaseLabel := CurrentTestCaseLabel;
+        CurrentCaseRef.LastCaseLabel := CurrentCaseRef.CurrentCaseLabel;
       end;
-      ExpectedException := ExpectedSetException;
+      CurrentCaseRef.ExpectedException := CurrentCaseRef.ExpectedSetException;
       IgnoreSkip := false;
     end;
 
     Print(Format('  %s-', [PASS_FAIL[lResult]]), lMessageColour);
-    Print(Format('%s%s', [CurrentTestCaseLabel, lCounter]));
-    DisplayMessage(lMessage, lMessageColour, varType(AResult));
+    Print(Format('%s%s', [CurrentCaseRef.CurrentCaseLabel, lCounter]));
+    lDifferencesFound := DisplayMessage(lMessage, lMessageColour,
+      varType(AResult), FSetState.DifferenceDisplayMode);
+    if lDifferencesFound > -1 then
+      FSetState.DifferencesFound := lDifferencesFound;
     Result := (lResult = 0);
   end;
 end;
@@ -953,7 +1250,7 @@ begin
     Result := b;
 end;
 
-Function lcs(X, Y: string): TLCSParams;
+Function lcs(x, y: string): TLCSParams;
 var
   lSize, pF, pS, lx, ly, i, j, k: integer;
   procedure SetBest;
@@ -972,14 +1269,14 @@ begin
   Result.Length := 0;
   Result.FirstPos := 0;
   Result.SecondPos := 0;
-  lx := Length(X);
-  ly := Length(Y);
+  lx := Length(x);
+  ly := Length(y);
   lSize := 0;
   for i := 1 to lx do
   begin
     for j := 1 to ly do
     begin
-      if X[i] = Y[j] then
+      if x[i] = y[j] then
       begin
         pF := i;
         pS := j;
@@ -987,7 +1284,7 @@ begin
         lSize := 1;
         while (((i + k) <= lx) and ((j + k) <= ly)) do
         begin
-          if X[i + k] = Y[j + k] then
+          if x[i + k] = y[j + k] then
             inc(lSize)
           else
             break;
@@ -1062,7 +1359,7 @@ var
 begin
   lBeforeDifferences := nil;
   lAfterDifferences := nil;
-  
+
   if Length(AText) + Length(ACompareTo) = 0 then
     exit;
   lDiff := LCSDiff(AText, ACompareTo);
@@ -1233,13 +1530,14 @@ begin
         (ARightColumn.Lines[lRightLine - 1].EOL);
     end;
     // check for enough working space: probably not needed.
-    if length(Result)-i<lSize then setlength(result,length(Result)+lSize);
+    if Length(Result) - i < lSize then
+      SetLength(Result, Length(Result) + lSize);
   end;
   SetLength(Result, i + 1);
 end;
 
-Function DifferencesToConsoleArray(ADifferences: TStringDifferences)
-  : TConsoleTextArray;
+Function DifferencesToConsoleArray(ADifferences: TStringDifferences;
+  ADifferenceDisplayMode: TDifferenceViewMode): TConsoleTextArray;
 var
   i, lColumnWidth, lStartDiff: integer;
   lLeftColumn, lRightColumn: TConsoleColumn;
@@ -1253,9 +1551,9 @@ begin
     lColumnWidth := ConsoleScreenWidth - 12;
     lLeftPadColour := clError;
     lRightPadColour := clError;
-    if dfTwoColumn in DifferenceDisplayMode then
+    if dfTwoColumn in ADifferenceDisplayMode then
     begin
-      if (not(dfRow in DifferenceDisplayMode)) or
+      if (not(dfRow in ADifferenceDisplayMode)) or
         (FinalLengthofDifferences(ADifferences) > (ConsoleScreenWidth - 3)) then
       begin
         lColumnWidth := (ConsoleScreenWidth - 3) Div 2;
@@ -1263,9 +1561,9 @@ begin
       end;
     end;
     lLeftColumn := TConsoleColumn.Create(lColumnWidth, clExpectedText,
-      dfEscapeCRLF in DifferenceDisplayMode);
+      dfEscapeCRLF in ADifferenceDisplayMode);
     lRightColumn := TConsoleColumn.Create(lColumnWidth, clActualText,
-      dfEscapeCRLF in DifferenceDisplayMode);
+      dfEscapeCRLF in ADifferenceDisplayMode);
     for i := Low(ADifferences) to High(ADifferences) do
     begin
 
@@ -1313,8 +1611,8 @@ begin
   end;
 end;
 
-procedure DisplayMessage(AMessage: String; AMessageColour: smallint;
-  ADataType: integer);
+function DisplayMessage(AMessage: String; AMessageColour: smallint;
+  ADataType: integer; ADifferenceDisplayMode: TDifferenceViewMode): integer;
 var
   lExpected, lActual: string;
   p, i, lExpectedStart, lActualStart: integer;
@@ -1340,13 +1638,12 @@ var
 
 begin
   p := pos(EXPECTED_ACTUAL_SEPARATOR, AMessage);
-  if (AMessageColour <> clError) OR
-     (DifferenceDisplayMode = []) OR
-     (DifferenceDisplayMode=[dfEscapeCRLF]) OR
+  if (AMessageColour <> clError) OR (ADifferenceDisplayMode = []) OR
+    (ADifferenceDisplayMode = [dfEscapeCRLF]) OR
     ((p < 1) OR (pos(EXPECTED_FORMAT_MESSAGE, AMessage) < 1) OR
     (pos(ACTUAL_FORMAT_MESSAGE, AMessage) < 1)) then
   begin
-    DifferencesFound := 1;
+    Result := 1;
     PrintLn(StringReplace(AMessage, #1, '', [rfReplaceAll]), AMessageColour);
     exit;
   end;
@@ -1354,10 +1651,10 @@ begin
   // Only do the test on string data types
   if NOT((ADataType = varString) OR
 {$IFNDEF BEFORE_INLINE}
-  {$IFDEF HAS_VARUSTRING}
+{$IFDEF HAS_VARUSTRING}
     (ADataType = varUString) OR
-    {$IFDEF HAS_VARUSTRARG } (ADataType = varUStrArg) OR {$ENDIF}
-  {$ENDIF}
+{$IFDEF HAS_VARUSTRARG } (ADataType = varUStrArg) OR {$ENDIF}
+{$ENDIF}
 {$ENDIF}
     (ADataType in [varStrArg, varOleStr])) then
   begin
@@ -1391,10 +1688,11 @@ begin
   lExpected := copy(AMessage, lExpectedStart, p - lExpectedStart);
   lActual := copy(AMessage, lActualStart, MAXINT);
   lStringDifference := LCSDifferences(lExpected, lActual);
-  DifferencesFound := Length(lStringDifference);
+  Result := Length(lStringDifference);
 
   // Convert to Console Output
-  lScreenText := DifferencesToConsoleArray(lStringDifference);
+  lScreenText := DifferencesToConsoleArray(lStringDifference,
+    ADifferenceDisplayMode);
   for i := low(lScreenText) to High(lScreenText) do
   begin
     Print(lScreenText[i].Text, lScreenText[i].Colour);
@@ -1418,7 +1716,7 @@ begin
   Result := skipFalse;
 end;
 
-Function CheckIsEqual(AExpected, AResult: TComparitorType;
+Function TTestRun.CheckIsEqual(AExpected, AResult: TComparitorType;
   AMessage: string = ''; ASkipped: TSkipType = skipFalse): boolean;
 begin
   Result := false;
@@ -1431,8 +1729,8 @@ begin
   end;
 end;
 
-Function CheckNotEqual(AResult1, AResult2: TComparitorType; AMessage: string;
-  ASkipped: TSkipType): boolean;
+Function TTestRun.CheckNotEqual(AResult1, AResult2: TComparitorType;
+  AMessage: string; ASkipped: TSkipType): boolean;
 Begin
   Result := false;
   try
@@ -1444,25 +1742,25 @@ Begin
   end;
 end;
 
-Function CheckIsTrue(AResult: boolean; AMessage: string;
+Function TTestRun.CheckIsTrue(AResult: boolean; AMessage: string;
   ASkipped: TSkipType): boolean;
 begin
   Result := CheckIsEqual(true, AResult, AMessage, ASkipped);
 end;
 
-Function CheckIsFalse(AResult: boolean; AMessage: string;
+Function TTestRun.CheckIsFalse(AResult: boolean; AMessage: string;
   ASkipped: TSkipType): boolean;
 begin
   Result := CheckIsEqual(false, AResult, AMessage, ASkipped);
 end;
 
-Procedure CheckException(AException: Exception);
+Procedure TTestRun.CheckException(AException: Exception);
 var
   lExpected: string;
   lExceptionClassName: string;
   lExceptionMessage: string;
 begin
-  lExpected := ExpectedException;
+  lExpected := CurrentCaseRef.ExpectedException;
   if (AException = nil) then
   begin
     lExceptionClassName := NIL_EXCEPTION_CLASSNAME;
@@ -1481,7 +1779,7 @@ begin
     cttException);
 end;
 
-Function NotImplemented(AMessage: string = ''): boolean;
+Function TTestRun.NotImplemented(AMessage: string = ''): boolean;
 var
   lMessage: string;
 begin
@@ -1492,70 +1790,70 @@ begin
   Result := CheckIsTrue(true, lMessage, skipTrue);
 end;
 
-Procedure NewSet(ASetName: string);
+Procedure TTestRun.NewSet(ASetName: string);
 begin
-  CurrentSetName := ASetName;
+  FSetState.CurrentSetName := ASetName;
   CreatingSets := true;
 end;
 
-Procedure NewCase(ATestCaseName: string);
+Procedure TTestRun.NewCase(ATestCaseName: string);
 begin
   NewTest('', ATestCaseName);
 end;
 
-procedure NewTestCase(ACase: string; ATestCaseName: string);
+procedure TTestRun.NewTestCase(ACase: string; ATestCaseName: string);
 begin
   NewTest(ACase, ATestCaseName);
 end;
 
-procedure NewTest(ACase: string; ATestCaseName: string);
+procedure TTestRun.NewTest(ACase: string; ATestCaseName: string);
 begin
   if (ATestCaseName <> '') and
-    ((ACase = '') OR (CurrentTestCaseName <> ATestCaseName)) then
+    ((ACase = '') OR (CurrentCaseRef.CurrentCaseName <> ATestCaseName)) then
     NextTestCase(ATestCaseName);
 
   if (ACase <> '') then
-    CurrentTestCaseLabel := ACase;
-  ExpectedException := ExpectedSetException;
+    CurrentCaseRef.CurrentCaseLabel := ACase;
+  CurrentCaseRef.ExpectedException := CurrentCaseRef.ExpectedSetException;
   IgnoreSkip := false;
 end;
 
-Procedure DeferTestCase(ATestName: string = '');
+Procedure TTestRun.DeferTestCase(ATestName: string = '');
 begin
   if Length(ATestName) = 0 then
-    DeferredTestCaseLabel := CurrentTestCaseLabel
+    CurrentCaseRef.DeferredCaseLabel := CurrentCaseRef.CurrentCaseLabel
   else
-    DeferredTestCaseLabel := ATestName;
+    CurrentCaseRef.DeferredCaseLabel := ATestName;
 end;
 
-Procedure DeferExpectedException(AExceptionClassName: string);
+Procedure TTestRun.DeferExpectedException(AExceptionClassName: string);
 begin
-  DeferredExpectedException := AExceptionClassName;
+  CurrentCaseRef.DeferredExpectedException := AExceptionClassName;
 end;
 
-Procedure ResumeTestCase;
+Procedure TTestRun.ResumeTestCase;
 begin
-  if Length(DeferredTestCaseLabel) > 0 then
-    NewTest(DeferredTestCaseLabel);
-  if Length(DeferredExpectedException) > 0 then
-    ExpectException(DeferredExpectedException);
-  DeferredExpectedException := '';
-  DeferredTestCaseLabel := '';
+  if Length(CurrentCaseRef.DeferredCaseLabel) > 0 then
+    NewTest(CurrentCaseRef.DeferredCaseLabel);
+  if Length(CurrentCaseRef.DeferredExpectedException) > 0 then
+    ExpectException(CurrentCaseRef.DeferredExpectedException);
+  CurrentCaseRef.DeferredExpectedException := '';
+  CurrentCaseRef.DeferredCaseLabel := '';
 end;
 
-Procedure DeferredTestSuccess;
+Procedure TTestRun.DeferredTestSuccess;
 begin
   ResumeTestCase;
   CheckIsTrue(true);
 end;
 
-Procedure DeferredTestFail;
+Procedure TTestRun.DeferredTestFail;
 begin
   ResumeTestCase;
   CheckIsTrue(false);
 end;
 
-Procedure DeferredTestException(E: Exception);
+Procedure TTestRun.DeferredTestException(E: Exception);
 begin
   ResumeTestCase;
   CheckException(E);
@@ -1672,17 +1970,151 @@ begin
     AColour);
 end;
 
+{ TTestRun }
+
+procedure TTestRun.AddTestCase(ATestCaseName: string;
+  AProcedure: TTestCaseProcedure; ASkipped: TSkipType;
+  AExpectedException: string);
+var
+  l: integer;
+begin
+  if Length(CurrentSetName) = 0 then
+    FSetState.CurrentSetName := NextSetName;
+  l := Length(FMiniTestCases);
+  SetLength(FMiniTestCases, l + 1);
+  FMiniTestCases[l].SetName := CurrentSetName;
+  FMiniTestCases[l].Execute := AProcedure;
+  FMiniTestCases[l].TestCaseName := ATestCaseName;
+  FMiniTestCases[l].Skip := ASkipped;
+  FMiniTestCases[l].ExpectedException := AExpectedException;
+end;
+
+function TTestRun.GetCaseOutputFormat: String;
+begin
+  Result := '';
+  if CurrentCaseRef = nil then
+    exit;
+  Result := CurrentCaseRef.OutputFormat;
+end;
+
+function TTestRun.GetCurrentCase: integer;
+begin
+  Result := FSetState.CurrentCaseIndex;
+end;
+
+function TTestRun.GetCurrentCaseRef: PTestCaseState;
+var
+  lIndex: integer;
+begin
+  Result := nil;
+  lIndex := self.CurrentCase;
+  if lIndex < 0 then
+    exit;
+  Result := PTestCaseState(@FMiniTestCases[lIndex]);
+end;
+
+function TTestRun.GetCurrentSetName: string;
+begin
+  Result := self.FSetState.CurrentSetName;
+end;
+
+function TTestRun.GetDefaultCaseOutputFormat: string;
+begin
+  result := FDefaultCaseOutputFormat;
+end;
+
+function TTestRun.GetDefaultSetOutputFormat: string;
+begin
+  result := FDefaultSetOutputFormat;
+end;
+
+function TTestRun.GetSetCounter: integer;
+begin
+  result := self.FSetCounter;
+end;
+
+function TTestRun.GetTestSets: TTestSetArray;
+begin
+  Result := FMiniTestCases;
+end;
+
+function TTestRun.GetTotalCases: integer;
+begin
+  Result := self.FCounts.Errored + self.FCounts.Failed + self.FCounts.Passed +
+    self.FCounts.Skipped;
+end;
+
+function TTestRun.GetTotalErroredTests: integer;
+begin
+  Result := FCounts.Errored;
+end;
+
+function TTestRun.GetTotalFailedTests: integer;
+begin
+  Result := FCounts.Failed;
+end;
+
+function TTestRun.GetTotalPassedTests: integer;
+begin
+  Result := FCounts.Passed;
+end;
+
+function TTestRun.GetTotalSets: integer;
+begin
+  Result := length(FMiniTestCases);
+end;
+
+function TTestRun.GetTotalSkippedTests: integer;
+begin
+  Result := FCounts.Skipped;
+end;
+
+procedure TTestRun.SetTotalCases(const Value: integer);
+begin
+  FCasesExecuted := Value;
+end;
+
+procedure TTestRun.SetTotalErroredTests(const Value: integer);
+begin
+  FCounts.Errored := Value;
+end;
+
+procedure TTestRun.SetTotalFailedTests(const Value: integer);
+begin
+  FCounts.Failed := Value;
+end;
+
+procedure TTestRun.SetTotalPassedTests(const Value: integer);
+begin
+  FCounts.Passed := Value;
+end;
+
+procedure TTestRun.SetTotalSets(const Value: integer);
+begin
+  FSetsExecuted := Value;
+end;
+
+procedure TTestRun.SetTotalSkippedTests(const Value: integer);
+begin
+  FCounts.Skipped := Value;
+end;
+
+Procedure TTestRun.PrepareSet(AProcedure: TTestCaseProcedure);
+begin
+  AddTestCase('', AProcedure);
+end;
+
 initialization
+
+DefaultRun := TTestRun.Create;
 
 {$IFDEF CompilerVersion}
 {$IF CompilerVersion >= 20.0}
-  system.ReportMemoryLeaksOnShutdown := true;
+system.ReportMemoryLeaksOnShutdown := true;
 {$IFEND}
 {$ENDIF}
 TotalOutputFormat := DEFAULT_TOTALS_FORMAT;
-SetOutputFormat := DEFAULT_SET_FORMAT;
-CaseOutputFormat := DEFAULT_CASE_FORMAT;
+DefaultRun.DefaultSetOutputFormat := DEFAULT_SET_FORMAT;
+DefaultRun.DefaultCaseOutputFormat := DEFAULT_CASE_FORMAT;
 
 end.
-
-
