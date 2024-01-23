@@ -27,13 +27,13 @@ uses SysUtils, windows
     ;
 
 Const
-  FRAMEWORK_VERSION = '2.0.0.4';
+  FRAMEWORK_VERSION = '2.0.0.6';
   DEFAULT_TOTALS_FORMAT =
-    'Run>Sets:%-3d Cases:%-3d Tests:%-4d Passed:%-4d Failed:%-3d Skipped:%-3d Errors:%-3d';
+    'Run>Sets:%-3d Cases:%-3d Tests:%-4d Passed:%-4d Failed:%-3d Skipped:%-3d Errors:%-3d Time:%.3fsec';
   DEFAULT_SET_FORMAT =
-    'Set>Cases:%-4d Tests:%-4d Passed:%-4d Failed:%-4d Skipped:%-4d Errors:%-4d';
+    'Set>Cases:%-4d Tests:%-4d Passed:%-4d Failed:%-4d Skipped:%-4d Errors:%-4d Time:%.2fms';
   DEFAULT_CASE_FORMAT =
-    '  Results> Passed:%-5d Failed:%-5d Skipped:%-5d Errors:%-5d';
+    '  Results> Passed:%-5d Failed:%-5d Skipped:%-5d Errors:%-5d Time:%.2fms';
   METADATA_FORMAT = '%s'#9'%s'#9'%s'#9'%s'#9'%s';
   DEFAULT_SET_NAME = 'SET';
   FINAL_SET_NAME = '__';
@@ -169,6 +169,7 @@ const
   Skip = skipTrue; // alternate
 
 var
+  RunCounter : integer = 0;
   MiniTestCases: Array of TTestSet;
 
   SkippingSet, IgnoreSkip: boolean;
@@ -287,12 +288,11 @@ var
   SameTestCounter: integer = 0;
   LastTestCaseLabel: string;
   SetCounter: integer = 0;
+function TestTimeTaken(ANow, AThen: Int64): extended; {$IFDEF HAS_INLINE} inline; {$ENDIF}
+begin
+  result := (ANow-AThen)/TestTimerFrequency;
+end;
 
-  /// ////////  SCREEN MANAGEMENT \\\\\\\\\\\\\\\\\
-
-var
-  Screen_width: integer = -1;
-  Console_Handle: THandle = 0;
 
 Function CanDisplayCaseName(ACaseName: string): boolean;
 begin
@@ -689,13 +689,15 @@ begin
 end;
 
 procedure CaseResults;
+var lTime : Int64;
+    lTimeTaken: Extended;
 begin
-
+  QueryPerformanceCounter(lTime);
+  lTimeTaken := TestTimeTaken(lTime,CaseStartTime);
   if CaseIsEmpty or TestMetaData then
     exit;
-
   PrintLn(Format(CaseOutputFormat, [CasePassedTests, CaseFailedTests,
-    CaseSkippedTests, CaseErrors]), ResultColour(CaseHasErrors));
+    CaseSkippedTests, CaseErrors, 1000*lTimeTaken ]), ResultColour(CaseHasErrors));
 
 end;
 
@@ -706,7 +708,12 @@ begin
 end;
 
 procedure SetResults;
+var
+  lTime: Int64;
+  lTimeTaken: Extended;
 begin
+  QueryPerformanceCounter(lTime);
+  lTimeTaken := TestTimeTaken(lTime, SetStartTime);
   if TestMetaData then
     exit;
 
@@ -715,20 +722,26 @@ begin
 
   PrintLn(Format(SetOutputFormat, [SetCases, SetPassedTests + SetFailedTests +
     SetSkippedTests + SetErrors, SetPassedTests, SetFailedTests,
-    SetSkippedTests, SetErrors]), ResultColour(SetHasErrors));
+    SetSkippedTests, SetErrors, lTimeTaken*1000]), ResultColour(SetHasErrors));
 
   SingleLine;
+  QueryPerformanceCounter(SetStartTime);
 end;
 
 Procedure TestSummary;
+var
+   lTime: Int64;
+   lTimeTaken: Extended;
 begin
   if TestMetaData then
     exit;
-
+  QueryPerformanceCounter(lTime);
+  lTimeTaken := TestTimeTaken(lTime, RunStartTime);
   NextTestCase('');
   DoubleLine;
   PrintLn(Format(TotalOutputFormat, [TotalSets, TotalCases, TotalTests,
-    TotalPassedTests, TotalFailedTests, TotalSkippedTests, TotalErroredTests]),
+    TotalPassedTests, TotalFailedTests, TotalSkippedTests, TotalErroredTests,
+     lTimeTaken]),
     ResultColour(RunHasErrors or FOREGROUND_INTENSITY));
   Writeln('');
 end;
@@ -776,6 +789,10 @@ var
   lWholeCaseInList, lTitleInCaseList, lFirstCase: boolean;
   lTitle: string;
 begin
+  inc(RunCounter);
+
+  QueryPerformanceCounter(RunStartTime);
+  SetStartTime := RunStartTime;
   CurrentSetName := '';
   CreatingSets := false;
   lWholeCaseInList := false;
@@ -794,6 +811,7 @@ begin
   for i := 0 to l - 1 do
     Try
       CurrentCaseIndex := i;
+      QueryPerformanceCounter(CaseStartTime);
       if not assigned(MiniTestCases[i].Execute) then
         continue;
 
@@ -833,6 +851,7 @@ begin
               NextTestCase(MiniTestCases[i].TestCaseName,
                 MiniTestCases[i].Skip);
             ExpectException(MiniTestCases[i].ExpectedException, true);
+            QueryPerformanceCounter(LastExecuteTime);
             MiniTestCases[i].Execute;
           end;
         end; // else not one of the cases requested.
@@ -1049,8 +1068,15 @@ var
   lResult: integer;
   Outcome: boolean;
   lMessageColour: smallint;
+  lTime: Int64;
+  lTimeTaken : Extended;
+
+
+
 begin
   lMessageColour := clDefault;
+  QueryPerformanceCounter(lTime);
+  lTimeTaken := TestTimeTaken(lTime,LastExecuteTime);
   lResult := 0;
   DifferencesFound := 0;
   try
@@ -1064,6 +1090,7 @@ begin
             lMessage := ' ' + AMessage;
           lMessageColour := clSkipped;
           inc(CaseSkippedTests);
+          result := (lResult = 0);
           exit;
         end;
       cttException:
@@ -1110,6 +1137,7 @@ begin
             end
             else
               lMessage := #13#10'   ' + AMessage;
+            result := (lResult = 0);
             exit;
           end;
           inc(CasePassedTests);
@@ -1159,9 +1187,10 @@ begin
     end;
 
     Print(Format('  %s-', [PASS_FAIL[lResult]]), lMessageColour);
-    Print(Format('%s%s', [CurrentTestCaseLabel, lCounter]));
+    Print(Format('%s%s (%.2fms)', [CurrentTestCaseLabel, lCounter, 1000*lTimeTaken]));
     DisplayMessage(lMessage, lMessageColour, varType(AResult));
     Result := (lResult = 0);
+    QueryPerformanceCounter(LastExecuteTime);
   end;
 end;
 
@@ -1561,6 +1590,8 @@ var
   end;
 
 begin
+  Setlength(lScreenText,0);
+  Setlength(lStringDifference,0);
   p := pos(EXPECTED_ACTUAL_SEPARATOR, AMessage);
   if (AMessageColour <> clError) OR (DifferenceDisplayMode = []) OR
     (DifferenceDisplayMode = [dfEscapeCRLF]) OR
@@ -1645,6 +1676,23 @@ begin
   Result := false;
   try
     Result := Check(true, AExpected, AResult, AMessage,
+      TestTypeFromSkip(ASkipped));
+  except
+    on E: Exception do
+      CheckException(E);
+  end;
+end;
+
+Function CheckIsCloseTo(AExpected, AResult: TComparitorType;
+  AMessage: string = ''; ASkipped: TSkipType = skipFalse): boolean;
+var
+  lExpected, lResult: TComparitorType;
+begin
+  lExpected := (Trunc(AExpected*1000)/1000);
+  lResult := (Trunc(AResult*1000)/1000);
+  Result := false;
+  try
+    Result := Check(true, lExpected, lResult, AMessage,
       TestTypeFromSkip(ASkipped));
   except
     on E: Exception do
@@ -1898,6 +1946,8 @@ var
   i: integer;
   lParam: string;
 begin
+  if not QueryPerformanceFrequency(TestTimerFrequency) then
+    TestTimerFrequency := 0;
   for i := 1 to ParamCount do
   begin
     lParam := Paramstr(i);
@@ -1914,6 +1964,16 @@ begin
   TestMetaData := FindCmdLineSwitch('M', ['-', '/'], true);
   if TestMetaData then
     OutputProjectMetaData;
+end;
+
+procedure TestingCompleted;
+begin
+   if lowercase(paramstr(1))='/p' then readln;
+   ExitCode := (TotalFailedTests+ TotalErroredTests);
+
+   if assigned(EndedEvent) then
+     EndedEvent;
+
 end;
 
 initialization
