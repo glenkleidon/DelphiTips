@@ -164,6 +164,13 @@ Type
     ExpectedException: string;
   end;
 
+  TTestNotification = {$IFDEF HAS_INLINE}reference to{$ENDIF} Procedure;
+  TTestNotificationInt = {$IFDEF HAS_INLINE}reference to{$ENDIF} Procedure(const ACount: integer);
+  TTestNotificationCase = {$IFDEF HAS_INLINE}reference to{$ENDIF} Procedure(const ACase: TTestSet);
+  TTestNotificationCaseBoolEnquiry = {$IFDEF HAS_INLINE}reference to{$ENDIF} Function(const ACase: TTestSet): boolean;
+  TTestNotificationTest = {$IFDEF HAS_INLINE}reference to{$ENDIF} Procedure(const ACase: TTestSet; const ATest: string);
+  TTestNotificationExecuted = {$IFDEF HAS_INLINE}reference to{$ENDIF} Procedure(const ACase: TTestSet; const ATestname: string; const AResult: string; Const AMessage: string; Const ATimeTaken: Extended);
+
 const
   SKIPPED = skipTrue;
   Skip = skipTrue; // alternate
@@ -267,6 +274,18 @@ Procedure ResetStringDifference(var ADiff: TStringDifference);
 procedure DisplayMessage(AMessage: String; AMessageColour: smallint;
   ADataType: integer);
 
+procedure TestingCompleted;
+
+// Test Insight
+var
+   TestsStarted: boolean = false;
+   StartingEvent: TTestNotificationInt = nil;
+   EndedEvent: TTestNotification = nil;
+   CaseStartingEvent: TTestNotificationCase = nil;
+   TestStartingEvent: TTestNotificationTest = nil;
+   TestExecutedEvent: TTestNotificationExecuted = nil;
+   CaseShouldBeExecuted: TTestNotificationCaseBoolEnquiry = nil;
+
 implementation
 
 uses classes;
@@ -274,6 +293,18 @@ uses classes;
 Const
   NIL_EXCEPTION_CLASSNAME = 'NilException';
   NO_EXCEPTION_EXPECTED = 'No Exceptions';
+  JUNIT_REPORT = '<?xml version="1.0" encoding="UTF-8"?>%s'#13#10+
+                '<testsuites time="%.6f">'+
+                '%s'#13#10+
+                '</testsuites>';
+  JUNIT_REPORT_SUITE =
+                '  <testsuite name="%s" time="%.6f">'#13#10+
+                '%s  </testsuite>'#13#10;
+  JUNIT_REPORT_CASE =
+                '    <testcase name="%s" classname="%s" time="%.6f" >%s</testcase>'#13#10;
+  JUNIT_REPORT_MESSAGE =
+                '      <%s message="%s" type="%s">%s</%s>'#13#10;
+  JUNIT_REPORT_STYLE_SHEET = '<?xml-stylesheet type="text/xsl" href="%s"?>';
 
 Type
   TCheckTestType = (cttComparison, cttSkip, cttException);
@@ -288,11 +319,251 @@ var
   SameTestCounter: integer = 0;
   LastTestCaseLabel: string;
   SetCounter: integer = 0;
+  Screen_width: integer = -1;
+  Console_Handle: THandle = 0;
+  TestTimerFrequency: Int64; 
+  RunStartTime, SetStartTime, CaseStartTime, LastExecuteTime: Int64;
+  XML_Report_FilePath: string;
+  XML_Reporting: boolean = false;
+  XML_Report: string = '';
+  XML_Report_Suites: string  = '';
+  XML_Report_Suite: string = '';
+  XML_Report_Case: string = '';
+  XML_StyleSheet: string ='';
+
+
 function TestTimeTaken(ANow, AThen: Int64): extended; {$IFDEF HAS_INLINE} inline; {$ENDIF}
 begin
   result := (ANow-AThen)/TestTimerFrequency;
 end;
 
+  ///////////  JUNIT XML REPORT \\\\\\\\\\\\\\\\\
+
+function XMLEscapeText(const AText: string): string;
+var
+  i: Integer;
+  c: Char;
+begin
+  Result := '';
+  for i := 1 to Length(AText) do
+  begin
+    c := AText[i];
+    case c of
+      #0..#31, #127..#255 :
+        Result := Result + Format('&#x%02x;', [Ord(c)]);
+      '&': Result := Result + '&amp;';
+      '<': Result := Result + '&lt;';
+      '>': Result := Result + '&gt;';
+      '"': Result := Result + '&quot;';
+      '''': Result := Result + '&apos;';
+      else
+          Result := Result + c;
+    end;
+  end;
+end;
+
+function SentenceToSnakeCase(const ASentence: string): string;
+var
+  i: Integer;
+  NextCharToUpper: Boolean;
+begin
+  Result := '';
+  NextCharToUpper := False;
+
+  for i := 1 to Length(ASentence) do
+  begin
+    if ASentence[i] = ' ' then
+    begin
+      if (Result <> '') and (Result[Length(Result)] <> '_') then
+      begin
+        Result := Result + '_';
+        NextCharToUpper := True;
+      end;
+    end
+    else
+    begin
+      if NextCharToUpper and (ASentence[i] <> '_') then
+      begin
+        Result := Result + UpperCase(ASentence[i]);
+        NextCharToUpper := False;
+      end
+      else
+        Result := Result + ASentence[i];
+    end;
+  end;
+end;
+
+
+procedure JUnitReportReset;
+var
+  lSwitchParam: integer;
+  lParamText: string;
+
+  function LocateSwitch(AChar: char): integer;
+  var i: integer;
+  begin
+    result := -1;
+    for i := 1 to ParamCount do
+     if (AnsiCompareText('-'+AChar,copy(Paramstr(i),1,2))=0) or
+        (AnsiCompareText('/'+AChar,copy(Paramstr(i),1,2))=0) then
+     begin
+      result := i;
+      break
+    end;
+  end;
+
+begin
+  XML_Report := '';
+  XML_Report_Suites := '';
+  XML_Report_Suite := '';
+  XML_Report_Case := '';
+  XML_StyleSheet := '';
+  LastExecuteTime := 0;
+  lSwitchParam := LocateSwitch('J');
+  XML_Reporting := lSwitchParam>0;
+  XML_Report_FilePath := '';
+
+  if (XML_Reporting) then
+  begin
+   if (length(ParamStr(lSwitchParam))>2) then
+     XML_Report_FilePath := Copy(ParamStr(lSwitchParam), 3, maxInt)
+   else
+     XML_Report_FilePath := ChangeFileExt(Paramstr(0),'.xml');
+
+   lSwitchParam := LocateSwitch('S');
+   if lSwitchParam>0 then
+     XML_StyleSheet := format(JUNIT_REPORT_STYLE_SHEET, [
+       copy(ParamStr(lSwitchParam),3,maxInt)
+     ]);
+
+  end;
+end;
+
+procedure JUnitReportSuiteEnded;
+var lTime: Int64;
+begin
+  if (not XML_Reporting) or
+     (length(CurrentSetName)=0) or
+     (length(XML_Report_Suite)=0)
+     then
+    exit;
+  QueryPerformanceCounter(lTime);
+  XML_Report_Suites := XML_Report_Suites +
+    format(JUNIT_REPORT_SUITE,[
+      CurrentTestCaseName,
+      TestTimeTaken(lTime,CaseStartTime),
+      XML_Report_Suite
+    ]);
+  XML_Report_Suite := '';
+end;
+
+procedure JUnitCaseExecuted(AOutcome: Integer; AMessage: string; ATimeTaken: Extended);
+
+  function EncodedMessage: string;
+  var
+    lMessageClass, lMessageType: string;
+  begin
+    result := '';
+    lMessageClass := '';
+    lMessageType := '';
+
+    Case AOutcome of
+     0: exit; // all good.
+     1:
+      begin
+        lMessageClass := 'skipped';
+        lMessageType := 'AssertionSkipped';
+      end;
+     2:
+      begin
+        lMessageClass := 'failure';
+        lMessageType := 'AssertionFailure';
+      end;
+     3:
+      begin
+        lMessageClass := 'error';
+        lMessageType := 'AssertionError';
+      end;
+    end;
+
+    result :=
+      Format(JUNIT_REPORT_MESSAGE, [
+       lMessageClass,
+       XMLEscapeText(AMessage),
+       lMessageType,
+       '',
+       lMessageClass])
+
+  end;
+
+
+begin
+  if not XML_Reporting then
+    exit;
+
+  XML_Report_Suite :=  XML_Report_Suite +
+    format(JUNIT_REPORT_CASE,[
+      XMLEscapeText(CurrentTestCaseLabel),
+      XMLEscapeText(SentenceToSnakeCase(CurrentTestCaseName)),
+      ATimeTaken,
+      EncodedMessage
+    ]);
+end;
+
+procedure JUnitReportSkip;
+begin
+  if not XML_Reporting then
+    exit;
+  CurrentTestCaseLabel := 'All';
+  JUnitCaseExecuted(1,'Skipped', 0);
+end;
+
+procedure JUnitReportEnded;
+var
+  lTime : Int64;
+begin
+  if not XML_Reporting then
+    exit;
+  QueryPerformanceCounter(lTime);
+  XML_report := XML_Report +
+    format(JUNIT_REPORT, [
+     XML_StyleSheet,
+     TestTimeTaken(lTime, RunStartTime),
+     XML_Report_Suites
+  ]);
+  XML_Report_Suites := '';
+  RunStartTime := lTime;
+end;
+
+procedure OutputJUnitReport;
+var lFile: TextFile;
+    lFileName, lExtn: string;
+begin
+  JUnitReportEnded;
+  if (not XML_Reporting) or (length(XML_Report_FilePath)=0) then
+    exit;
+  if not(DirectoryExists(ExtractFileDir(XML_Report_FilePath))) then
+    ForceDirectories(XML_Report_FilePath);
+  lFileName := XML_Report_FilePath;
+  if RunCounter>1 then
+  begin
+    lExtn := ExtractFileExt(lFilename);
+    lFilename := format('%s_%d%s', [
+      copy(lFilename, 1, length(lFileName)-length(lExtn)),
+      RunCounter, lExtn]);
+  end;
+
+  AssignFile(lFile,lFileName);
+  try
+    Rewrite(lFile);
+    Write(lFile, UTF8String(XML_Report));
+  finally
+    CloseFile(lFile);
+  end;
+end;
+
+
+  /// ////////  SCREEN MANAGEMENT \\\\\\\\\\\\\\\\\
 
 Function CanDisplayCaseName(ACaseName: string): boolean;
 begin
@@ -763,6 +1034,7 @@ end;
 
 Procedure SkipTestCases(ACaseId: integer);
 begin
+  JUnitReportSkip;
   NewTest(MiniTestCases[ACaseId].TestCaseName);
   CheckIsTrue(false, 'Case Skipped', Skip);
 end;
@@ -794,6 +1066,7 @@ begin
   QueryPerformanceCounter(RunStartTime);
   SetStartTime := RunStartTime;
   CurrentSetName := '';
+  JUnitReportReset;
   CreatingSets := false;
   lWholeCaseInList := false;
   lTitleInCaseList := false;
@@ -812,6 +1085,14 @@ begin
     Try
       CurrentCaseIndex := i;
       QueryPerformanceCounter(CaseStartTime);
+
+      if assigned(CaseShouldBeExecuted) and
+        (not CaseShouldBeExecuted(MiniTestCases[i])) then
+        continue;
+
+      if assigned(CaseStartingEvent) then
+        CaseStartingEvent(MiniTestCases[i]);
+
       if not assigned(MiniTestCases[i].Execute) then
         continue;
 
@@ -831,6 +1112,8 @@ begin
         lTitle := MiniTestCases[i].Title;
 
         CurrentSetName := MiniTestCases[i].SetName;
+        CurrentTestCaseName := '';
+        CurrentTestCaseLabel := '';
 
         if LastSetName <> CurrentSetName then
         begin
@@ -843,6 +1126,7 @@ begin
         begin
           if MiniTestCases[i].Skip = skipCase then
           begin
+            JUnitReportSkip;
             SkipTestCases(i);
           end
           else
@@ -858,6 +1142,7 @@ begin
       end;
       lFirstCase := false;
       LastSetName := CurrentSetName;
+      JUnitReportSuiteEnded;
     except
       on E: Exception do
         CheckException(E);
@@ -866,6 +1151,7 @@ begin
   CurrentSetName := FINAL_SET_NAME;
   NextTestCase('');
 
+  OutputJUnitReport;
   // Destroy the Cases.
   SetLength(MiniTestCases, 0);
   LastSetName := '';
@@ -1072,6 +1358,15 @@ var
   lTimeTaken : Extended;
 
 
+  procedure Notify;
+  begin
+    JUnitCaseExecuted(lResult, AMessage, lTimeTaken);
+    if assigned(TestExecutedEvent) then
+    begin
+      TestExecutedEvent(MiniTestCases[CurrentCaseIndex], CurrentTestCaseLabel, PASS_FAIL[lResult],
+        AMessage, lTimeTaken);
+    end;
+  end;
 
 begin
   lMessageColour := clDefault;
@@ -1185,7 +1480,7 @@ begin
       ExpectedException := ExpectedSetException;
       IgnoreSkip := false;
     end;
-
+    Notify;
     Print(Format('  %s-', [PASS_FAIL[lResult]]), lMessageColour);
     Print(Format('%s%s (%.2fms)', [CurrentTestCaseLabel, lCounter, 1000*lTimeTaken]));
     DisplayMessage(lMessage, lMessageColour, varType(AResult));
