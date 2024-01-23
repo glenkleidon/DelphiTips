@@ -222,6 +222,8 @@ Procedure NextTestSet(ASetName: string);
 Procedure NextTestCase(ACaseName: string; ASkipped: TSkipType = skipFalse);
 Function CheckIsEqual(AExpected, AResult: TComparitorType;
   AMessage: string = ''; ASkipped: TSkipType = skipFalse): boolean;
+Function CheckIsCloseTo(AExpected, AResult: TComparitorType;
+  AMessage: string = ''; ASkipped: TSkipType = skipFalse): boolean;
 Function CheckIsTrue(AResult: boolean; AMessage: string = '';
   ASkipped: TSkipType = skipFalse): boolean;
 Function CheckIsFalse(AResult: boolean; AMessage: string = '';
