@@ -5,30 +5,22 @@ program MiniTestProject;
 uses
   SysUtils,
   MiniTestFramework in 'MiniTestFramework.pas',
-  TestCases1 in 'TestCases1.pas';
+  {$IFDEF TESTINSIGHT}
+  TestInsight.Dunitm,
+  {$ENDIF }
+  TestCases1 in 'TestCases1.pas',
+  ToolsAPI in 'c:\Program Files (x86)\Embarcadero\Studio\22.0\source\ToolsAPI\ToolsAPI.pas',
+  JclDebug in '..\..\..\jcl-JCL-2.7-Build5676\jcl\source\windows\JclDebug.pas';
 
 begin
   try
-
-    NewSet('Example Pass/Fail');
-    PrepareSet(Setup);
-    AddTestCase('Passing Test Example',  Case_One_Passes);
-    AddTestCase('Failing Test Example',  Case_Two_Fails);
-    FinaliseSet(TearDown);
-
-    NewSet('Example Exception and Skip');
-    AddTestCase('Expected Exception Example',Case_Three_Gets_Error);
-    AddTestCase('Skipping All Tests Example', Case_Four_skips, SKIP);
-    AddTestCase('Skip Case Entirely', Case_four_skips, skipCase);
-    FinaliseSet(TearDown);
-
+    {$IFDEF TESTINSIGHT}
+     RunRegisteredTests;
+    {$ENDIF}
     Title('Test Cases For <Project> Units');
     RunTestSets;
     TestSummary;
-
-    if sameText(Paramstr(1),'/p') then ReadLn;
-
-    ExitCode := TotalErroredTests+TotalFailedTests;
+    TestingCompleted;
 
   except
     on E: Exception do

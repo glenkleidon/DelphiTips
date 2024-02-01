@@ -7,15 +7,32 @@ interface
       Insert Your UNITS here
    (**)
   ;
-Procedure Setup;
-Procedure Case_One_Passes;
-Procedure Case_Two_Fails;
-Procedure Case_Three_Gets_Error;
-Procedure Case_Four_skips;
-Procedure TearDown;
 
 implementation
- uses sysutils;
+ uses sysutils,
+   ToolsAPI,
+   System.Diagnostics;
+
+ procedure PrintCallStack;
+var
+  Stack: TStack;
+  Frame: TStackFrame;
+  I: Integer;
+begin
+  Stack := TStack.Create;
+  try
+    for I := 0 to Stack.FrameCount - 1 do
+    begin
+      Frame := Stack.Frames[I];
+      // Format and print the frame information
+      // For example, you might print the method name and address
+      Writeln(Format('Method: %s, Address: %p', [Frame.MethodName, Frame.Address]));
+    end;
+  finally
+    Stack.Free;
+  end;
+end;
+
 
 Procedure Setup;
 begin
@@ -24,7 +41,6 @@ begin
     you can prepare as many setups to the set as you like
     or simply add them inside the set Procedure
   }
-end;
 
 
 Procedure Case_One_Passes;
@@ -64,5 +80,18 @@ Procedure TearDown;
 begin
   {Release anything you need to here}
 end;
+
+initialization
+    NewSet('Example Pass/Fail');
+    PrepareSet(Setup);
+    AddTestCase('Passing Test Example',  Case_One_Passes);
+    AddTestCase('Failing Test Example',  Case_Two_Fails);
+    FinaliseSet(TearDown);
+
+    NewSet('Example Exception and Skip');
+    AddTestCase('Expected Exception Example',Case_Three_Gets_Error);
+    AddTestCase('Skipping All Tests Example', Case_Four_skips, SKIP);
+    AddTestCase('Skip Case Entirely', Case_four_skips, skipCase);
+    FinaliseSet(TearDown);
 
 end.

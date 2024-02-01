@@ -5,9 +5,16 @@ program TestMiniTestFramework;
 uses
   SysUtils,
   MiniTestFramework in '..\MiniTestFramework.pas',
+  {$IFDEF TESTINSIGHT}
+  TestInsight.Client,
+  TestInsight.DUnitm in '..\TestInsight.DUnitm.pas',
+  {$ENDIF}
   TestCasesMiniTestFramework in 'TestCasesMiniTestFramework.pas';
 
 begin
+  {$IFDEF TESTINSIGHT}
+      RunRegisteredTests;
+  {$ENDIF}
   try
     Title('Testing the Framework...With the framework!!');
     (**)
