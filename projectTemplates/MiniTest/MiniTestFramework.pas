@@ -27,16 +27,18 @@ uses SysUtils, windows
     ;
 
 Const
-  FRAMEWORK_VERSION = '2.0.0.6';
+  FRAMEWORK_VERSION = '2.0.0.4A';
   DEFAULT_TOTALS_FORMAT =
-    'Run>Sets:%-3d Cases:%-3d Tests:%-4d Passed:%-4d Failed:%-3d Skipped:%-3d Errors:%-3d Time:%.3fsec';
+    'Run>Sets:%-3d Cases:%-3d Tests:%-4d Passed:%-4d Failed:%-3d Skipped:%-3d Errors:%-3d';
   DEFAULT_SET_FORMAT =
-    'Set>Cases:%-4d Tests:%-4d Passed:%-4d Failed:%-4d Skipped:%-4d Errors:%-4d Time:%.2fms';
+    'Set>Cases:%-4d Tests:%-4d Passed:%-4d Failed:%-4d Skipped:%-4d Errors:%-4d';
   DEFAULT_CASE_FORMAT =
-    '  Results> Passed:%-5d Failed:%-5d Skipped:%-5d Errors:%-5d Time:%.2fms';
+    '  Results> Passed:%-5d Failed:%-5d Skipped:%-5d Errors:%-5d';
   METADATA_FORMAT = '%s'#9'%s'#9'%s'#9'%s'#9'%s';
   DEFAULT_SET_NAME = 'SET';
   FINAL_SET_NAME = '__';
+  PREPARE_SET_NAME = '__prepare';
+  FINALISE_SET_NAME = '__finalise';
   EXPECTED_FORMAT_MESSAGE = '   Expected:';
   ACTUAL_FORMAT_MESSAGE = '   Actual  :';
   EXPECTED_ACTUAL_SEPARATOR = #1#13#10;
@@ -87,7 +89,7 @@ Type
 
   TTestCaseProcedure = Procedure();
 
-  TSkipType = (skipFalse, skipTrue, skipCase, skipPrep);
+  TSkipType = (skipFalse, skipTrue, skipCase, skipPrep, skipSet);
 
   TDifferenceViewOptions = (dfRow, dfTwoColumn, dfEscapeCRLF);
   TDifferenceViewMode = Set of TDifferenceViewOptions;
@@ -228,7 +230,8 @@ Procedure RunTestSets;
 Procedure SkipTestCases(ACaseId: integer);
 
 Procedure NewTest(ACase: string; ATestCaseName: string = '');
-Procedure NewSet(ASetName: string);
+procedure NewAssertion(ACase: string; ATestCaseName: string = '');
+Procedure NewSet(ASetName: string; ASkipped: TSkipType = skipFalse);
 Procedure NewCase(ATestCaseName: string);
 Procedure NewTestCase(ACase: string; ATestCaseName: string = '');
 {$IFNDEF BEFOREVARIANTS}deprecated; {$ENDIF} // wrong naming convention.
@@ -558,11 +561,18 @@ end;
 
 Function CanDisplayCaseName(ACaseName: string): boolean;
 begin
-  result := (ACaseName <> '') and (not(CreatingSets)) and (not TestMetaData);
+  Result :=
+   (ACaseName <> '') and
+   (not CreatingSets) and
+   (not TestMetaData) and
+   (not SameText(ACaseName, PREPARE_SET_NAME)) and
+   (not SameText(ACaseName, FINALISE_SET_NAME))
+   ;
 end;
 
 Function NextSetName: string;
 begin
+  SkippingSet := false;
   inc(SetCounter);
   result := Format(DEFAULT_SET_NAME + ' %u', [SetCounter]);
 end;
@@ -616,19 +626,19 @@ var
 begin
   lSize.x := ConsoleScreenWidth + 2;
   lSize.y := Rows;
-  result := SetConsoleScreenBufferSize(GetStdHandle(STD_OUTPUT_HANDLE), lSize);
+  result := SetConsoleScreenBufferSize(GetStdHandle(STD_OUTPUT_HANDLE),lSize);
 end;
 
 Function ConsoleCursorPosition: TScreenCoordinate;
 var
   lScreenInfo: TConsoleScreenBufferInfo;
 begin
-  result.x := 0;
-  result.y := 0;
+  Result.X := 0;
+  Result.Y := 0;
   if GetConsoleScreenBufferInfo(ConsoleHandle, lScreenInfo) then
   begin
-    result.x := lScreenInfo.dwCursorPosition.x;
-    result.y := lScreenInfo.dwCursorPosition.y;
+    Result.X := lScreenInfo.dwCursorPosition.X;
+    Result.Y := lScreenInfo.dwCursorPosition.Y;
     Screen_width := lScreenInfo.dwSize.x - 2;
   end;
 end;
@@ -675,17 +685,17 @@ end;
 
 Procedure DisplayModeDefault(AEscapeCRLF: boolean = false);
 begin
-  SetDisplayMode(True, True, AEscapeCRLF);
+ SetDisplayMode(true,true,AEscapeCRLF);
 end;
 
 Procedure DisplayModeRows(AEscapeCRLF: boolean = false);
 begin
-  SetDisplayMode(True, false, AEscapeCRLF);
+ SetDisplayMode(true,false,AEscapeCRLF);
 end;
 
 Procedure DisplayModeColumns(AEscapeCRLF: boolean = false);
 begin
-  SetDisplayMode(false, True, AEscapeCRLF);
+ SetDisplayMode(False,True,AEscapeCRLF);
 end;
 
 Procedure DisplayModeNone(AEscapeCRLF: boolean = false);
@@ -716,20 +726,23 @@ begin
   MiniTestCases[l].Execute := AProcedure;
   MiniTestCases[l].TestCaseName := ATestCaseName;
   MiniTestCases[l].Skip := ASkipped;
+  if (SkippingSet) then
+    MiniTestCases[l].Skip := skipSet;
   MiniTestCases[l].ExpectedException := AExpectedException;
 end;
 
 Procedure PrepareSet(AProcedure: TTestCaseProcedure);
 begin
-  AddTestCase('', AProcedure, skipPrep);
+  AddTestCase(PREPARE_SET_NAME, AProcedure, skipPrep);
 
 end;
 
 Procedure FinaliseSet(AProcedure: TTestCaseProcedure);
 begin
-  AddTestCase('', AProcedure, skipPrep);
+  AddTestCase(FINALISE_SET_NAME, AProcedure, skipPrep);
   CurrentSetName := '';
   CreatingSets := false;
+  SkippingSet := false;
 end;
 
 Procedure FinalizeSet(AProcedure: TTestCaseProcedure);
@@ -1048,6 +1061,22 @@ begin
     (pos(GenerateTitleId(MiniTestCases[ACaseId].Title), CaseList) > 0);
 end;
 
+Function CaseInCaseList(ACaseId: integer): boolean;
+begin
+  Result := (Not HasCaseList) or (pos(GenerateCaseID(ACaseId), CaseList) > 0);
+end;
+
+Function SetInCaseList(ACaseId: integer): boolean;
+begin
+  Result := (Not HasCaseList) or (pos(GenerateSetID(ACaseId), CaseList) > 0);
+end;
+
+Function TitleInCaseList(ACaseId: integer): boolean;
+begin
+  Result := Not(HasCaseList) or
+    (pos(GenerateTitleId(MiniTestCases[ACaseId].Title), CaseList) > 0);
+end;
+
 Procedure RunTestSets;
 var
   i, l: integer;
@@ -1114,6 +1143,11 @@ begin
             lTitleInCaseList or SetInCaseList(i);
         end;
 
+        if MiniTestCases[i].Skip = skipSet then
+          continue;
+
+
+
         if (MiniTestCases[i].Skip = skipPrep) or (lWholeCaseInList) or
           (HasCaseList and (CaseInCaseList(i))) then
         begin
@@ -1127,7 +1161,7 @@ begin
             if MiniTestCases[i].TestCaseName <> '' then
               NextTestCase(MiniTestCases[i].TestCaseName,
                 MiniTestCases[i].Skip);
-            ExpectException(MiniTestCases[i].ExpectedException, True);
+      ExpectException(MiniTestCases[i].ExpectedException, true);
             QueryPerformanceCounter(LastExecuteTime);
             MiniTestCases[i].Execute;
           end;
@@ -1152,6 +1186,8 @@ begin
 end;
 
 Procedure NextTestSet(ASetName: string);
+var
+  lSetName: string;
 begin
 
   SetResults;
@@ -1159,11 +1195,12 @@ begin
   if ASetName = FINAL_SET_NAME then
     ASetName := ''; // Finalising.
 
-  if Length(ASetName) > 0 then
-  begin
-    SetHeading(ASetName);
-    inc(TotalSets);
-  end;
+  lSetName := ASetName;
+  if Length(lSetName) < 0 then
+    lSetName := 'Next';
+
+  SetHeading(lSetName);
+  inc(TotalSets);
 
   SetPassedTests := 0;
   SetFailedTests := 0;
@@ -1808,7 +1845,7 @@ begin
         (FinalLengthofDifferences(ADifferences) > (ConsoleScreenWidth - 3)) then
       begin
         lColumnWidth := (ConsoleScreenWidth - 3) Div 2;
-        lTwoColumn := True;
+      lTwoColumn := true;
       end;
     end;
     lLeftColumn := TConsoleColumn.Create(lColumnWidth, clExpectedText,
@@ -1853,9 +1890,9 @@ begin
     lLeftColumn.Finalise(lLeftPadColour);
     lRightColumn.Finalise(lRightPadColour);
     if lTwoColumn then
-      result := AlignDifferencesByColumn(lLeftColumn, lRightColumn)
+    Result := AlignDifferencesByColumn(lLeftColumn, lRightColumn)
     else
-      result := AlignDifferencesByRow(lLeftColumn, lRightColumn);
+    Result := AlignDifferencesByRow(lLeftColumn, lRightColumn);
   finally
     freeandnil(lLeftColumn);
     freeandnil(lRightColumn);
@@ -2059,10 +2096,11 @@ begin
   result := CheckIsTrue(True, lMessage, skipTrue);
 end;
 
-Procedure NewSet(ASetName: string);
+Procedure NewSet(ASetName: string; ASkipped: TSkipType = skipFalse);
 begin
   CurrentSetName := ASetName;
   CreatingSets := True;
+  SkippingSet := ASkipped in [skipTrue, skipSet];
 end;
 
 Procedure NewCase(ATestCaseName: string);
@@ -2087,6 +2125,11 @@ begin
     CurrentTestCaseLabel := ACase;
   ExpectedException := ExpectedSetException;
   IgnoreSkip := false;
+end;
+
+procedure NewAssertion(ACase: string; ATestCaseName: string = '');
+begin
+  NewTest(ACase, ATestCaseName);
 end;
 
 Procedure DeferTestCase(ATestname: string = '');

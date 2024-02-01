@@ -81,7 +81,17 @@ begin
   {Release anything you need to here}
 end;
 
+procedure NotMentioned;
+begin
+  CheckIsTrue(false,'This set should not have been run');
+end;
+
 initialization
+ NewSet('Skip Set Demo This set will not be executed', skipTrue);
+ PrepareSet(nil);
+ AddTestCase('This entire set will be ignored', NotMentioned);
+ FinaliseSet(nil);
+
     NewSet('Example Pass/Fail');
     PrepareSet(Setup);
     AddTestCase('Passing Test Example',  Case_One_Passes);

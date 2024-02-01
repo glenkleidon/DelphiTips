@@ -37,6 +37,8 @@ Const
   METADATA_FORMAT = '%s'#9'%s'#9'%s'#9'%s'#9'%s';
   DEFAULT_SET_NAME = 'SET';
   FINAL_SET_NAME = '__';
+  PREPARE_SET_NAME = '__prepare';
+  FINALISE_SET_NAME = '__finalise';
   EXPECTED_FORMAT_MESSAGE = '   Expected:';
   ACTUAL_FORMAT_MESSAGE = '   Actual  :';
   EXPECTED_ACTUAL_SEPARATOR = #1#13#10;
@@ -87,7 +89,7 @@ Type
 
   TTestCaseProcedure = Procedure();
 
-  TSkipType = (skipFalse, skipTrue, skipCase, skipPrep);
+  TSkipType = (skipFalse, skipTrue, skipCase, skipPrep, skipSet);
 
   TDifferenceViewOptions = (dfRow, dfTwoColumn, dfEscapeCRLF);
   TDifferenceViewMode = Set of TDifferenceViewOptions;
@@ -228,7 +230,8 @@ Procedure RunTestSets;
 Procedure SkipTestCases(ACaseId: integer);
 
 Procedure NewTest(ACase: string; ATestCaseName: string = '');
-Procedure NewSet(ASetName: string);
+procedure NewAssertion(ACase: string; ATestCaseName: string = '');
+Procedure NewSet(ASetName: string; ASkipped: TSkipType = skipFalse);
 Procedure NewCase(ATestCaseName: string);
 Procedure NewTestCase(ACase: string; ATestCaseName: string = '');
 {$IFNDEF BEFOREVARIANTS}deprecated; {$ENDIF} // wrong naming convention.
@@ -558,11 +561,18 @@ end;
 
 Function CanDisplayCaseName(ACaseName: string): boolean;
 begin
-  result := (ACaseName <> '') and (not(CreatingSets)) and (not TestMetaData);
+  Result :=
+   (ACaseName <> '') and
+   (not CreatingSets) and
+   (not TestMetaData) and
+   (not SameText(ACaseName, PREPARE_SET_NAME)) and
+   (not SameText(ACaseName, FINALISE_SET_NAME))
+   ;
 end;
 
 Function NextSetName: string;
 begin
+  SkippingSet := false;
   inc(SetCounter);
   result := Format(DEFAULT_SET_NAME + ' %u', [SetCounter]);
 end;
@@ -716,20 +726,22 @@ begin
   MiniTestCases[l].Execute := AProcedure;
   MiniTestCases[l].TestCaseName := ATestCaseName;
   MiniTestCases[l].Skip := ASkipped;
+  if (SkippingSet) then
+    MiniTestCases[l].Skip := skipSet;
   MiniTestCases[l].ExpectedException := AExpectedException;
 end;
 
 Procedure PrepareSet(AProcedure: TTestCaseProcedure);
 begin
-  AddTestCase('', AProcedure, skipPrep);
-
+  AddTestCase(PREPARE_SET_NAME, AProcedure, skipPrep);
 end;
 
 Procedure FinaliseSet(AProcedure: TTestCaseProcedure);
 begin
-  AddTestCase('', AProcedure, skipPrep);
+  AddTestCase(FINALISE_SET_NAME, AProcedure, skipPrep);
   CurrentSetName := '';
   CreatingSets := false;
+  SkippingSet := false;
 end;
 
 Procedure FinalizeSet(AProcedure: TTestCaseProcedure);
@@ -1114,6 +1126,11 @@ begin
             lTitleInCaseList or SetInCaseList(i);
         end;
 
+        if MiniTestCases[i].Skip = skipSet then
+          continue;
+
+
+
         if (MiniTestCases[i].Skip = skipPrep) or (lWholeCaseInList) or
           (HasCaseList and (CaseInCaseList(i))) then
         begin
@@ -1152,6 +1169,8 @@ begin
 end;
 
 Procedure NextTestSet(ASetName: string);
+var
+  lSetName: string;
 begin
 
   SetResults;
@@ -1159,11 +1178,12 @@ begin
   if ASetName = FINAL_SET_NAME then
     ASetName := ''; // Finalising.
 
-  if Length(ASetName) > 0 then
-  begin
-    SetHeading(ASetName);
-    inc(TotalSets);
-  end;
+  lSetName := ASetName;
+  if Length(lSetName) < 0 then
+    lSetName := 'Next';
+
+  SetHeading(lSetName);
+  inc(TotalSets);
 
   SetPassedTests := 0;
   SetFailedTests := 0;
@@ -2059,10 +2079,11 @@ begin
   result := CheckIsTrue(True, lMessage, skipTrue);
 end;
 
-Procedure NewSet(ASetName: string);
+Procedure NewSet(ASetName: string; ASkipped: TSkipType = skipFalse);
 begin
   CurrentSetName := ASetName;
   CreatingSets := True;
+  SkippingSet := ASkipped in [skipTrue, skipSet];
 end;
 
 Procedure NewCase(ATestCaseName: string);
@@ -2087,6 +2108,11 @@ begin
     CurrentTestCaseLabel := ACase;
   ExpectedException := ExpectedSetException;
   IgnoreSkip := false;
+end;
+
+procedure NewAssertion(ACase: string; ATestCaseName: string = '');
+begin
+  NewTest(ACase, ATestCaseName);
 end;
 
 Procedure DeferTestCase(ATestname: string = '');
