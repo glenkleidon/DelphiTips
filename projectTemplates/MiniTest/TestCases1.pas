@@ -65,4 +65,27 @@ begin
   {Release anything you need to here}
 end;
 
+procedure NotMentioned;
+begin
+  CheckIsTrue(false,'This set should not have been run');
+end;
+
+initialization
+ NewSet('Skip Set Demo This set will not be executed', skipTrue);
+ PrepareSet(nil);
+ AddTestCase('This entire set will be ignored', NotMentioned);
+ FinaliseSet(nil);
+
+ NewSet('Example Pass/Fail');
+ PrepareSet(Setup);
+ AddTestCase('Passing Test Example',  Case_One_Passes);
+ AddTestCase('Failing Test Example',  Case_Two_Fails);
+ FinaliseSet(TearDown);
+
+ NewSet('Example Exception and Skip');
+ AddTestCase('Expected Exception Example',Case_Three_Gets_Error);
+ AddTestCase('Skipping All Tests Example', Case_Four_skips, SKIP);
+ AddTestCase('Skip Case Entirely', Case_four_skips, skipCase);
+ FinaliseSet(TearDown);
+
 end.

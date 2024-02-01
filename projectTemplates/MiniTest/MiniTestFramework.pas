@@ -2,8 +2,23 @@ unit MiniTestFramework;
 
 interface
 
-{$IFDEF VER120} {$DEFINE BEFOREVARIANTS} {$ENDIF}
-{$IFDEF VER130} {$DEFINE BEFOREVARIANTS} {$ENDIF}
+{$IFDEF VER120} {$DEFINE BEFOREVARIANTS} {$DEFINE BEFORE_INLINE} {$ENDIF}
+{$IFDEF VER130} {$DEFINE BEFOREVARIANTS} {$DEFINE BEFORE_INLINE} {$ENDIF}
+{$IFNDEF BEFOREVARIANTS}
+{$IFDEF VER140} {$DEFINE BEFORE_INLINE} {$ENDIF}
+{$IFDEF VER150} {$DEFINE BEFORE_INLINE} {$ENDIF}
+{$IFDEF VER160} {$DEFINE BEFORE_INLINE} {$ENDIF}
+{$IFDEF VER170} {$DEFINE BEFORE_INLINE} {$ENDIF}
+{$IF CompilerVersion >= 17.0}
+{$DEFINE HAS_INLINE}
+{$IFEND}
+{$IF CompilerVersion >= 20.0}
+{$DEFINE HAS_VARUSTRING}
+{$IFEND}
+{$IF CompilerVersion >= 23.0}
+{$DEFINE HAS_VARUSTRARG}
+{$IFEND}
+{$ENDIF}
 
 uses SysUtils, windows
 {$IFNDEF BEFOREVARIANTS}
@@ -12,15 +27,18 @@ uses SysUtils, windows
     ;
 
 Const
-  FRAMEWORK_VERSION = '2.0.0.2';
+  FRAMEWORK_VERSION = '2.0.0.4A';
   DEFAULT_TOTALS_FORMAT =
     'Run>Sets:%-3d Cases:%-3d Tests:%-4d Passed:%-4d Failed:%-3d Skipped:%-3d Errors:%-3d';
   DEFAULT_SET_FORMAT =
     'Set>Cases:%-4d Tests:%-4d Passed:%-4d Failed:%-4d Skipped:%-4d Errors:%-4d';
   DEFAULT_CASE_FORMAT =
     '  Results> Passed:%-5d Failed:%-5d Skipped:%-5d Errors:%-5d';
+  METADATA_FORMAT = '%s'#9'%s'#9'%s'#9'%s'#9'%s';
   DEFAULT_SET_NAME = 'SET';
   FINAL_SET_NAME = '__';
+  PREPARE_SET_NAME = '__prepare';
+  FINALISE_SET_NAME = '__finalise';
   EXPECTED_FORMAT_MESSAGE = '   Expected:';
   ACTUAL_FORMAT_MESSAGE = '   Actual  :';
   EXPECTED_ACTUAL_SEPARATOR = #1#13#10;
@@ -33,10 +51,26 @@ Const
   DEFAULT_SCREEN_WIDTH = 80;
   FOREGROUND_CYAN = 3;
   FOREGROUND_YELLOW = 6;
+  FOREGROUND_ROSE = 12;
+  FOREGROUND_CANARY = 14;
   FOREGROUND_PURPLE = 5;
+  FOREGROUNG_BLUE = 9;
   BACKGROUND_YELLOW = $60;
   BACKGROUND_WHITE = BACKGROUND_BLUE OR BACKGROUND_GREEN OR BACKGROUND_RED;
 
+{$IFDEF RG_COLOUR_BLIND}
+  clTitle = FOREGROUND_CYAN;
+  clError = FOREGROUND_RED or FOREGROUND_INTENSITY;
+  clPass = FOREGROUND_YELLOW;
+  clMessage = FOREGROUND_CYAN;
+  clDefault = FOREGROUND_DEFAULT;
+  clSkipped = FOREGROUND_PURPLE;
+  // Difference Colours
+  clTextDifferent = BACKGROUND_WHITE OR FOREGROUND_RED or FOREGROUND_INTENSITY;
+  clExpectedText = FOREGROUND_RED OR BACKGROUND_WHITE;
+  clActualText = FOREGROUND_GREEN OR BACKGROUND_WHITE;
+  clOmission = BACKGROUND_YELLOW;
+{$ELSE}
   clTitle = FOREGROUND_YELLOW;
   clError = FOREGROUND_RED or FOREGROUND_INTENSITY;
   clPass = FOREGROUND_GREEN;
@@ -48,13 +82,14 @@ Const
   clExpectedText = FOREGROUND_GREEN OR BACKGROUND_WHITE;
   clActualText = FOREGROUND_BLUE OR BACKGROUND_WHITE;
   clOmission = BACKGROUND_YELLOW;
+{$ENDIF}
 
 Type
   TComparitorType = Variant;
 
   TTestCaseProcedure = Procedure();
 
-  TSkipType = (skipFalse, skipTrue, skipCase);
+  TSkipType = (skipFalse, skipTrue, skipCase, skipPrep, skipSet);
 
   TDifferenceViewOptions = (dfRow, dfTwoColumn, dfEscapeCRLF);
   TDifferenceViewMode = Set of TDifferenceViewOptions;
@@ -102,7 +137,6 @@ Type
     fColour: integer;
     FColumnWidth: integer;
     function GetColumnWidth: integer;
-    procedure SetColumnWidth(const Value: integer);
     Function AddTextReturningOverflow(AText: string; AColour: integer): string;
     function GetCharsRemaining: integer;
   public
@@ -119,11 +153,12 @@ Type
   End;
 
   TScreenCoordinate = Record
-     x : smallint;
-     y : SmallInt;
+    x: smallint;
+    y: smallint;
   end;
 
   TTestSet = Record
+    Title: string;
     SetName: string;
     Execute: TTestCaseProcedure;
     TestCaseName: string;
@@ -140,9 +175,10 @@ var
 
   SkippingSet, IgnoreSkip: boolean;
   CreatingSets: boolean = false;
-
+  CurrentTitle: string = '';
   ExpectedException, ExpectedSetException, LastSetName, CurrentSetName,
-    CurrentTestCaseName, CurrentTestCaseLabel, DeferredTestCaseLabel: string;
+    CurrentTestCaseName, CurrentTestCaseLabel, DeferredExpectedException,
+    DeferredTestCaseLabel: string;
   TotalPassedTests: integer = 0;
   TotalFailedTests: integer = 0;
   TotalSkippedTests: integer = 0;
@@ -156,6 +192,14 @@ var
 
   TotalOutputFormat, SetOutputFormat, CaseOutputFormat: string;
   DifferenceDisplayMode: TDifferenceViewMode = [dfRow, dfTwoColumn];
+
+  CurrentCaseIndex: integer;
+  TestMetaData: boolean = false;
+  HasCaseList: boolean = false;
+  ProjectInCaseList: boolean = false;
+
+  CaseList: string = '';
+  TestProgramName: string = '';
 
 Procedure Title(AText: string);
 
@@ -172,7 +216,8 @@ Procedure RunTestSets;
 Procedure SkipTestCases(ACaseId: integer);
 
 Procedure NewTest(ACase: string; ATestCaseName: string = '');
-Procedure NewSet(ASetName: string);
+procedure NewAssertion(ACase: string; ATestCaseName: string = '');
+Procedure NewSet(ASetName: string; ASkipped: TSkipType = skipFalse);
 Procedure NewCase(ATestCaseName: string);
 Procedure NewTestCase(ACase: string; ATestCaseName: string = '');
 {$IFNDEF BEFOREVARIANTS}deprecated; {$ENDIF} // wrong naming convention.
@@ -187,6 +232,7 @@ Function CheckIsFalse(AResult: boolean; AMessage: string = '';
 Function CheckNotEqual(AResult1, AResult2: TComparitorType;
   AMessage: string = ''; ASkipped: TSkipType = skipFalse): boolean;
 Procedure DeferTestCase(ATestName: string = '');
+Procedure DeferExpectedException(AExceptionClassName: string);
 Procedure DeferredTestSuccess;
 Procedure DeferredTestFail;
 Procedure DeferredTestException(E: Exception);
@@ -201,10 +247,12 @@ Procedure TestSummary;
 procedure CaseResults;
 Function ConsoleScreenWidth: integer;
 Function ConsoleCursorPosition: TScreenCoordinate;
-Function SetConsoleBufferLength(Rows: smallInt): boolean;
-Procedure DisplayModeDefault(AEscapeCRLF: boolean=false);
-Procedure DisplayModeRows(AEscapeCRLF: boolean=false);
-Procedure DisplayModeColumns(AEscapeCRLF: boolean=false);
+Function SetConsoleBufferLength(Rows: smallint): boolean;
+Procedure DisplayModeDefault(AEscapeCRLF: boolean = false);
+Procedure DisplayModeRows(AEscapeCRLF: boolean = false);
+Procedure DisplayModeColumns(AEscapeCRLF: boolean = false);
+Procedure DisplayModeNone(AEscapeCRLF: boolean = false);
+
 Procedure Print(AText: String; AColour: smallint = FOREGROUND_DEFAULT);
 Procedure PrintLn(AText: String; AColour: smallint = FOREGROUND_DEFAULT);
 Procedure PrintLnCentred(AText: string; AChar: char;
@@ -249,11 +297,18 @@ var
 
 Function CanDisplayCaseName(ACaseName: string): boolean;
 begin
-  Result := (ACaseName <> '') and (not(CreatingSets));
+  Result :=
+   (ACaseName <> '') and
+   (not CreatingSets) and
+   (not TestMetaData) and
+   (not SameText(ACaseName, PREPARE_SET_NAME)) and
+   (not SameText(ACaseName, FINALISE_SET_NAME))
+   ;
 end;
 
 Function NextSetName: string;
 begin
+  SkippingSet := false;
   inc(SetCounter);
   Result := Format(DEFAULT_SET_NAME + ' %u', [SetCounter]);
 end;
@@ -294,33 +349,33 @@ begin
   if Screen_width = -1 then
   begin
     if GetConsoleScreenBufferInfo(ConsoleHandle, lScreenInfo) then
-      Screen_width := lScreenInfo.dwSize.X - 2
+      Screen_width := lScreenInfo.dwSize.x - 2
     else
       Screen_width := DEFAULT_SCREEN_WIDTH;
   end;
   Result := Screen_width;
 end;
 
-Function SetConsoleBufferLength(Rows: smallInt): boolean;
+Function SetConsoleBufferLength(Rows: smallint): boolean;
 var
   lSize: COORD;
 begin
-  lSize.x := ConsoleScreenWidth+2;
-  lSize.Y := Rows;
-  result := SetConsoleScreenBufferSize(GetStdHandle(STD_OUTPUT_HANDLE),lSize);
+  lSize.x := ConsoleScreenWidth + 2;
+  lSize.y := Rows;
+  Result := SetConsoleScreenBufferSize(GetStdHandle(STD_OUTPUT_HANDLE), lSize);
 end;
 
 Function ConsoleCursorPosition: TScreenCoordinate;
 var
   lScreenInfo: TConsoleScreenBufferInfo;
 begin
-  Result.X := 0;
-  Result.Y := 0;
+  Result.x := 0;
+  Result.y := 0;
   if GetConsoleScreenBufferInfo(ConsoleHandle, lScreenInfo) then
   begin
-    Result.X := lScreenInfo.dwCursorPosition.X;
-    Result.Y := lScreenInfo.dwCursorPosition.Y;
-    Screen_width := lScreenInfo.dwSize.X - 2;
+    Result.x := lScreenInfo.dwCursorPosition.x;
+    Result.y := lScreenInfo.dwCursorPosition.y;
+    Screen_width := lScreenInfo.dwSize.x - 2;
   end;
 end;
 
@@ -350,32 +405,38 @@ begin
   PrintLn(stringofchar(AChar, PostSpace));
 end;
 
-Procedure SetDisplayMode(ARow, AColumn: boolean; AEscapeCRLF: Boolean=false);
-var lMode: TDifferenceViewMode;
+Procedure SetDisplayMode(ARow, AColumn: boolean; AEscapeCRLF: boolean = false);
+var
+  lMode: TDifferenceViewMode;
 begin
- lMode := [];
- if ARow then lMode := lMode + [dfRow];
- if AColumn then lMode := lMOde + [dfTwoColumn];
- if AEscapeCRLF then lMode := lMOde + [dfEscapeCRLF];
- DifferenceDisplayMode := lMode;
+  lMode := [];
+  if ARow then
+    lMode := lMode + [dfRow];
+  if AColumn then
+    lMode := lMode + [dfTwoColumn];
+  if AEscapeCRLF then
+    lMode := lMode + [dfEscapeCRLF];
+  DifferenceDisplayMode := lMode;
 end;
 
-Procedure DisplayModeDefault(AEscapeCRLF: boolean=false);
-var lMode: TDifferenceViewMode;
+Procedure DisplayModeDefault(AEscapeCRLF: boolean = false);
 begin
- SetDisplayMode(true,true,AEscapeCRLF);
+  SetDisplayMode(true, true, AEscapeCRLF);
 end;
 
-Procedure DisplayModeRows(AEscapeCRLF: boolean=false);
-var lMode: TDifferenceViewMode;
+Procedure DisplayModeRows(AEscapeCRLF: boolean = false);
 begin
- SetDisplayMode(true,false,AEscapeCRLF);
+  SetDisplayMode(true, false, AEscapeCRLF);
 end;
 
-Procedure DisplayModeColumns(AEscapeCRLF: boolean=false);
-var lMode: TDifferenceViewMode;
+Procedure DisplayModeColumns(AEscapeCRLF: boolean = false);
 begin
- SetDisplayMode(False,True,AEscapeCRLF);
+  SetDisplayMode(false, true, AEscapeCRLF);
+end;
+
+Procedure DisplayModeNone(AEscapeCRLF: boolean = false);
+begin
+  SetDisplayMode(false, false, AEscapeCRLF);
 end;
 
 /// TEST FUNCTIONS
@@ -396,23 +457,27 @@ begin
 
   l := Length(MiniTestCases);
   SetLength(MiniTestCases, l + 1);
+  MiniTestCases[l].Title := CurrentTitle;
   MiniTestCases[l].SetName := CurrentSetName;
   MiniTestCases[l].Execute := AProcedure;
   MiniTestCases[l].TestCaseName := ATestCaseName;
   MiniTestCases[l].Skip := ASkipped;
+  if (SkippingSet) then
+    MiniTestCases[l].Skip := skipSet;
   MiniTestCases[l].ExpectedException := AExpectedException;
 end;
 
 Procedure PrepareSet(AProcedure: TTestCaseProcedure);
 begin
-  AddTestCase('', AProcedure);
+  AddTestCase(PREPARE_SET_NAME, AProcedure, skipPrep);
 end;
 
 Procedure FinaliseSet(AProcedure: TTestCaseProcedure);
 begin
-  AddTestCase('', AProcedure);
+  AddTestCase(FINALISE_SET_NAME, AProcedure, skipPrep);
   CurrentSetName := '';
   CreatingSets := false;
+  SkippingSet := false;
 end;
 
 Procedure FinalizeSet(AProcedure: TTestCaseProcedure);
@@ -421,14 +486,159 @@ begin
   FinaliseSet(AProcedure);
 end;
 
+Function GetProjectName: string;
+begin
+  if Length(TestProgramName) = 0 then
+    TestProgramName := ChangeFileExt(ExtractFileName(Paramstr(0)), '');
+  Result := TestProgramName;
+end;
+
+// Return a Unique(ish) Identifier for the specific test case
+Function GenerateID(ASet: TTestSet): string;
+var
+  i, l, p: integer;
+  lHash, lTestName: string;
+begin
+  lHash := copy(GetProjectName + ')(*&^%$#@!', 1, 10);
+  lTestName := ASet.SetName + '/' + ASet.TestCaseName;
+  l := Length(lTestName);
+  for i := 1 to l do
+  begin
+    p := 1 + (i mod 10);
+    lHash[p] := char(ord(lHash[p]) XOR ord(lTestName[i]) XOR (i mod 256));
+  end;
+
+  for i := 1 to 10 do
+    Result := Result + Format('%.2x', [ord(lHash[i])]);
+end;
+
+Function GenerateCaseID(ACaseId: integer): string;
+begin
+  Result := GenerateID(MiniTestCases[ACaseId]);
+end;
+
+Function GenerateSetID(ACaseId: integer): string;
+var
+  ASet: TTestSet;
+begin
+  ASet := MiniTestCases[ACaseId];
+  ASet.TestCaseName := '-';
+  Result := GenerateID(ASet);
+end;
+
+function GenerateTitleId(ATitle: String): string;
+var
+  lTitleSet: TTestSet;
+begin
+  lTitleSet.SetName := ATitle;
+  lTitleSet.TestCaseName := '-';
+  Result := GenerateID(lTitleSet);
+end;
+
+Function GenerateProjectID(): string;
+var
+  lProjectSet: TTestSet;
+begin
+  lProjectSet.SetName := GetProjectName;
+  lProjectSet.TestCaseName := '[]';
+  Result := GenerateID(lProjectSet);
+end;
+
+Procedure OutputMetaData(AId: string; ACase: TTestSet;
+  AStatusChar: string = '');
+var
+  lStatusChar: string;
+  lCaseRow: string;
+begin
+  case ACase.Skip of
+    skipFalse:
+      lStatusChar := 'E';
+    skipTrue:
+      lStatusChar := 'D';
+    skipCase:
+      lStatusChar := 'C';
+  end;
+  if Length(AStatusChar) > 0 then
+    lStatusChar := AStatusChar;
+  lCaseRow := Format(METADATA_FORMAT, [lStatusChar, TestProgramName,
+    ACase.SetName, ACase.TestCaseName, AId]);
+  Writeln(lCaseRow);
+end;
+
+Procedure OutputCaseMetaData(ACaseId: integer);
+var
+  lId: string;
+begin
+  // probably Init or Finalise
+  if (MiniTestCases[ACaseId].Skip = skipPrep) then
+    exit;
+  lId := GenerateCaseID(ACaseId);
+  OutputMetaData(lId, MiniTestCases[ACaseId]);
+end;
+
+Procedure OutputSetMetaData(ACaseId: integer);
+var
+  lId: string;
+  lSet: TTestSet;
+begin
+  lId := GenerateSetID(ACaseId);
+  lSet := MiniTestCases[ACaseId];
+  lSet.TestCaseName := '';
+  OutputMetaData(lId, lSet, 'S');
+end;
+
+Procedure OutputTitleMetaData(ATitle: String);
+var
+  lTitleSet: TTestSet;
+  lId: string;
+begin
+  lTitleSet.SetName := ATitle;
+  lTitleSet.TestCaseName := '-';
+  lTitleSet.Skip := skipFalse;
+  lId := GenerateID(lTitleSet);
+  lTitleSet.TestCaseName := '';
+  OutputMetaData(lId, lTitleSet, 'T');
+end;
+
+Procedure OutputProjectMetaData();
+var
+  lId: string;
+  lSet: TTestSet;
+begin
+  lId := GenerateProjectID();
+  lSet.Skip := skipFalse;
+  lSet.SetName := '';
+  lSet.TestCaseName := '';
+  OutputMetaData(lId, lSet, 'P');
+end;
+
+Procedure SetTitleMeta(ATitle: string);
+var
+  i, l: integer;
+begin
+  if TestMetaData then
+    OutputTitleMetaData(ATitle);
+  // retrospectively add the title to all of the cases without a Title.
+  l := Length(MiniTestCases) - 1;
+  for i := 0 to l do
+    if Length(MiniTestCases[i].Title) = 0 then
+      MiniTestCases[i].Title := ATitle;
+
+end;
+
 Procedure Title(AText: string);
 var
   lText: string;
 begin
-  lText := 'DUnitm V-' + FRAMEWORK_VERSION;
-  PrintLnCentred(lText, '=', clDefault);
-  PrintLnCentred(AText, '=', clTitle);
-  DoubleLine;
+  CurrentTitle := AText;
+  if not TestMetaData then
+  begin
+    lText := 'DUnitm V-' + FRAMEWORK_VERSION;
+    PrintLnCentred(lText, '=', clDefault);
+    PrintLnCentred(AText, '=', clTitle);
+    DoubleLine;
+  end;
+  SetTitleMeta(AText);
 end;
 
 function CaseHasErrors: smallint;
@@ -491,7 +701,7 @@ end;
 procedure CaseResults;
 begin
 
-  if CaseIsEmpty then
+  if CaseIsEmpty or TestMetaData then
     exit;
 
   PrintLn(Format(CaseOutputFormat, [CasePassedTests, CaseFailedTests,
@@ -507,6 +717,8 @@ end;
 
 procedure SetResults;
 begin
+  if TestMetaData then
+    exit;
 
   if (SetIsEmpty) or (Length(CurrentSetName) = 0) then
     exit;
@@ -520,21 +732,25 @@ end;
 
 Procedure TestSummary;
 begin
+  if TestMetaData then
+    exit;
+
   NextTestCase('');
   DoubleLine;
   PrintLn(Format(TotalOutputFormat, [TotalSets, TotalCases, TotalTests,
     TotalPassedTests, TotalFailedTests, TotalSkippedTests, TotalErroredTests]),
     ResultColour(RunHasErrors or FOREGROUND_INTENSITY));
-  WriteLn('');
+  Writeln('');
 end;
 
 Procedure SetHeading(ASetName: string);
 var
   lHeading: string;
 begin
-  if Length(ASetName) = 0 then
+  if (Length(ASetName) = 0) or TestMetaData then
     exit;
   lHeading := 'Test Set:' + ASetName;
+
   PrintLn(lHeading, clTitle);
 end;
 
@@ -548,34 +764,95 @@ begin
   CheckIsTrue(false, 'Case Skipped', Skip);
 end;
 
+Function CaseInCaseList(ACaseId: integer): boolean;
+begin
+  Result := (Not HasCaseList) or (pos(GenerateCaseID(ACaseId), CaseList) > 0);
+end;
+
+Function SetInCaseList(ACaseId: integer): boolean;
+begin
+  Result := (Not HasCaseList) or (pos(GenerateSetID(ACaseId), CaseList) > 0);
+end;
+
+Function TitleInCaseList(ACaseId: integer): boolean;
+begin
+  Result := Not(HasCaseList) or
+    (pos(GenerateTitleId(MiniTestCases[ACaseId].Title), CaseList) > 0);
+end;
+
 Procedure RunTestSets;
 var
   i, l: integer;
+  lWholeCaseInList, lTitleInCaseList, lFirstCase: boolean;
+  lTitle: string;
 begin
+  CurrentSetName := '';
   CreatingSets := false;
+  lWholeCaseInList := false;
+  lTitleInCaseList := false;
   l := Length(MiniTestCases);
   if l > 0 then
   begin
     LastSetName := MiniTestCases[0].SetName;
     NextTestSet(LastSetName);
+    lTitleInCaseList := TitleInCaseList(0);
+    lWholeCaseInList := (Not HasCaseList) or ProjectInCaseList or
+      SetInCaseList(0) or lTitleInCaseList;
   end;
+  lFirstCase := true;
   SetCases := 0;
   for i := 0 to l - 1 do
     Try
+      CurrentCaseIndex := i;
       if not assigned(MiniTestCases[i].Execute) then
         continue;
 
-      if MiniTestCases[i].Skip = skipCase then
+      if TestMetaData then
       begin
-        SkipTestCases(i);
-        continue;
-      end;
+        CurrentSetName := MiniTestCases[i].SetName;
+        if (lFirstCase) or (CurrentSetName <> LastSetName) then
+          OutputSetMetaData(i);
+        OutputCaseMetaData(i);
+      end
+      else
+      begin
+        DisplayModeDefault;
 
-      CurrentSetName := MiniTestCases[i].SetName;
-      if MiniTestCases[i].TestCaseName <> '' then
-        NextTestCase(MiniTestCases[i].TestCaseName, MiniTestCases[i].Skip);
-      ExpectException(MiniTestCases[i].ExpectedException, true);
-      MiniTestCases[i].Execute;
+        if (lTitle <> MiniTestCases[i].Title) then
+          lTitleInCaseList := TitleInCaseList(i);
+        lTitle := MiniTestCases[i].Title;
+
+        CurrentSetName := MiniTestCases[i].SetName;
+
+        if LastSetName <> CurrentSetName then
+        begin
+          lWholeCaseInList := (Not HasCaseList) or ProjectInCaseList or
+            lTitleInCaseList or SetInCaseList(i);
+        end;
+
+        if MiniTestCases[i].Skip = skipSet then
+          continue;
+
+
+
+        if (MiniTestCases[i].Skip = skipPrep) or (lWholeCaseInList) or
+          (HasCaseList and (CaseInCaseList(i))) then
+        begin
+          if MiniTestCases[i].Skip = skipCase then
+          begin
+            SkipTestCases(i);
+          end
+          else
+          begin
+            if MiniTestCases[i].TestCaseName <> '' then
+              NextTestCase(MiniTestCases[i].TestCaseName,
+                MiniTestCases[i].Skip);
+            ExpectException(MiniTestCases[i].ExpectedException, true);
+            MiniTestCases[i].Execute;
+          end;
+        end; // else not one of the cases requested.
+      end;
+      lFirstCase := false;
       LastSetName := CurrentSetName;
     except
       on E: Exception do
@@ -592,6 +869,8 @@ begin
 end;
 
 Procedure NextTestSet(ASetName: string);
+var
+  lSetName: string;
 begin
 
   SetResults;
@@ -599,11 +878,12 @@ begin
   if ASetName = FINAL_SET_NAME then
     ASetName := ''; // Finalising.
 
-  if Length(ASetName) > 0 then
-  begin
-    SetHeading(ASetName);
-    inc(TotalSets);
-  end;
+  lSetName := ASetName;
+  if Length(lSetName) < 0 then
+    lSetName := 'Next';
+
+  SetHeading(lSetName);
+  inc(TotalSets);
 
   SetPassedTests := 0;
   SetFailedTests := 0;
@@ -691,8 +971,9 @@ begin
       :
       Result := IntToStr(AValue);
 
-{$IFDEF UNICODE}
+{$IFDEF HAS_VARUSTRING}
     varUString,
+{$IFDEF HAS_VARSTRARG}varUStrArg, {$ENDIF}
 {$ENDIF}
     varOleStr, varStrArg, varString:
       Result := AValue;
@@ -787,7 +1068,6 @@ var
   Outcome: boolean;
   lMessageColour: smallint;
 begin
-  Result := false;
   lMessageColour := clDefault;
   lResult := 0;
   DifferencesFound := 0;
@@ -843,7 +1123,7 @@ begin
                   [#13#10, ValueAsString(AExpected), ValueAsString(AResult)])
               else
                 lMessage :=
-                  Format('%s   Expected outcomes to differ, but both returned %s%s',
+                  Format('%s   Expected outcomes to differ, but both returned <%s>',
                   [#13#10, ValueAsString(AExpected)]);
             end
             else
@@ -911,9 +1191,9 @@ begin
     Result := b;
 end;
 
-Function lcs(X, Y: string): TLCSParams;
+Function lcs(x, y: string): TLCSParams;
 var
-  lSize, lBestSize, pF, pS, lx, ly, lr, i, j, k: integer;
+  lSize, pF, pS, lx, ly, i, j, k: integer;
   procedure SetBest;
   begin
     if (lSize > Result.Length) OR
@@ -930,14 +1210,14 @@ begin
   Result.Length := 0;
   Result.FirstPos := 0;
   Result.SecondPos := 0;
-  lx := Length(X);
-  ly := Length(Y);
+  lx := Length(x);
+  ly := Length(y);
   lSize := 0;
   for i := 1 to lx do
   begin
     for j := 1 to ly do
     begin
-      if X[i] = Y[j] then
+      if x[i] = y[j] then
       begin
         pF := i;
         pS := j;
@@ -945,7 +1225,7 @@ begin
         lSize := 1;
         while (((i + k) <= lx) and ((j + k) <= ly)) do
         begin
-          if X[i + k] = Y[j + k] then
+          if x[i + k] = y[j + k] then
             inc(lSize)
           else
             break;
@@ -996,7 +1276,8 @@ begin
   begin
     // There is a difference
     p := pos(Result.Same, AText);
-    if p > 0 then // probably not really possible.
+    if p > 0 then
+    // probably not really possible.
     begin
       Result.FirstBefore := copy(AText, 1, p - 1);
       Result.FirstAfter := copy(AText, p + ls, MAXINT);
@@ -1018,6 +1299,9 @@ var
   ls, i, p: integer;
   lBeforeDifferences, lAfterDifferences: TStringDifferences;
 begin
+  lBeforeDifferences := nil;
+  lAfterDifferences := nil;
+
   if Length(AText) + Length(ACompareTo) = 0 then
     exit;
   lDiff := LCSDiff(AText, ACompareTo);
@@ -1075,7 +1359,7 @@ end;
 Function AlignDifferencesByRow(ALeftColumn, ARightColumn: TConsoleColumn)
   : TConsoleTextArray;
 var
-  lSize, i, p, lLeftLine, lRightLine: integer;
+  lSize, i, p: integer;
   Procedure ExtraText(AMessage: string; AIndex: integer);
   begin
     Result[AIndex].Text := AMessage;
@@ -1123,7 +1407,7 @@ end;
 Function AlignDifferencesByColumn(ALeftColumn, ARightColumn: TConsoleColumn)
   : TConsoleTextArray;
 var
-  lSize, i, p, lLeftLine, lRightLine: integer;
+  lSize, i, lLeftLine, lRightLine: integer;
 
   Procedure AddEmptyLine;
   begin
@@ -1139,12 +1423,11 @@ begin
   SetLength(Result, 4 * lSize);
   lLeftLine := 0;
   lRightLine := 0;
-  i := -1;
+  i := 0;
   while (lLeftLine < ALeftColumn.LineCount) or
     (lRightLine < ARightColumn.LineCount) do
   begin
     // Leading space
-    inc(i);
     Result[i].Text := '  ';
     Result[i].Colour := clError;
     Result[i].EOL := false;
@@ -1152,7 +1435,10 @@ begin
     // Left Column
     inc(i);
     if lLeftLine >= ALeftColumn.LineCount then
-      AddEmptyLine
+    begin
+      AddEmptyLine;
+      inc(i);
+    end
     else
     begin
       repeat
@@ -1165,7 +1451,6 @@ begin
     end;
 
     // Inter column space
-    inc(i);
     Result[i].Text := ' ';
     Result[i].Colour := clDefault;
     Result[i].EOL := false;
@@ -1173,7 +1458,10 @@ begin
     // Right Column
     inc(i);
     if lRightLine >= ARightColumn.LineCount then
-      AddEmptyLine
+    begin
+      AddEmptyLine;
+      inc(i);
+    end
     else
     begin
       repeat
@@ -1183,6 +1471,9 @@ begin
       until (lRightLine >= ARightColumn.LineCount) or
         (ARightColumn.Lines[lRightLine - 1].EOL);
     end;
+    // check for enough working space: probably not needed.
+    if Length(Result) - i < lSize then
+      SetLength(Result, Length(Result) + lSize);
   end;
   SetLength(Result, i + 1);
 end;
@@ -1195,70 +1486,77 @@ var
   lTwoColumn: boolean;
   lLeftPadColour, lRightPadColour: integer;
 begin
-  lTwoColumn := false;
-  lColumnWidth := ConsoleScreenWidth - 12;
-  lLeftPadColour := clError;
-  lRightPadColour := clError;
-  if dfTwoColumn in DifferenceDisplayMode then
-  begin
-    if (not(dfRow in DifferenceDisplayMode)) or
-      (FinalLengthofDifferences(ADifferences) > (ConsoleScreenWidth - 3)) then
+  lLeftColumn := nil;
+  lRightColumn := nil;
+  try
+    lTwoColumn := false;
+    lColumnWidth := ConsoleScreenWidth - 12;
+    lLeftPadColour := clError;
+    lRightPadColour := clError;
+    if dfTwoColumn in DifferenceDisplayMode then
     begin
-      lColumnWidth := (ConsoleScreenWidth - 3) Div 2;
-      lTwoColumn := true;
-    end;
-  end;
-  lLeftColumn := TConsoleColumn.Create(lColumnWidth, clExpectedText,
-    dfEscapeCRLF in DifferenceDisplayMode);
-  lRightColumn := TConsoleColumn.Create(lColumnWidth, clActualText,
-    dfEscapeCRLF in DifferenceDisplayMode);
-  for i := Low(ADifferences) to High(ADifferences) do
-  begin
-
-    lStartDiff := ADifferences[i].SecondPos - ADifferences[i].FirstPos;
-    if Length(ADifferences[i].Same) > 0 then
-    begin
-      if (lStartDiff > 0) then
-        lLeftColumn.AddText(stringofchar(' ', lStartDiff), clOmission);
-      lLeftColumn.AddText(ADifferences[i].Same, clExpectedText);
-    end
-    else
-      lLeftColumn.AddText(ADifferences[i].FirstBefore, clTextDifferent);
-
-    // Right Column (Actual)
-    lStartDiff := ADifferences[i].SecondPos - ADifferences[i].FirstPos;
-    if Length(ADifferences[i].Same) > 0 then
-    begin
-      if (lStartDiff < 0) then
+      if (not(dfRow in DifferenceDisplayMode)) or
+        (FinalLengthofDifferences(ADifferences) > (ConsoleScreenWidth - 3)) then
       begin
-        lRightColumn.AddText(stringofchar(' ', -1 * lStartDiff), clOmission);
-        if (i < High(ADifferences)) then
-          lLeftColumn.AddText(stringofchar(' ', -1 * lStartDiff), clOmission);
+        lColumnWidth := (ConsoleScreenWidth - 3) Div 2;
+        lTwoColumn := true;
       end;
-      lRightColumn.AddText(ADifferences[i].Same, clActualText);
-    end
+    end;
+    lLeftColumn := TConsoleColumn.Create(lColumnWidth, clExpectedText,
+      dfEscapeCRLF in DifferenceDisplayMode);
+    lRightColumn := TConsoleColumn.Create(lColumnWidth, clActualText,
+      dfEscapeCRLF in DifferenceDisplayMode);
+    for i := Low(ADifferences) to High(ADifferences) do
+    begin
+
+      lStartDiff := ADifferences[i].SecondPos - ADifferences[i].FirstPos;
+      if Length(ADifferences[i].Same) > 0 then
+      begin
+        if (lStartDiff > 0) then
+          lLeftColumn.AddText(stringofchar(' ', lStartDiff), clOmission);
+        lLeftColumn.AddText(ADifferences[i].Same, clExpectedText);
+      end
+      else
+        lLeftColumn.AddText(ADifferences[i].FirstBefore, clTextDifferent);
+
+      // Right Column (Actual)
+      lStartDiff := ADifferences[i].SecondPos - ADifferences[i].FirstPos;
+      if Length(ADifferences[i].Same) > 0 then
+      begin
+        if (lStartDiff < 0) then
+        begin
+          lRightColumn.AddText(stringofchar(' ', -1 * lStartDiff), clOmission);
+          if (i < High(ADifferences)) then
+            lLeftColumn.AddText(stringofchar(' ', -1 * lStartDiff), clOmission);
+        end;
+        lRightColumn.AddText(ADifferences[i].Same, clActualText);
+      end
+      else
+        lRightColumn.AddText(ADifferences[i].SecondBefore, clTextDifferent);
+    end;
+
+    if lTwoColumn then
+    begin
+      lLeftPadColour := clExpectedText;
+      lRightPadColour := clActualText;
+    end;
+
+    lLeftColumn.Finalise(lLeftPadColour);
+    lRightColumn.Finalise(lRightPadColour);
+    if lTwoColumn then
+      Result := AlignDifferencesByColumn(lLeftColumn, lRightColumn)
     else
-      lRightColumn.AddText(ADifferences[i].SecondBefore, clTextDifferent);
+      Result := AlignDifferencesByRow(lLeftColumn, lRightColumn);
+  finally
+    freeandnil(lLeftColumn);
+    freeandnil(lRightColumn);
   end;
-
-  if lTwoColumn then
-  begin
-    lLeftPadColour := clExpectedText;
-    lRightPadColour := clActualText;
-  end;
-
-  lLeftColumn.Finalise(lLeftPadColour);
-  lRightColumn.Finalise(lRightPadColour);
-  if lTwoColumn then
-    Result := AlignDifferencesByColumn(lLeftColumn, lRightColumn)
-  else
-    Result := AlignDifferencesByRow(lLeftColumn, lRightColumn);
 end;
 
 procedure DisplayMessage(AMessage: String; AMessageColour: smallint;
   ADataType: integer);
 var
-  lExpected, lActual, lFormatStr: string;
+  lExpected, lActual: string;
   p, i, lExpectedStart, lActualStart: integer;
   lStringDifference: TStringDifferences;
   lScreenText: TConsoleTextArray;
@@ -1282,7 +1580,8 @@ var
 
 begin
   p := pos(EXPECTED_ACTUAL_SEPARATOR, AMessage);
-  if (AMessageColour <> clError) OR
+  if (AMessageColour <> clError) OR (DifferenceDisplayMode = []) OR
+    (DifferenceDisplayMode = [dfEscapeCRLF]) OR
     ((p < 1) OR (pos(EXPECTED_FORMAT_MESSAGE, AMessage) < 1) OR
     (pos(ACTUAL_FORMAT_MESSAGE, AMessage) < 1)) then
   begin
@@ -1293,8 +1592,11 @@ begin
 
   // Only do the test on string data types
   if NOT((ADataType = varString) OR
-{$IFNDEF BEFOREVARIANTS}
-    (ADataType = varUString) or (ADataType = varUStrArg) or
+{$IFNDEF BEFORE_INLINE}
+{$IFDEF HAS_VARUSTRING}
+    (ADataType = varUString) OR
+{$IFDEF HAS_VARUSTRARG } (ADataType = varUStrArg) OR {$ENDIF}
+{$ENDIF}
 {$ENDIF}
     (ADataType in [varStrArg, varOleStr])) then
   begin
@@ -1336,7 +1638,7 @@ begin
   begin
     Print(lScreenText[i].Text, lScreenText[i].Colour);
     if lScreenText[i].EOL then
-      WriteLn;
+      Writeln;
   end;
 
 end;
@@ -1429,10 +1731,11 @@ begin
   Result := CheckIsTrue(true, lMessage, skipTrue);
 end;
 
-Procedure NewSet(ASetName: string);
+Procedure NewSet(ASetName: string; ASkipped: TSkipType = skipFalse);
 begin
   CurrentSetName := ASetName;
   CreatingSets := true;
+  SkippingSet := ASkipped in [skipTrue, skipSet];
 end;
 
 Procedure NewCase(ATestCaseName: string);
@@ -1457,6 +1760,11 @@ begin
   IgnoreSkip := false;
 end;
 
+procedure NewAssertion(ACase: string; ATestCaseName: string = '');
+begin
+  NewTest(ACase, ATestCaseName);
+end;
+
 Procedure DeferTestCase(ATestName: string = '');
 begin
   if Length(ATestName) = 0 then
@@ -1465,10 +1773,18 @@ begin
     DeferredTestCaseLabel := ATestName;
 end;
 
+Procedure DeferExpectedException(AExceptionClassName: string);
+begin
+  DeferredExpectedException := AExceptionClassName;
+end;
+
 Procedure ResumeTestCase;
 begin
   if Length(DeferredTestCaseLabel) > 0 then
     NewTest(DeferredTestCaseLabel);
+  if Length(DeferredExpectedException) > 0 then
+    ExpectException(DeferredExpectedException);
+  DeferredExpectedException := '';
   DeferredTestCaseLabel := '';
 end;
 
@@ -1601,9 +1917,27 @@ begin
     AColour);
 end;
 
-procedure TConsoleColumn.SetColumnWidth(const Value: integer);
+procedure AssignCaseList;
+var
+  i: integer;
+  lParam: string;
 begin
-  FColumnWidth := Value;
+  for i := 1 to ParamCount do
+  begin
+    lParam := Paramstr(i);
+    if pos(copy(lParam, 1, 1), '/-') > 0 then
+      continue;
+    CaseList := CaseList + ' ' + lParam;
+  end;
+  HasCaseList := Length(CaseList) > 0;
+  ProjectInCaseList := pos(GenerateProjectID(), CaseList) > 0;
+end;
+
+Procedure AssignTestMetaData;
+begin
+  TestMetaData := FindCmdLineSwitch('M', ['-', '/'], true);
+  if TestMetaData then
+    OutputProjectMetaData;
 end;
 
 initialization
@@ -1616,5 +1950,7 @@ initialization
 TotalOutputFormat := DEFAULT_TOTALS_FORMAT;
 SetOutputFormat := DEFAULT_SET_FORMAT;
 CaseOutputFormat := DEFAULT_CASE_FORMAT;
+AssignCaseList;
+AssignTestMetaData;
 
 end.
