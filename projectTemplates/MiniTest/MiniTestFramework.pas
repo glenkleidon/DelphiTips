@@ -27,7 +27,7 @@ uses SysUtils, windows
     ;
 
 Const
-  FRAMEWORK_VERSION = '2.0.0.4A';
+  FRAMEWORK_VERSION = '2.0.0.5';
   DEFAULT_TOTALS_FORMAT =
     'Run>Sets:%-3d Cases:%-3d Tests:%-4d Passed:%-4d Failed:%-3d Skipped:%-3d Errors:%-3d';
   DEFAULT_SET_FORMAT =
@@ -225,6 +225,9 @@ Procedure NextTestSet(ASetName: string);
 Procedure NextTestCase(ACaseName: string; ASkipped: TSkipType = skipFalse);
 Function CheckIsEqual(AExpected, AResult: TComparitorType;
   AMessage: string = ''; ASkipped: TSkipType = skipFalse): boolean;
+Function CheckIsCloseTo(AExpected, AResult: TComparitorType;
+  ASignificantDecimalPlaces: byte = 3; AMessage: string = '';
+  ASkipped: TSkipType = skipFalse): boolean;
 Function CheckIsTrue(AResult: boolean; AMessage: string = '';
   ASkipped: TSkipType = skipFalse): boolean;
 Function CheckIsFalse(AResult: boolean; AMessage: string = '';
@@ -267,9 +270,10 @@ Procedure ResetStringDifference(var ADiff: TStringDifference);
 procedure DisplayMessage(AMessage: String; AMessageColour: smallint;
   ADataType: integer);
 
+procedure TestingCompleted;
 implementation
 
-uses classes;
+uses classes, math;
 
 Const
   NIL_EXCEPTION_CLASSNAME = 'NilException';
@@ -1670,6 +1674,26 @@ begin
   end;
 end;
 
+Function CheckIsCloseTo(AExpected, AResult: TComparitorType;
+  ASignificantDecimalPlaces: byte = 3; AMessage: string = '';
+  ASkipped: TSkipType = skipFalse): boolean;
+var
+  lExpected, lResult: TComparitorType;
+  lFactor : Single;
+begin
+  lFactor :=  power(10,ASignificantDecimalPlaces);
+  lExpected := (trunc(AExpected * lFactor) / lFactor);
+  lResult := (trunc(AResult * lFactor) / lFactor);
+  result := false;
+  try
+    result := Check(True, lExpected, lResult, AMessage,
+      TestTypeFromSkip(ASkipped));
+  except
+    on E: Exception do
+      CheckException(E);
+  end;
+end;
+
 Function CheckNotEqual(AResult1, AResult2: TComparitorType; AMessage: string;
   ASkipped: TSkipType): boolean;
 Begin
@@ -1940,6 +1964,13 @@ begin
     OutputProjectMetaData;
 end;
 
+procedure TestingCompleted;
+begin
+  if lowercase(Paramstr(1)) = '/p' then
+    readln;
+  ExitCode := (TotalFailedTests + TotalErroredTests);
+end;
+
 initialization
 
 {$IFDEF CompilerVersion}
@@ -1954,3 +1985,4 @@ AssignCaseList;
 AssignTestMetaData;
 
 end.
+
