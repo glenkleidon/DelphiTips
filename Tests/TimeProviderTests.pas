@@ -23,13 +23,14 @@ begin
   Sut := nil;
 end;
 
+function TimeAsString(ATime: TDateTime): string;
+begin
+  result := FormatDateTime('yyyy-mm-dd hh:nn:ss.zzz', ATime);
+end;
+
 procedure IncreasesByExpectedAmount;
 var
   lExpected, TestDate: TDateTime;
-  function TimeAsString(ATime: TDateTime): string;
-  begin
-    result := FormatDateTime('yyyy-mm-dd hh:nn:ss.zzz', ATime);
-  end;
 begin
   TestDate := EncodeDate(2000,1,1);
 
@@ -37,7 +38,7 @@ begin
   lExpected := EncodeDate(2001,1,1);
   Sut.ChangeTime(TestDate,true);
   Sut.IncTime(1, tpYear);
-  CheckIsEqual(Sut.Now, lExpected);
+  CheckIsEqual(lExpected, Sut.Now);
 
   NewAssertion('Increase by 1 month');
   lExpected := EncodeDate(2001,2,1);
@@ -104,6 +105,50 @@ begin
    CheckIsEqual(FixedTime,Sut.Now);
 end;
 
+procedure ReturnsRelativeTime;
+var
+   StartTime, lExpected : TDateTime;
+begin
+  StartTime := EncodeDate(2000,1,1);
+
+  NewAssertion('Altered By 1 year');
+  lExpected := EncodeDate(2001,1,1);
+  Sut.ChangeTime(StartTime,true);
+  CheckIsEqual(lExpected, Sut.TimeIn(1, tpYear));
+
+  NewAssertion('Altered By 1 month');
+  lExpected := EncodeDate(2000,2,1);
+  CheckIsEqual(lExpected, Sut.TimeIn(1, tpMonth));
+
+  NewAssertion('Altered By 2 weeks');
+  lExpected := EncodeDate(2000,1,15);
+  CheckIsEqual(lExpected, Sut.TimeIn(2, tpWeek));
+
+  NewAssertion('Altered By 3 Days');
+  lExpected := EncodeDate(2000,1,4);
+  CheckIsEqual(lExpected,  Sut.TimeIn(3, tpDay));
+
+  NewAssertion('Altered By 4 hours');
+  lExpected := EncodeDate(2000,1,1) + EncodeTime(4,0,0,0);
+  CheckIsEqual( TimeAsString(lExpected),
+   TimeAsString(Sut.TimeIn(4, tpHour)) );
+
+  NewAssertion('Altered By 5 minutes');
+  lExpected := EncodeDate(2000,1,1) + EncodeTime(0,5,0,0);
+  CheckIsEqual( TimeAsString(lExpected),
+   TimeAsString(Sut.TimeIn(5, tpMinute)) );
+
+  NewAssertion('Altered By 6 Seconds');
+  lExpected := EncodeDate(2000,1,1) + EncodeTime(0,0,6,0);
+  CheckIsEqual( TimeAsString(lExpected),
+   TimeAsString(Sut.TimeIn(6, tpSecond)) );
+
+  NewAssertion('Altered By 789 MilliSeconds');
+  lExpected := EncodeDate(2000,1,1) + EncodeTime(0,0,0,789);
+  CheckIsEqual( TimeAsString(lExpected),
+    TimeAsString(Sut.TimeIn(789, tpMillisecond)) );
+end;
+
 initialization
 
   NewSet('Time Provider');
@@ -111,6 +156,7 @@ initialization
   AddTestCase('ChangeTime sets correct time', ChangeTimeSetsCorrectTime);
   AddTestCase('Fixed Time stays fixed', FixedTimeStaysFixed);
   AddTestCase('Fixed Time increases by expected amount', IncreasesByExpectedAmount);
+  AddTestCase('TimeIn returns adjusted relative time', ReturnsRelativeTime);
 
   FinaliseSet(TearDown);
 

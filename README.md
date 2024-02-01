@@ -175,6 +175,7 @@ The Time Provider class TTimeProvider implements this interface:
      property IsFixed: Boolean read GetIsFixed;
      procedure ChangeTime(ANewTime: TDateTime; AFixed: Boolean=false);
      procedure IncTime(AAmount: Integer; ATimeframe:TTimeProviderSpan);
+     function TimeIn(AAmount: Integer; ATimeframe: TTimeProviderSpan): TDateTime;
      //TO DO...
      //property TimeZone: Integer read GetTimeZone write SetTimeZone;
      //property DaylightSavingHrs: single read GetDaylightSavingHrs write SetDaylightSavingHrs;
@@ -259,4 +260,18 @@ begin
 end;
 ```
 
+### Keeping track of another TimeZone
+While not fully supported as yet, you can use the TimeProvider to track the time in another timezone.
+
+```
+  var MelbourneTime:ITimeProvider := TTimeProvider.create;
+  // Set up Adelaide time which is -30 minutes...
+  var AdelaideTime:ITimeProvider := TTimeProvider.create(MelbourneTime.TimeIn(-30,tpMinutes));
+  
+  ...
+  Format('TIME: Melbourne %s   Adelaide: %s', [ 
+    FormatDateTime('HH:NN:SS', MelbourneTime.Now),
+    FormatDateTime('HH:NN:SS', AdelaideTime.Now),
+	]);
+```
 

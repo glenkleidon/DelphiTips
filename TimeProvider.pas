@@ -14,6 +14,7 @@ type
      property IsFixed: Boolean read GetIsFixed;
      procedure ChangeTime(ANewTime: TDateTime; AFixed: Boolean=false);
      procedure IncTime(AAmount: Integer; ATimeframe:TTimeProviderSpan);
+     function TimeIn(AAmount: Integer; ATimeframe: TTimeProviderSpan): TDateTime;
      //TO DO...
      //property TimeZone: Integer read GetTimeZone write SetTimeZone;
      //property DaylightSavingHrs: single read GetDaylightSavingHrs write SetDaylightSavingHrs;
@@ -32,6 +33,7 @@ type
      function Now: TDateTime;
      procedure ChangeTime(ANewTime: TDateTime; AFixed: Boolean=false);
      procedure IncTime(AAmount: Integer; ATimeframe:TTimeProviderSpan);
+     function TimeIn(AAmount: Integer; ATimeframe: TTimeProviderSpan): TDateTime;
      property IsFixed: Boolean read GetIsFixed;
   end;
 
@@ -91,5 +93,19 @@ begin
      result := (SysUtils.Now-FOffSet);
 end;
 
+function TCustomTimeProvider.TimeIn(AAmount: Integer;
+  ATimeframe: TTimeProviderSpan): TDateTime;
+begin
+   case ATimeframe of
+     tpMillisecond: result := IncMilliSecond(self.Now, AAmount);
+     tpSecond: result := IncSecond(self.Now, AAmount);
+     tpMinute: result := IncMinute(self.Now, AAmount);
+     tpHour: result := IncHour(self.Now, AAmount);
+     tpDay: result := IncDay(self.Now, AAmount);
+     tpWeek: result := IncWeek(self.Now, AAmount);
+     tpMonth: result := IncMonth(self.Now, AAmount);
+     tpYear: result := IncYear(self.Now, AAmount);
+   end;
+end;
+
 end.
- 
