@@ -35,6 +35,7 @@ Procedure Test_Difference_compare_easier_to_read;
 Procedure Test_Console_Column_Displays_Colums_as_Expected;
 Procedure Test_Difference_compare_uses_correct_mode;
 Procedure Test_Difference_text_same_but_Type_different;
+procedure Test_IsCloseTo_Works_For_PI;
 
 implementation
 
@@ -774,6 +775,31 @@ begin
     Println('   Wrong number of failures, 1 expected!', FOREGROUND_YELLOW);
   end;
 
+end;
+
+procedure Test_IsCloseTo_Works_For_PI;
+begin
+  UpdateCounters;
+  NewAssertion('PI is Close to 3.14159');
+  CheckIsCloseTo(PI, 3.14158);
+  NewAssertion('PI is not close to 3.2');
+  CheckIsCloseTo(PI, 3.2);
+  NewAssertion('PI is close to 3.14159 at 5 decimals');
+  CheckIsCloseTo(PI, 3.14159,5);
+  NewAssertion('PI is NOT close to 3.14159 at 6 decimals');
+  CheckIsCloseTo(PI, 3.14159,6);
+
+  UpdateCounters;
+  if (TestingFails = 2) then
+  begin
+    Println('   The 2 failures above are expected, so they "pass"', clMessage);
+    CaseFailedTests := 0;
+    Inc(CasePassedTests, 2);
+  end
+  else
+  begin
+    Println('   Wrong number of failures, 1 expected!', FOREGROUND_YELLOW);
+  end;
 end;
 
 end.

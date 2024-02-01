@@ -27,7 +27,7 @@ uses SysUtils, windows
     ;
 
 Const
-  FRAMEWORK_VERSION = '2.0.0.4A';
+  FRAMEWORK_VERSION = '2.0.0.5';
   DEFAULT_TOTALS_FORMAT =
     'Run>Sets:%-3d Cases:%-3d Tests:%-4d Passed:%-4d Failed:%-3d Skipped:%-3d Errors:%-3d';
   DEFAULT_SET_FORMAT =
@@ -240,7 +240,8 @@ Procedure NextTestCase(ACaseName: string; ASkipped: TSkipType = skipFalse);
 Function CheckIsEqual(AExpected, AResult: TComparitorType;
   AMessage: string = ''; ASkipped: TSkipType = skipFalse): boolean;
 Function CheckIsCloseTo(AExpected, AResult: TComparitorType;
-  AMessage: string = ''; ASkipped: TSkipType = skipFalse): boolean;
+  ASignificantDecimalPlaces: byte = 3; AMessage: string = '';
+  ASkipped: TSkipType = skipFalse): boolean;
 Function CheckIsTrue(AResult: boolean; AMessage: string = '';
   ASkipped: TSkipType = skipFalse): boolean;
 Function CheckIsFalse(AResult: boolean; AMessage: string = '';
@@ -297,7 +298,7 @@ var
 
 implementation
 
-uses classes;
+uses classes, math;
 
 Const
   NIL_EXCEPTION_CLASSNAME = 'NilException';
@@ -2019,12 +2020,15 @@ begin
 end;
 
 Function CheckIsCloseTo(AExpected, AResult: TComparitorType;
-  AMessage: string = ''; ASkipped: TSkipType = skipFalse): boolean;
+  ASignificantDecimalPlaces: byte = 3; AMessage: string = '';
+  ASkipped: TSkipType = skipFalse): boolean;
 var
   lExpected, lResult: TComparitorType;
+  lFactor : Single;
 begin
-  lExpected := (trunc(AExpected * 1000) / 1000);
-  lResult := (trunc(AResult * 1000) / 1000);
+  lFactor :=  power(10,ASignificantDecimalPlaces);
+  lExpected := (trunc(AExpected * lFactor) / lFactor);
+  lResult := (trunc(AResult * lFactor) / lFactor);
   result := false;
   try
     result := Check(True, lExpected, lResult, AMessage,
@@ -2335,3 +2339,4 @@ AssignCaseList;
 AssignTestMetaData;
 
 end.
+

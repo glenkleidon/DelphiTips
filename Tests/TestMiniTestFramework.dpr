@@ -21,7 +21,9 @@ begin
 
     CheckIsTrue_works_as_expected;
     CheckIsEqual_works_as_Expected;
+    Test_IsCloseTo_Works_For_PI;
     Test_Skip_works_as_Expected;
+
 
     TestSummary;
     (**)
@@ -66,11 +68,7 @@ begin
     FinaliseSet(Nil);
     RunTestSets;
     TestSummary;
-
-    if sameText(Paramstr(1), '/p') then
-      ReadLn;
-
-    ExitCode := TotalErrors + TotalFailedTests;
+    TestingCompleted;
 
     (**)
   except
