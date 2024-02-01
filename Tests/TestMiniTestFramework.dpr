@@ -5,6 +5,8 @@ program TestMiniTestFramework;
 uses
   SysUtils,
   MiniTestFramework in '..\MiniTestFramework.pas',
+  TimeProvider in '..\TimeProvider.pas',
+  TimeProviderTests in 'TimeProviderTests.pas',
   TestCasesMiniTestFramework in 'TestCasesMiniTestFramework.pas';
 
 begin
