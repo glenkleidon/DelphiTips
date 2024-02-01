@@ -225,6 +225,9 @@ Procedure NextTestSet(ASetName: string);
 Procedure NextTestCase(ACaseName: string; ASkipped: TSkipType = skipFalse);
 Function CheckIsEqual(AExpected, AResult: TComparitorType;
   AMessage: string = ''; ASkipped: TSkipType = skipFalse): boolean;
+Function CheckIsCloseTo(AExpected, AResult: TComparitorType;
+  ASignificantDecimalPlaces: byte = 3; AMessage: string = '';
+  ASkipped: TSkipType = skipFalse): boolean;
 Function CheckIsTrue(AResult: boolean; AMessage: string = '';
   ASkipped: TSkipType = skipFalse): boolean;
 Function CheckIsFalse(AResult: boolean; AMessage: string = '';
@@ -270,7 +273,7 @@ procedure DisplayMessage(AMessage: String; AMessageColour: smallint;
 procedure TestingCompleted;
 implementation
 
-uses classes;
+uses classes, math;
 
 Const
   NIL_EXCEPTION_CLASSNAME = 'NilException';
@@ -1664,6 +1667,26 @@ begin
   Result := false;
   try
     Result := Check(true, AExpected, AResult, AMessage,
+      TestTypeFromSkip(ASkipped));
+  except
+    on E: Exception do
+      CheckException(E);
+  end;
+end;
+
+Function CheckIsCloseTo(AExpected, AResult: TComparitorType;
+  ASignificantDecimalPlaces: byte = 3; AMessage: string = '';
+  ASkipped: TSkipType = skipFalse): boolean;
+var
+  lExpected, lResult: TComparitorType;
+  lFactor : Single;
+begin
+  lFactor :=  power(10,ASignificantDecimalPlaces);
+  lExpected := (trunc(AExpected * lFactor) / lFactor);
+  lResult := (trunc(AResult * lFactor) / lFactor);
+  result := false;
+  try
+    result := Check(True, lExpected, lResult, AMessage,
       TestTypeFromSkip(ASkipped));
   except
     on E: Exception do
