@@ -59,11 +59,7 @@ begin
     FinaliseSet(Nil);
     RunTestSets;
     TestSummary;
-
-    if sameText(Paramstr(1), '/p') then
-      ReadLn;
-
-    ExitCode := TotalErrors + TotalFailedTests;
+    TestingCompleted;
 
     (**)
   except

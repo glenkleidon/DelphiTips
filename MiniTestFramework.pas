@@ -267,6 +267,7 @@ Procedure ResetStringDifference(var ADiff: TStringDifference);
 procedure DisplayMessage(AMessage: String; AMessageColour: smallint;
   ADataType: integer);
 
+procedure TestingCompleted;
 implementation
 
 uses classes;
@@ -1940,6 +1941,13 @@ begin
     OutputProjectMetaData;
 end;
 
+procedure TestingCompleted;
+begin
+  if lowercase(Paramstr(1)) = '/p' then
+    readln;
+  ExitCode := (TotalFailedTests + TotalErroredTests);
+end;
+
 initialization
 
 {$IFDEF CompilerVersion}
@@ -1954,3 +1962,4 @@ AssignCaseList;
 AssignTestMetaData;
 
 end.
+
