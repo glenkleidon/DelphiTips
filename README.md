@@ -35,6 +35,12 @@ The _Skip_ parameter type in AddTestCase and Assertions has been changed from _b
 ### Added Features: Release 5
   + Test Metadata exportable with the /m switch
   + Running tests by Unique Identifier
+  
+### Fixes and Features version 5.1
+  + Added _CheckIsCloseTo_ Assertions
+  + fixed set display issues
+  + Added Set level "Ignore" to skip entire Set without executing it.
+
 
 See the updated wiki!
 
@@ -47,7 +53,7 @@ Now Supports All versions of Delphi back to Delphi 7 (and probably 4).  This has
 |5 &#9745;|2006 &#9744;|XE2 &#9745;|XE7 &#9744;|10.1 Berlin |&#9745;|
 |6 &#9744;|2007 &#9745;|XE3 &#9744;|XE8 &#9744;|10.2 Tokyo  |&#9745;|
 |7 &#9745;|2009 &#9745;|XE4 &#9744;|           |10.3 Rio    |&#9745;|
-|8 &#9744;|2010 &#9745;|XE5 &#9745;|           |            |       |
+|8 &#9744;|2010 &#9745;|XE5 &#9745;|           |11.0 Sydney |&#9745;|
 
 If using versions of Delphi 2005 or 2006, You may have trouble with the 
 2007 DPROJ file in the Test Unit and the Project Template folders.  If you 
@@ -155,3 +161,117 @@ TMyRecord[1].Status=mrsBusy
 Internally the string structure is managed as a TStringlist, so the line ending symantics are a consequence of that architecture. The  
 
 The \<CR\> (Carriage Return, ASCII-13) cannot be represented as a single line in the TStringlist (by default) and consequently are always converted to \<LF\> (Line Feed, ASCII-10).  So \<CRLF\> becomes \<LF\>, \<CR\> becomes \<LF\>, \<CRLF\>\<LF\> becomes \<LF\>\<LF\>.  At this stage, to preserve \<CR\>, you must pre-process the string representation using an alternate encoding scheme (eg HTML encoding )
+
+## Time Provider
+In modern development, Unit testing is a critical part of the development cycle.  In order that you can control what the system time 
+the ITimeProvider interface allows you to Mock the System time without needing to change the date or time of the system.
+Supported on all versions of Delphi back to version 5 (and probably 4).
+
+The Time Provider class TTimeProvider implements this interface:
+```
+  ITimeProvider = interface
+     function Now: TDateTime;
+     function GetIsFixed: Boolean;
+     property IsFixed: Boolean read GetIsFixed;
+     procedure ChangeTime(ANewTime: TDateTime; AFixed: Boolean=false);
+     procedure IncTime(AAmount: Integer; ATimeframe:TTimeProviderSpan);
+     function TimeIn(AAmount: Integer; ATimeframe: TTimeProviderSpan): TDateTime;
+     //TO DO...
+     //property TimeZone: Integer read GetTimeZone write SetTimeZone;
+     //property DaylightSavingHrs: single read GetDaylightSavingHrs write SetDaylightSavingHrs;
+  end;
+
+```
+
+At this stage, `TimeZone` support is not included in the provider although that is an important feature for testing (look out for updates in future releases)
+
+
+### How to use ITimeProvider
+In your Class or Unit reference, pass a reference to an initialized ITimeProvider.  By default set this up so that `Now=System.Now`. 
+When testing, you can pass in alternative time providers where the time:
+  + flows normally starting from a fixed date and time OR
+  + is a constant time.
+Once initialized, the time provider can be paused at a specific time, restarted from another time or shifted by increments.
+
+### Initialize your povider (ideally from a DI container) 
+Typically you would use the TimeProvider in your application by passing it into the constructor.  For your typical application, the 
+provider will simply report the normal System time.  For your test cases, you have control over what time the class thinks
+the system time is.
+
+```
+TMyClass = Class
+private 
+  FTimeProvider: ITimeProvider;
+  function GetTimeProvider: ITimeProvider;
+protected
+  {$IFNDEF TESTING}
+  property TimeProvider: ITimeprovider read GetTimeProvider;
+  {$ENDIF}
+public
+  Constructor Create(ATimeProvider: ITimeProvider=nil);
+  function PersonsAge(DOB: TDateTime): Integer;
+  {$IFDEF TESTING}
+  property TimeProvider: ITimeprovider read GetTimeProvider;
+  {$ENDIF}
+end;
+```
+
+The advantage is that now your class is unit testable and wont be dependent on when (or in the future what timezone) the 
+test is run.  Also in your application, the timeprovider is a protected member (or private if you'd rather) and only for testcases
+will the TimeProvider be public.
+
+You can simply access the "time" using `TimeProvider.Now` instead of `SysUtils.Now` eg
+```
+  function TMYClass.PersionsAge(DOB: TDateTime): integer;
+  begin
+      // fairly bad implementation of Age in years
+      result := Integer(trunc( (TimeProvider.Now-DOB)/365.25));
+  end;
+
+```
+
+### Constructors
+Initialising the way the Time provider behaves Via the Constructors is as follows:
+```
+  var NormalTime: ITimeProvider := TTimeProvider.Create;
+  var TimeStartsAtY2k: ITimeProvider := TTimeProvider.Create(EncodeDate(2000,1,1));
+  var TimeIsAlwaysJanTwo2010: ITimeProvider := TTimeProvider.Create(EncodeDate(2010,1,2), True {fixed});
+```
+_NormalTime_ will operate the same as SysUtils.Now;
+_TimeStartsAtY2k_ will work as if the Application (or method call etc) was started on Jan 1st 2000 at midnight.
+_TimeIsAlwaysJanTwo2010_ will force the time provider to always report the current time as Jan 2nd 2010 when ever it is called.
+
+### Skipping or reversing time 
+This is a powerful way to doing testing.  For example, if you have a time based function, you can test this by following the process here.
+
+```
+var Sut: IMyClass;
+begin
+  Sut := TMyClass.Create;  // uses the default timeprovider to start with
+  Sut.TimeProvider.ChangeTime(EncodeDate(2001, 1, 2)); change to specifc date/time
+  var OneYearOldPersonDOB := EncodeDate(2000, 1, 1);
+  
+  NewTest('One year old person should be 1 year old!'); 
+  CheckIsEqual(1, Sut.PersonsAge(OneYearOldPersonDOB));
+  
+  NewTest('In 2 years time, the person will be 3 years old');
+  Sut.TimeProvider.IncTime(2, tpYear);  // move time by 2 years.
+  CheckIsEqual(3, Sut.PersonsAge(OneYearOldPersonDOB));
+end;
+```
+
+### Keeping track of another TimeZone
+While not fully supported as yet, you can use the TimeProvider to track the time in another timezone.
+
+```
+  var MelbourneTime:ITimeProvider := TTimeProvider.create;
+  // Set up Adelaide time which is -30 minutes...
+  var AdelaideTime:ITimeProvider := TTimeProvider.create(MelbourneTime.TimeIn(-30,tpMinutes));
+  
+  ...
+  Format('TIME: Melbourne %s   Adelaide: %s', [ 
+    FormatDateTime('HH:NN:SS', MelbourneTime.Now),
+    FormatDateTime('HH:NN:SS', AdelaideTime.Now),
+	]);
+```
+

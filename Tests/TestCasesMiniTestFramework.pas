@@ -45,7 +45,7 @@ Procedure Check_That_Test_Cases_Ran_Correctly;
 begin
   NewCase('Check Test Cases Ran Correctly');
   NewTest('Has correct # of Tests (including Prep and Finalise)');
-  checkIsEqual(8, length(MiniTestCases));
+  checkIsEqual(14, length(MiniTestCases));
   NewTest('Has correct # of Errored Tests');
   checkIsTrue(TotalErroredTests = TotalErrors + 1);
   NewTest('Has correct # of Skipped Tests');
