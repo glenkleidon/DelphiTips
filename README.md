@@ -191,9 +191,10 @@ In your Class or Unit reference, pass a reference to an initialized ITimeProvide
 When testing, you can pass in alternative time providers where the time:
   + flows normally starting from a fixed date and time OR
   + is a constant time.
-Once initialized, the time provider can be paused at a specific time, restarted from another time or shifted by increments.
+  
+Once initialized, the time provider can be paused at a specific time, restarted from another time or shifted forward or backward by increments.
 
-### Initialize your povider (ideally from a DI container) 
+### Initialize your Provider (ideally from a DI container) 
 Typically you would use the TimeProvider in your application by passing it into the constructor.  For your typical application, the 
 provider will simply report the normal System time.  For your test cases, you have control over what time the class thinks
 the system time is.
@@ -247,15 +248,20 @@ This is a powerful way to doing testing.  For example, if you have a time based 
 ```
 var Sut: IMyClass;
 begin
-  Sut := TMyClass.Create;  // uses the default timeprovider to start with
-  Sut.TimeProvider.ChangeTime(EncodeDate(2001, 1, 2)); change to specifc date/time
+  // uses the default timeprovider to start with
+  Sut := TMyClass.Create(TTimeProvider.Create); 
+  
+  // Change to specifc date/time
+  Sut.TimeProvider.ChangeTime(EncodeDate(2001, 1, 2));
+  
+  // Arrange your test data
   var OneYearOldPersonDOB := EncodeDate(2000, 1, 1);
   
   NewTest('One year old person should be 1 year old!'); 
   CheckIsEqual(1, Sut.PersonsAge(OneYearOldPersonDOB));
   
   NewTest('In 2 years time, the person will be 3 years old');
-  Sut.TimeProvider.IncTime(2, tpYear);  // move time by 2 years.
+  Sut.TimeProvider.IncTime(2, tpYears);  // move time by 2 years.
   CheckIsEqual(3, Sut.PersonsAge(OneYearOldPersonDOB));
 end;
 ```
@@ -264,9 +270,10 @@ end;
 While not fully supported as yet, you can use the TimeProvider to track the time in another timezone.
 
 ```
-  var MelbourneTime:ITimeProvider := TTimeProvider.create;
+  var MelbourneTime:ITimeProvider := TTimeProvider.Create;
   // Set up Adelaide time which is -30 minutes...
-  var AdelaideTime:ITimeProvider := TTimeProvider.create(MelbourneTime.TimeIn(-30,tpMinutes));
+  var AdelaideTime:ITimeProvider := TTimeProvider.Create(
+       MelbourneTime.TimeIn(-30,tpMinutes));
   
   ...
   Format('TIME: Melbourne %s   Adelaide: %s', [ 
