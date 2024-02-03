@@ -5,8 +5,8 @@ uses
   SysUtils;
 
 type
-  TTimeProviderSpan = (tpMillisecond, tpSecond, tpMinute, tpHour, tpDay,
-      tpWeek, tpMonth, tpYear);
+  TTimeProviderSpan = (tpMilliseconds, tpSeconds, tpMinutes, tpHours, tpDays,
+      tpWeeks, tpMonths, tpYears);
 
   ITimeProvider = interface
      function Now: TDateTime;
@@ -48,7 +48,7 @@ uses DateUtils;
 
 procedure TCustomTimeProvider.ChangeTime(ANewTime: TDateTime; AFixed: Boolean);
 begin
-  FCreateTime := Now;
+  FCreateTime := SysUtils.Now;
   FOffSet :=  FCreateTime-ANewTime;
   FIsFixed := AFixed;
 end;
@@ -74,14 +74,14 @@ procedure TCustomTimeProvider.IncTime(AAmount: Integer;
   ATimeframe: TTimeProviderSpan);
 begin
    case ATimeframe of
-     tpMillisecond: ChangeTime(IncMilliSecond(self.Now, AAmount), IsFixed);
-     tpSecond: ChangeTime(IncSecond(self.Now, AAmount), IsFixed);
-     tpMinute: ChangeTime(IncMinute(self.Now, AAmount), IsFixed);
-     tpHour: ChangeTime(IncHour(self.Now, AAmount), IsFixed);
-     tpDay: ChangeTime(IncDay(self.Now, AAmount), IsFixed);
-     tpWeek: ChangeTime(IncWeek(self.Now, AAmount), IsFixed);
-     tpMonth: ChangeTime(IncMonth(self.Now, AAmount), IsFixed);
-     tpYear: ChangeTime(IncYear(self.Now, AAmount), IsFixed);
+     tpMilliseconds: ChangeTime(IncMilliSecond(self.Now, AAmount), IsFixed);
+     tpSeconds: ChangeTime(IncSecond(self.Now, AAmount), IsFixed);
+     tpMinutes: ChangeTime(IncMinute(self.Now, AAmount), IsFixed);
+     tpHours: ChangeTime(IncHour(self.Now, AAmount), IsFixed);
+     tpDays: ChangeTime(IncDay(self.Now, AAmount), IsFixed);
+     tpWeeks: ChangeTime(IncWeek(self.Now, AAmount), IsFixed);
+     tpMonths: ChangeTime(IncMonth(self.Now, AAmount), IsFixed);
+     tpYears: ChangeTime(IncYear(self.Now, AAmount), IsFixed);
    end;
 end;
 
@@ -97,14 +97,14 @@ function TCustomTimeProvider.TimeIn(AAmount: Integer;
   ATimeframe: TTimeProviderSpan): TDateTime;
 begin
    case ATimeframe of
-     tpMillisecond: result := IncMilliSecond(self.Now, AAmount);
-     tpSecond: result := IncSecond(self.Now, AAmount);
-     tpMinute: result := IncMinute(self.Now, AAmount);
-     tpHour: result := IncHour(self.Now, AAmount);
-     tpDay: result := IncDay(self.Now, AAmount);
-     tpWeek: result := IncWeek(self.Now, AAmount);
-     tpMonth: result := IncMonth(self.Now, AAmount);
-     tpYear: result := IncYear(self.Now, AAmount);
+     tpMilliseconds: result := IncMilliSecond(self.Now, AAmount);
+     tpSeconds: result := IncSecond(self.Now, AAmount);
+     tpMinutes: result := IncMinute(self.Now, AAmount);
+     tpHours: result := IncHour(self.Now, AAmount);
+     tpDays: result := IncDay(self.Now, AAmount);
+     tpWeeks: result := IncWeek(self.Now, AAmount);
+     tpMonths: result := IncMonth(self.Now, AAmount);
+     tpYears: result := IncYear(self.Now, AAmount);
    end;
 end;
 

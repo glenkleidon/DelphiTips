@@ -37,42 +37,42 @@ begin
   NewAssertion('Increase by 1 year');
   lExpected := EncodeDate(2001,1,1);
   Sut.ChangeTime(TestDate,true);
-  Sut.IncTime(1, tpYear);
+  Sut.IncTime(1, tpYears);
   CheckIsEqual(lExpected, Sut.Now);
 
   NewAssertion('Increase by 1 month');
   lExpected := EncodeDate(2001,2,1);
-  Sut.IncTime(1, tpMonth);
+  Sut.IncTime(1, tpMonths);
   CheckIsEqual(lExpected, Sut.Now);
 
   NewAssertion('Increase by 2 weeks');
   lExpected := EncodeDate(2001,2,15);
-  Sut.IncTime(2, tpWeek);
+  Sut.IncTime(2, tpWeeks);
   CheckIsEqual(lExpected, Sut.Now);
 
   NewAssertion('Increase by 3 Days');
   lExpected := EncodeDate(2001,2,18);
-  Sut.IncTime(3, tpDay);
+  Sut.IncTime(3, tpDays);
   CheckIsEqual(lExpected, Sut.Now);
 
   NewAssertion('Increase by 4 hours');
   lExpected := EncodeDate(2001,2,18) + EncodeTime(4,0,0,0);
-  Sut.IncTime(4, tpHour);
+  Sut.IncTime(4, tpHours);
   CheckIsEqual( TimeAsString(lExpected),TimeAsString(Sut.Now) );
 
   NewAssertion('Increase by 5 minutes');
   lExpected := EncodeDate(2001,2,18) + EncodeTime(4,5,0,0);
-  Sut.IncTime(5, tpMinute);
+  Sut.IncTime(5, tpMinutes);
   CheckIsEqual( TimeAsString(lExpected),TimeAsString(Sut.Now) );
 
   NewAssertion('Increase by 6 Seconds');
   lExpected := EncodeDate(2001,2,18) + EncodeTime(4,5,6,0);
-  Sut.IncTime(6, tpSecond);
+  Sut.IncTime(6, tpSeconds);
   CheckIsEqual( TimeAsString(lExpected),TimeAsString(Sut.Now) );
 
   NewAssertion('Increase by 789 MilliSeconds');
   lExpected := EncodeDate(2001,2,18) + EncodeTime(4,5,6,789);
-  Sut.IncTime(789, tpMillisecond);
+  Sut.IncTime(789, tpMilliseconds);
   CheckIsEqual( TimeAsString(lExpected),TimeAsString(Sut.Now) );
 
 end;
@@ -110,43 +110,47 @@ var
    StartTime, lExpected : TDateTime;
 begin
   StartTime := EncodeDate(2000,1,1);
+  NewAssertion('set to system');
+  Sut.ChangeTime(Now);
+  CheckIsCloseTo(SysUtils.Now, sut.Now,8);
+
 
   NewAssertion('Altered By 1 year');
   lExpected := EncodeDate(2001,1,1);
   Sut.ChangeTime(StartTime,true);
-  CheckIsEqual(lExpected, Sut.TimeIn(1, tpYear));
+  CheckIsEqual(lExpected, Sut.TimeIn(1, tpYears));
 
   NewAssertion('Altered By 1 month');
   lExpected := EncodeDate(2000,2,1);
-  CheckIsEqual(lExpected, Sut.TimeIn(1, tpMonth));
+  CheckIsEqual(lExpected, Sut.TimeIn(1, tpMonths));
 
   NewAssertion('Altered By 2 weeks');
   lExpected := EncodeDate(2000,1,15);
-  CheckIsEqual(lExpected, Sut.TimeIn(2, tpWeek));
+  CheckIsEqual(lExpected, Sut.TimeIn(2, tpWeeks));
 
   NewAssertion('Altered By 3 Days');
   lExpected := EncodeDate(2000,1,4);
-  CheckIsEqual(lExpected,  Sut.TimeIn(3, tpDay));
+  CheckIsEqual(lExpected,  Sut.TimeIn(3, tpDays));
 
   NewAssertion('Altered By 4 hours');
   lExpected := EncodeDate(2000,1,1) + EncodeTime(4,0,0,0);
   CheckIsEqual( TimeAsString(lExpected),
-   TimeAsString(Sut.TimeIn(4, tpHour)) );
+   TimeAsString(Sut.TimeIn(4, tpHours)) );
 
   NewAssertion('Altered By 5 minutes');
   lExpected := EncodeDate(2000,1,1) + EncodeTime(0,5,0,0);
   CheckIsEqual( TimeAsString(lExpected),
-   TimeAsString(Sut.TimeIn(5, tpMinute)) );
+   TimeAsString(Sut.TimeIn(5, tpMinutes)) );
 
   NewAssertion('Altered By 6 Seconds');
   lExpected := EncodeDate(2000,1,1) + EncodeTime(0,0,6,0);
   CheckIsEqual( TimeAsString(lExpected),
-   TimeAsString(Sut.TimeIn(6, tpSecond)) );
+   TimeAsString(Sut.TimeIn(6, tpSeconds)) );
 
   NewAssertion('Altered By 789 MilliSeconds');
   lExpected := EncodeDate(2000,1,1) + EncodeTime(0,0,0,789);
   CheckIsEqual( TimeAsString(lExpected),
-    TimeAsString(Sut.TimeIn(789, tpMillisecond)) );
+    TimeAsString(Sut.TimeIn(789, tpMilliseconds)) );
 end;
 
 initialization
